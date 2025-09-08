@@ -1,0 +1,10 @@
+# Node modules and build
+node_modules/
+dist/
+.next/
+
+# Environment variables
+.env
+.env.local
+.ocal
+
