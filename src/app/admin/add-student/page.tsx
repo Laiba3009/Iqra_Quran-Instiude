@@ -81,9 +81,9 @@ export default function AddStudent() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 md:px-8 py-12 space-y-8">
       {/* ✅ Back Button (Always Top Left, clear spacing) */}
-      <div className="mt-2">
+      <div className="mt-7">
         <BackButton href="/admin/dashboard" label="Back to Dashboard" />
       </div>
 

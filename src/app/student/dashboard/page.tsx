@@ -7,13 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import SyllabusHome from "../syllabus/student/syllabus/page";
 
-
 export default function StudentDashboard() {
   const [zoomLink, setZoomLink] = useState("");
   const [reason, setReason] = useState("");
   const [complaint, setComplaint] = useState("");
   const { toast } = useToast();
 
+  // Fetch Zoom link
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -83,60 +83,65 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Student Dashboard</h1>
+    <div className="space-y-6 p-4 md:p-8">
+      <h1 className="text-3xl font-bold text-green-800">Student Dashboard</h1>
 
       {/* Join & Cancel Section */}
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Class Actions</CardTitle>
+          <CardTitle className="text-lg font-semibold">Class Actions</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 md:flex-row">
-          <Button onClick={join}>Join Class</Button>
-          <div className="flex items-center gap-2 w-full">
-            <input
-              className="border p-2 rounded flex-1"
-              placeholder="Cancel reason..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-            <Button
-              className="bg-red-600 hover:bg-red-700"
-              onClick={cancel}
-            >
-              Cancel & Send
+        <CardContent>
+          <div className="flex flex-col gap-3 md:flex-row">
+            <Button onClick={join} className="w-full md:w-auto">
+              Join Class
             </Button>
+            <div className="flex items-center gap-2 w-full">
+              <input
+                className="border p-2 rounded flex-1"
+                placeholder="Cancel reason..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+              <Button
+                className="bg-red-600 hover:bg-red-700 w-full md:w-auto"
+                onClick={cancel}
+              >
+                Cancel & Send
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Complaint Section */}
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Teacher Complaint</CardTitle>
+          <CardTitle className="text-lg font-semibold">Teacher Complaint</CardTitle>
         </CardHeader>
-        <CardContent className="flex gap-2">
-          <input
-            className="border p-2 rounded w-full"
-            placeholder="Write complaint about teacher..."
-            value={complaint}
-            onChange={(e) => setComplaint(e.target.value)}
-          />
-          <Button
-            className="bg-yellow-600 hover:bg-yellow-700"
-            onClick={sendComplaint}
-          >
-            Send Complaint
-          </Button>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-2">
+            <input
+              className="border p-2 rounded flex-1"
+              placeholder="Write complaint about teacher..."
+              value={complaint}
+              onChange={(e) => setComplaint(e.target.value)}
+            />
+            <Button
+              className="bg-yellow-600 hover:bg-yellow-700 w-full md:w-auto"
+              onClick={sendComplaint}
+            >
+              Send Complaint
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
       <p className="text-sm text-gray-600">
-        Join uses latest Zoom link from Admin settings.
+        Join uses the latest Zoom link from Admin settings.
       </p>
 
       <SyllabusHome />
-     
     </div>
   );
 }
