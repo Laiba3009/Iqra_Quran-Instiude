@@ -16,7 +16,7 @@ export default function SyllabusList() {
     >
       {/* Main Title */}
       <h1 className="text-4xl font-extrabold text-green-800 mb-10 text-center tracking-wide">
-       Syllabus 📚 
+       Namaz, Dua & Kalimas
       </h1>
 
       {/* Table */}

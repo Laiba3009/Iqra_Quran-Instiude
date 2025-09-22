@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
+import BackButton from '@/components/ui/BackButton';
 
 export default function ZoomLinkPage(){
   const [link, setLink] = useState('');
@@ -22,6 +23,9 @@ export default function ZoomLinkPage(){
 
   return (
     <div className="space-y-4 max-w-xl">
+      
+            <BackButton href="/admin/dashboard" label="Back to Dashboard" />
+      
       <h1 className="text-2xl font-bold">Update Zoom Link</h1>
       <input className="border p-2 w-full rounded" placeholder="https://zoom.us/j/..." value={link} onChange={e=>setLink(e.target.value)} />
       <Button onClick={save} className="bg-purple-600 hover:bg-purple-700">Save Link</Button>

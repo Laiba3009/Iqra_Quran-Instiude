@@ -20,6 +20,8 @@ export default function LoginContent() {
   const onLogin = async () => {
     setLoading(true);
     setErrorMessage('');
+
+    // Supabase Auth Login
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
 
@@ -28,6 +30,10 @@ export default function LoginContent() {
       return;
     }
 
+    // ✅ Save role in localStorage for Navbar use
+    localStorage.setItem("userRole", role);
+
+    // ✅ Redirect based on role
     router.push(routeByRole(role));
   };
 

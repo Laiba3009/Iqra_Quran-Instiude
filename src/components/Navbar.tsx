@@ -1,13 +1,26 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 
 export default function Navbar() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const [syllabusOpen, setSyllabusOpen] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get role from localStorage (set during login)
+    const storedRole = localStorage.getItem("userRole"); 
+    setRole(storedRole);
+  }, []);
+
+  // Role-based Home link
+  let homeLink = "/";
+  if (role === "student") homeLink = "/student/dashboard";
+  else if (role === "teacher") homeLink = "/teacher/dashboard";
+  else if (role === "admin") homeLink = "/admin/dashboard";
 
   return (
     <div className="w-full border-b bg-white shadow-sm fixed top-0 left-0 z-50">
@@ -25,6 +38,7 @@ export default function Navbar() {
 
         {/* Desktop Links */}
         <div className="hidden md:flex gap-6 text-base font-medium text-gray-700 relative">
+          
           {/* Syllabus Dropdown */}
           <div className="relative group">
             <button className="hover:text-green-800">Syllabus ▾</button>
@@ -41,8 +55,9 @@ export default function Navbar() {
             </div>
           </div>
 
-          <Link href="/about" className={path === '/about' ? 'text-green-800 font-semibold' : 'hover:text-green-800'}>
-            About
+          {/* ✅ Home Button with Role-based Redirect */}
+          <Link href={homeLink} className={path === homeLink ? 'text-green-800 font-semibold' : 'hover:text-green-800'}>
+            Home
           </Link>
 
           <Link href="/contact" className={path === '/contact' ? 'text-green-800 font-semibold' : 'hover:text-green-800'}>
@@ -67,6 +82,7 @@ export default function Navbar() {
       {open && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
           <div className="fixed top-0 left-0 w-64 h-full bg-white shadow-lg p-5 flex flex-col">
+            
             {/* Close button */}
             <button
               onClick={() => setOpen(false)}
@@ -75,13 +91,13 @@ export default function Navbar() {
               <X size={28} />
             </button>
 
-            {/* Sidebar Links */}
+            {/* ✅ Role-based Home Link */}
             <Link
-              href="/login"
-              className={`mb-4 ${path === '/login' ? 'text-green-800 font-semibold' : 'hover:text-green-800'}`}
+              href={homeLink}
+              className={`mb-4 ${path === homeLink ? 'text-green-800 font-semibold' : 'hover:text-green-800'}`}
               onClick={() => setOpen(false)}
             >
-              Login
+              Home
             </Link>
 
             {/* Syllabus Accordion in Sidebar */}
@@ -108,18 +124,19 @@ export default function Navbar() {
             </div>
 
             <Link
-              href="/about"
-              className={`mb-4 ${path === '/about' ? 'text-green-800 font-semibold' : 'hover:text-green-800'}`}
-              onClick={() => setOpen(false)}
-            >
-              About
-            </Link>
-            <Link
               href="/contact"
               className={`mb-4 ${path === '/contact' ? 'text-green-800 font-semibold' : 'hover:text-green-800'}`}
               onClick={() => setOpen(false)}
             >
               Contact
+            </Link>
+
+            <Link
+              href="/login"
+              className={`mb-4 ${path === '/login' ? 'text-green-800 font-semibold' : 'hover:text-green-800'}`}
+              onClick={() => setOpen(false)}
+            >
+              Login
             </Link>
           </div>
         </div>
