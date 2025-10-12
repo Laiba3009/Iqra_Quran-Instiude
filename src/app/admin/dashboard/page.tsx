@@ -1,15 +1,29 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import SyllabusHome from '@/app/student/syllabus/student/syllabus/page';
+"use client";
 
-// ❌ Wrong: Page import
-// import SyllabusHome from '@/app/student/syllabus/student/syllabus/page';
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import SyllabusHome from "@/app/student/syllabus/student/syllabus/page";
+import StudentSearchBar from "@/components/admin/StudentSearchBar";
 
-// ✅ Instead, import from components (make a component SyllabusHome.tsx inside components/)
+// 🖼 Icons
+import {
+  Users,
+  Wallet,
+  DollarSign,
+  GraduationCap,
+  CreditCard,
+  AlertTriangle,
+} from "lucide-react";
+
+// ✅ Import your components
+import AttendanceTable from "@/components/AttendanceTable";
+import ClassesList from "@/components/ClassesList";
+import CoursesManager from "@/components/admin/CoursesManager";
+import SyllabusManager from "@/components/admin/SyllabusManager";
+
 
 export default function AdminDashboard() {
   const [totalStudents, setTotalStudents] = useState(0);
@@ -26,19 +40,19 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     // Total Students
     const { count: studentCount } = await supabase
-      .from('students')
-      .select('*', { count: 'exact', head: true });
+      .from("students")
+      .select("*", { count: "exact", head: true });
     setTotalStudents(studentCount || 0);
 
     // Fees Paid / Pending
-    const { data: students } = await supabase.from('students').select('student_fee, fee_status');
+    const { data: students } = await supabase.from("students").select("student_fee, fee_status");
     if (students) {
       const paid = students
-        .filter((s: any) => s.fee_status === 'paid')
+        .filter((s: any) => s.fee_status === "paid")
         .reduce((sum: number, s: any) => sum + Number(s.student_fee || 0), 0);
 
       const pending = students
-        .filter((s: any) => s.fee_status === 'unpaid')
+        .filter((s: any) => s.fee_status === "unpaid")
         .reduce((sum: number, s: any) => sum + Number(s.student_fee || 0), 0);
 
       setFeesPaid(paid);
@@ -47,19 +61,19 @@ export default function AdminDashboard() {
 
     // Total Teachers
     const { count: teacherCount } = await supabase
-      .from('teachers')
-      .select('*', { count: 'exact', head: true });
+      .from("teachers")
+      .select("*", { count: "exact", head: true });
     setTotalTeachers(teacherCount || 0);
 
     // Salary Paid / Pending
-    const { data: teachers } = await supabase.from('teachers').select('salary, salary_status');
+    const { data: teachers } = await supabase.from("teachers").select("salary, salary_status");
     if (teachers) {
       const paid = teachers
-        .filter((t: any) => t.salary_status === 'paid')
+        .filter((t: any) => t.salary_status === "paid")
         .reduce((sum: number, t: any) => sum + Number(t.salary || 0), 0);
 
       const pending = teachers
-        .filter((t: any) => t.salary_status === 'unpaid')
+        .filter((t: any) => t.salary_status === "unpaid")
         .reduce((sum: number, t: any) => sum + Number(t.salary || 0), 0);
 
       setSalaryPaid(paid);
@@ -69,45 +83,83 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-      
+      <h1 className="text-3xl font-bold text-center p-10">📊 Admin Dashboard</h1>
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader><CardTitle>Total Students</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{totalStudents}</p></CardContent>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Total Students */}
+        <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Total Students</CardTitle>
+            <Users className="h-8 w-8" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{totalStudents}</p>
+          </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle>Fees Paid</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">Rs {feesPaid}</p></CardContent>
+        {/* Fees Paid */}
+        <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Fees Paid</CardTitle>
+            <Wallet className="h-8 w-8" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">Rs {feesPaid}</p>
+          </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle>Fees Pending</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">Rs {feesPending}</p></CardContent>
+        {/* Fees Pending */}
+        <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Fees Pending</CardTitle>
+            <AlertTriangle className="h-8 w-8" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">Rs {feesPending}</p>
+          </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle>Total Teachers</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{totalTeachers}</p></CardContent>
+        {/* Total Teachers */}
+        <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Total Teachers</CardTitle>
+            <GraduationCap className="h-8 w-8" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{totalTeachers}</p>
+          </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle>Salary Paid</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">Rs {salaryPaid}</p></CardContent>
+        {/* Salary Paid */}
+        <Card className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Salary Paid</CardTitle>
+            <DollarSign className="h-8 w-8" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">Rs {salaryPaid}</p>
+          </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle>Salary Pending</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">Rs {salaryPending}</p></CardContent>
+        {/* Salary Pending */}
+        <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Salary Pending</CardTitle>
+            <CreditCard className="h-8 w-8" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">Rs {salaryPending}</p>
+          </CardContent>
         </Card>
       </div>
-      
+            <div>
+             </div>
+
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 justify-center">
         <Link href="/admin/add-student">
-          <Button>+ Add Student</Button>
+          <Button className="bg-blue-600 hover:bg-blue-700">+ Add Student</Button>
         </Link>
         <Link href="/admin/add-teacher">
           <Button className="bg-green-600 hover:bg-green-700">+ Add Teacher</Button>
@@ -121,14 +173,30 @@ export default function AdminDashboard() {
         <Link href="/admin/complaints">
           <Button className="bg-orange-600 hover:bg-orange-700">View Complaints</Button>
         </Link>
-      </div> 
-
-      {/* Syllabus Section */}
-      <div className="space-y-6">
-        <section>
-          <SyllabusHome />
-        </section>
       </div>
+          <StudentSearchBar />
+
+      {/* 📌 New Sections */}
+      <div className="space-y-6">
+        {/* Classes List */}
+        <section>
+          <h2 className="text-2xl font-bold text-center mb-4">📚 Classes</h2>
+          <ClassesList />
+        </section>
+
+        {/* Attendance Table */}
+        
+           <Link href="/admin/attendance">
+  <Button className="bg-indigo-600 hover:bg-indigo-700">View Attendance</Button>
+   </Link>
+
+        {/* Syllabus Section */}
+        <section>
+          <CoursesManager />
+          <SyllabusManager />
+
+        </section>
+              </div>
     </div>
   );
 }

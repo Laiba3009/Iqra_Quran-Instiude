@@ -8,6 +8,10 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const role = searchParams.get("role");
 
-  if (role === "teacher") return <TeacherSigninPage />;
+  if (role === "teacher") {
+    return <TeacherSigninPage />;
+  }
+
+  // default: show student login
   return <StudentSigninPage />;
 }
