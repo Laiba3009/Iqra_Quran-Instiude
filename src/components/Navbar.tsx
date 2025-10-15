@@ -33,35 +33,21 @@ export default function Navbar() {
             alt="Logo"
             className="h-8 w-8 object-contain"
           />
-          School Management
+          IQRA Quran Institute
         </Link>
 
         {/* Desktop Links */}
         <div className="hidden md:flex gap-6 text-base font-medium text-gray-700 relative">
           
           {/* Syllabus Dropdown */}
-          <div className="relative group">
-            <button className="hover:text-green-800">Syllabus ▾</button>
-            <div className="absolute top-8 left-0 hidden group-hover:block bg-white border rounded-lg shadow-lg py-2 w-48 z-50">
-              <Link href="/syllabus/grades" className="block px-4 py-2 hover:bg-green-100">
-                Grades Syllabus
-              </Link>
-              <Link href="/syllabus/hadiths" className="block px-4 py-2 hover:bg-green-100">
-                Hadiths
-              </Link>
-              <Link href="/syllabus/islamic-studies" className="block px-4 py-2 hover:bg-green-100">
-                Islamic Studies
-              </Link>
-            </div>
-          </div>
-
+         
           {/* ✅ Home Button with Role-based Redirect */}
           <Link href={homeLink} className={path === homeLink ? 'text-green-800 font-semibold' : 'hover:text-green-800'}>
             Home
           </Link>
 
-          <Link href="/contact" className={path === '/contact' ? 'text-green-800 font-semibold' : 'hover:text-green-800'}>
-            Contact
+          <Link href="/about" className={path === '/about' ? 'text-green-800 font-semibold' : 'hover:text-green-800'}>
+            About
           </Link>
 
           <Link href="/login" className={path === '/login' ? 'text-green-800 font-semibold' : 'hover:text-green-800'}>
@@ -100,35 +86,13 @@ export default function Navbar() {
               Home
             </Link>
 
-            {/* Syllabus Accordion in Sidebar */}
-            <div className="mb-4">
-              <button
-                onClick={() => setSyllabusOpen(!syllabusOpen)}
-                className="w-full text-left hover:text-green-800 flex justify-between items-center"
-              >
-                Syllabus ▾
-              </button>
-              {syllabusOpen && (
-                <div className="ml-4 mt-2 flex flex-col gap-2">
-                  <Link href="/syllabus/grades" onClick={() => setOpen(false)} className="hover:text-green-800">
-                    Grades Syllabus
-                  </Link>
-                  <Link href="/syllabus/hadiths" onClick={() => setOpen(false)} className="hover:text-green-800">
-                    Hadiths
-                  </Link>
-                  <Link href="/syllabus/islamic-studies" onClick={() => setOpen(false)} className="hover:text-green-800">
-                    Islamic Studies
-                  </Link>
-                </div>
-              )}
-            </div>
-
+          
             <Link
-              href="/contact"
+              href="/about"
               className={`mb-4 ${path === '/contact' ? 'text-green-800 font-semibold' : 'hover:text-green-800'}`}
               onClick={() => setOpen(false)}
             >
-              Contact
+              About
             </Link>
 
             <Link

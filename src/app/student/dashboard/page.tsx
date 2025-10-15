@@ -1,27 +1,33 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import Link from "next/link";
 
+// ----------------------------
+// 🔹 Type Definitions
+// ----------------------------
 type Student = {
   id: number;
   name: string;
   roll_no: string;
   email?: string;
-  courses?: string[];
+  teachers?: string[]; // teacher emails assigned to this student
 };
 
-type SyllabusItem = {
+type Teacher = {
   id: number;
-  course_name: string;
-  title?: string;
-  syllabus_items?: string[] | string;
+  name: string;
+  email?: string;
+  zoom_link?: string;
 };
 
-// cookie se student roll number lena
+// ----------------------------
+// 🔹 Helper: Read cookie
+// ----------------------------
 function getCookie(name: string) {
   return document.cookie.split("; ").reduce((r, v) => {
     const parts = v.split("=");
@@ -29,69 +35,114 @@ function getCookie(name: string) {
   }, "");
 }
 
+// ----------------------------
+// 🔹 Main Component
+// ----------------------------
 export default function StudentDashboard() {
   const [student, setStudent] = useState<Student | null>(null);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [reason, setReason] = useState("");
   const [complaint, setComplaint] = useState("");
-  const [syllabus, setSyllabus] = useState<SyllabusItem[]>([]);
   const { toast } = useToast();
 
-  // 🔹 Fetch logged-in student by roll_no cookie
+  // ----------------------------
+  // 🔹 Fetch Student & Teachers
+  // ----------------------------
   useEffect(() => {
-    const fetchStudent = async () => {
+    const fetchData = async () => {
       const roll = getCookie("student_roll");
       if (!roll) return;
 
-      const { data, error } = await supabase
+      // ✅ Load Student
+      const { data: studentData, error: studentErr } = await supabase
         .from("students")
-        .select("id, name, email, roll_no, courses")
+        .select("*")
         .eq("roll_no", roll)
         .maybeSingle();
 
-      if (error || !data) {
-        console.error("Error fetching student:", error);
+      if (studentErr || !studentData) {
+        console.error("Error fetching student:", studentErr);
         return;
       }
-      setStudent(data);
+      setStudent(studentData);
 
-      // Fetch syllabus only for student's selected courses
-      if (data.courses && data.courses.length > 0) {
-        const { data: syllabusRows, error: sErr } = await supabase
-          .from("syllabus")
-          .select("*")
-          .in("course_name", data.courses);
+      // ✅ Load Assigned Teachers
+      if (studentData.teachers?.length > 0) {
+        const { data: teacherData } = await supabase
+          .from("teachers")
+          .select("id, name, email, zoom_link")
+          .in("email", studentData.teachers);
 
-        if (!sErr && syllabusRows) setSyllabus(syllabusRows);
+        if (teacherData) setTeachers(teacherData);
       }
     };
 
-    fetchStudent();
+    fetchData();
   }, []);
 
-  // 🔹 Cancel class request
-  const cancel = async () => {
-    if (!reason.trim()) {
-      toast({
-        title: "Missing Reason",
-        description: "Please enter reason before sending.",
-      });
-      return;
-    }
-    const { error } = await supabase
-      .from("cancel_reasons")
-      .insert([{ student_roll: student?.roll_no || null, reason }]);
+  // ----------------------------
+  // 🔹 Join Class
+  // ----------------------------
+  const handleJoinClass = async (teacher: Teacher) => {
+    if (!student) return;
+
+    const { error } = await supabase.from("attendance").insert([
+      {
+        student_name: student.name,
+        student_roll: student.roll_no,
+        teacher_name: teacher.name,
+        joined_at: new Date().toISOString(),
+      },
+    ]);
+
     if (error) {
       toast({ title: "Error", description: error.message });
       return;
     }
+
+    toast({
+      title: "Attendance Marked ✅",
+      description: `Joining ${teacher.name}'s class...`,
+    });
+
+    if (teacher.zoom_link) {
+      window.open(teacher.zoom_link, "_blank");
+    } else {
+      toast({
+        title: "Zoom Link Missing",
+        description: "This teacher has not added a Zoom link yet.",
+      });
+    }
+  };
+
+  // ----------------------------
+  // 🔹 Cancel Request
+  // ----------------------------
+  const cancel = async () => {
+    if (!reason.trim()) {
+      toast({ title: "Missing Reason", description: "Enter a reason first." });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("cancel_reasons")
+      .insert([{ student_roll: student?.roll_no, reason }]);
+
+    if (error) {
+      toast({ title: "Error", description: error.message });
+      return;
+    }
+
     setReason("");
     toast({
       title: "Cancel Sent",
-      description: "Your class cancel reason was sent to admin.",
+      description: "Your class cancel request was sent to admin.",
     });
   };
 
-  // 🔹 Complaint system
+  // ----------------------------
+  // 🔹 Complaint
+  // ----------------------------
   const sendComplaint = async () => {
     if (!complaint.trim()) {
       toast({
@@ -100,19 +151,19 @@ export default function StudentDashboard() {
       });
       return;
     }
-    const { error } = await supabase
-      .from("complaints")
-      .insert([
-        {
-          student_roll: student?.roll_no || null,
-          teacher_name: null,
-          complaint,
-        },
-      ]);
+
+    const { error } = await supabase.from("complaints").insert([
+      {
+        student_roll: student?.roll_no,
+        complaint,
+      },
+    ]);
+
     if (error) {
       toast({ title: "Error", description: error.message });
       return;
     }
+
     setComplaint("");
     toast({
       title: "Complaint Sent",
@@ -120,6 +171,9 @@ export default function StudentDashboard() {
     });
   };
 
+  // ----------------------------
+  // 🔹 Loading State
+  // ----------------------------
   if (!student) {
     return (
       <div className="p-8 text-center">
@@ -128,22 +182,50 @@ export default function StudentDashboard() {
     );
   }
 
+  // ----------------------------
+  // 🔹 UI Layout
+  // ----------------------------
   return (
     <div className="space-y-6 mt-8 p-4 md:p-8">
-      {/* Header */}
       <h1 className="text-3xl font-bold text-green-800">
         Welcome, {student.name} (Roll No: {student.roll_no})
       </h1>
-      <p className="text-gray-600">
-        Courses: {(student.courses || []).join(", ") || "No courses assigned"}
-      </p>
 
-      {/* 🔸 Cancel Request Section */}
+      {/* ✅ Join Class */}
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">
-            Cancel Request
-          </CardTitle>
+          <CardTitle className="text-lg font-semibold">Join Class</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {teachers.length === 0 ? (
+            <p>No teachers assigned yet.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {teachers.map((teacher) => (
+                <div
+                  key={teacher.id}
+                  className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition"
+                >
+                  <h3 className="font-semibold text-green-700">
+                    👨‍🏫 {teacher.name}
+                  </h3>
+                  <Button
+                    className="mt-2 w-full bg-blue-600 hover:bg-blue-700"
+                    onClick={() => handleJoinClass(teacher)}
+                  >
+                    Join Class
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ✅ Cancel Request */}
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle>Cancel Request</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 mt-2">
@@ -160,18 +242,16 @@ export default function StudentDashboard() {
         </CardContent>
       </Card>
 
-      {/* 🔸 Complaint Section */}
+      {/* ✅ Complaint */}
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">
-            Teacher Complaint
-          </CardTitle>
+          <CardTitle>Teacher Complaint</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-2">
             <input
               className="border p-2 rounded flex-1"
-              placeholder="Write complaint about teacher..."
+              placeholder="Write complaint..."
               value={complaint}
               onChange={(e) => setComplaint(e.target.value)}
             />
@@ -185,33 +265,33 @@ export default function StudentDashboard() {
         </CardContent>
       </Card>
 
-      {/* 🔸 Syllabus Section */}
+      {/* ✅ My Syllabus (Static) */}
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">My Syllabus</CardTitle>
+          <CardTitle>My Syllabus</CardTitle>
         </CardHeader>
         <CardContent>
-          {syllabus.length === 0 ? (
-            <p>No syllabus assigned yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {syllabus.map((s) => (
-                <div
-                  key={s.id}
-                  className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition"
-                >
-                  <h3 className="font-semibold text-green-700">
-                    📘 {s.course_name} {s.title ? `- ${s.title}` : ""}
-                  </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { title: "Hadith Course", slug: "hadith" },
+              { title: "Islamic Studies", slug: "islamic-studies" },
+              { title: "Quran", slug: "quran" },
+              { title: "English", slug: "english" },
+              { title: "Urdu", slug: "urdu" },
+            ].map((s) => (
+              <Link
+                key={s.slug}
+                href={`/student/syllabus/student/syllabus/${s.slug}`}
+              >
+                <div className="border rounded-lg p-3 bg-gray-50 hover:bg-gray-100 transition cursor-pointer">
+                  <h3 className="font-semibold text-green-700">📘 {s.title}</h3>
                   <p className="text-sm text-gray-600">
-                    {Array.isArray(s.syllabus_items)
-                      ? s.syllabus_items.join(", ")
-                      : s.syllabus_items}
+                    Click to view {s.title} syllabus.
                   </p>
                 </div>
-              ))}
-            </div>
-          )}
+              </Link>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>

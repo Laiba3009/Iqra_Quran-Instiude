@@ -20,9 +20,6 @@ import {
 
 // ✅ Import your components
 import AttendanceTable from "@/components/AttendanceTable";
-import ClassesList from "@/components/ClassesList";
-import CoursesManager from "@/components/admin/CoursesManager";
-import SyllabusManager from "@/components/admin/SyllabusManager";
 
 
 export default function AdminDashboard() {
@@ -173,30 +170,21 @@ export default function AdminDashboard() {
         <Link href="/admin/complaints">
           <Button className="bg-orange-600 hover:bg-orange-700">View Complaints</Button>
         </Link>
+        <Link href="/admin/attendance">
+          <Button className="bg-pink-600 hover:bg-pink-700">View Attendance</Button>
+        </Link>
       </div>
+
           <StudentSearchBar />
 
-      {/* 📌 New Sections */}
-      <div className="space-y-6">
-        {/* Classes List */}
-        <section>
-          <h2 className="text-2xl font-bold text-center mb-4">📚 Classes</h2>
-          <ClassesList />
-        </section>
-
-        {/* Attendance Table */}
-        
-           <Link href="/admin/attendance">
-  <Button className="bg-indigo-600 hover:bg-indigo-700">View Attendance</Button>
-   </Link>
+    
 
         {/* Syllabus Section */}
         <section>
-          <CoursesManager />
-          <SyllabusManager />
+        
+          <SyllabusHome />
 
         </section>
-              </div>
     </div>
   );
 }

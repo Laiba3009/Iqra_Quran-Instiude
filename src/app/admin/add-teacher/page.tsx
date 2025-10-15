@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
@@ -11,40 +12,50 @@ export default function AddTeacher() {
     email: '',
     salary: '',
     roll_no: '',
-    courses: [] as string[],
+    zoom_link: '',
+    courses: [] as string[], // selected courses from the list
   });
+
   const [rows, setRows] = useState<any[]>([]);
   const [courseList, setCourseList] = useState<any[]>([]);
 
-  // 🔹 Load teachers & courses
+  // 🔹 Load teachers & available courses from DB
   useEffect(() => {
     loadRows();
     loadCourses();
   }, []);
 
-  // Fetch teachers list
+  // Fetch existing teachers
   const loadRows = async () => {
-    const { data } = await supabase.from('teachers').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase
+      .from('teachers')
+      .select('*')
+      .order('created_at', { ascending: false });
     setRows(data ?? []);
   };
 
-  // Fetch available courses
+  // Fetch available courses list
   const loadCourses = async () => {
     const { data } = await supabase.from('courses').select('id, name');
     setCourseList(data ?? []);
   };
 
-  // Save new teacher
+  // ✅ Save new teacher
   const save = async () => {
-    if (!form.name || !form.roll_no || form.courses.length === 0) {
-      alert('Please fill all required fields and select at least one course.');
+    if (!form.name || !form.roll_no || form.courses.length === 0 || !form.zoom_link) {
+      alert('Please fill all required fields (including Zoom Link).');
       return;
     }
 
     const payload = {
-      ...form,
+      name: form.name,
+      contact: form.contact,
+      email: form.email,
+      roll_no: form.roll_no,
+      zoom_link: form.zoom_link,
       salary: Number(form.salary || 0),
       salary_status: 'unpaid',
+      syllabus: form.courses, // ✅ rename courses → syllabus (for StudentDashboard)
     };
 
     const { error } = await supabase.from('teachers').insert([payload]);
@@ -53,22 +64,36 @@ export default function AddTeacher() {
       return;
     }
 
-    setForm({ name: '', contact: '', email: '', salary: '', roll_no: '', courses: [] });
+    setForm({
+      name: '',
+      contact: '',
+      email: '',
+      salary: '',
+      roll_no: '',
+      zoom_link: '',
+      courses: [],
+    });
+
     await loadRows();
+    alert('✅ Teacher added successfully!');
   };
 
+  // ✅ Toggle salary paid/unpaid
   const toggleSalary = async (id: string, status: string) => {
     const newStatus = status === 'paid' ? 'unpaid' : 'paid';
     await supabase.from('teachers').update({ salary_status: newStatus }).eq('id', id);
     await loadRows();
   };
 
+  // ✅ Delete a teacher
   const del = async (id: string) => {
-    await supabase.from('teachers').delete().eq('id', id);
-    await loadRows();
+    if (confirm('Are you sure you want to delete this teacher?')) {
+      await supabase.from('teachers').delete().eq('id', id);
+      await loadRows();
+    }
   };
 
-  // Toggle course selection
+  // ✅ Handle course selection toggle
   const handleCourseSelect = (courseName: string) => {
     setForm((prev) => ({
       ...prev,
@@ -78,6 +103,9 @@ export default function AddTeacher() {
     }));
   };
 
+  // ----------------------------
+  // ✅ UI
+  // ----------------------------
   return (
     <div className="max-w-5xl mx-auto mt-20 p-6 space-y-8">
       <BackButton href="/admin/dashboard" label="Back to Dashboard" />
@@ -116,6 +144,12 @@ export default function AddTeacher() {
             placeholder="Teacher Roll No"
             value={form.roll_no}
             onChange={(e) => setForm({ ...form, roll_no: e.target.value })}
+          />
+          <input
+            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            placeholder="Zoom Meeting Link"
+            value={form.zoom_link}
+            onChange={(e) => setForm({ ...form, zoom_link: e.target.value })}
           />
         </div>
 
@@ -157,6 +191,7 @@ export default function AddTeacher() {
                 <th className="p-3">Courses</th>
                 <th className="p-3">Salary</th>
                 <th className="p-3">Status</th>
+                <th className="p-3">Zoom Link</th>
                 <th className="p-3">Actions</th>
               </tr>
             </thead>
@@ -165,7 +200,11 @@ export default function AddTeacher() {
                 <tr key={r.id} className="border-t hover:bg-gray-50 transition">
                   <td className="p-3">{r.roll_no}</td>
                   <td className="p-3">{r.name}</td>
-                  <td className="p-3">{Array.isArray(r.courses) ? r.courses.join(', ') : r.courses}</td>
+                  <td className="p-3">
+                    {Array.isArray(r.syllabus)
+                      ? r.syllabus.join(', ')
+                      : r.syllabus || '—'}
+                  </td>
                   <td className="p-3">Rs {r.salary}</td>
                   <td
                     className={`p-3 font-semibold ${
@@ -173,6 +212,15 @@ export default function AddTeacher() {
                     }`}
                   >
                     {r.salary_status}
+                  </td>
+                  <td className="p-3 text-blue-600 truncate max-w-[150px]">
+                    {r.zoom_link ? (
+                      <a href={r.zoom_link} target="_blank" rel="noopener noreferrer">
+                        Join
+                      </a>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="p-3 flex flex-wrap gap-2">
                     <Button
@@ -190,7 +238,7 @@ export default function AddTeacher() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-4 text-center text-gray-500">
+                  <td colSpan={7} className="p-4 text-center text-gray-500">
                     No teachers added yet.
                   </td>
                 </tr>

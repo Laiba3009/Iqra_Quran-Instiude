@@ -2,17 +2,50 @@
 import SyllabusCard from "../../../../../components/SyllabusCard";
 
 export default function SyllabusHome() {
+  // 👇 Ye mapping yahan likhni hai
+  const syllabusRoutes: Record<string, string> = {
+    "Hadith Course": "hadith",
+    "Islamic Studies": "islamic-studies",
+    "Quran": "grades",
+    "English": "english",
+    "Urdu": "urdu",
+  };
+
   return (
     <div className="space-y-6 p-4">
-      <h1 className="text-3xl font-bold">📖Syllabus </h1>
+      <h1 className="text-3xl font-bold">📖 Syllabus</h1>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SyllabusCard href="/student/syllabus/student/syllabus/grades" title="Quran" desc="View syllabus for all grades" />
-        <SyllabusCard href="/student/syllabus/student/syllabus/islamic-studies" title="Islamic Education" desc="Imaan, Faith, Practices & A'maal" />
-         <SyllabusCard href="/" title="Quran Translation & Tafseer" desc="View syllabus" />
-         <SyllabusCard href="/" title="Urdu" desc="View syllabus" />
-         <SyllabusCard href="/" title="English" desc="View syllabus" />
+        {/* 👇 yahan href mapping ke zariye generate ho raha hai */}
+        <SyllabusCard
+          href={`/student/syllabus/student/syllabus/${syllabusRoutes["Quran"]}`}
+          title="Quran"
+          desc="View syllabus for all grades"
+        />
 
+        <SyllabusCard
+          href={`/student/syllabus/student/syllabus/${syllabusRoutes["Islamic Studies"]}`}
+          title="Islamic Education"
+          desc="Imaan, Faith, Practices & A'maal"
+        />
 
+        <SyllabusCard
+          href={`/student/syllabus/student/syllabus/${syllabusRoutes["Hadith Course"]}`}
+          title="Hadith Course"
+          desc="View syllabus"
+        />
+
+        <SyllabusCard
+          href={`/student/syllabus/student/syllabus/${syllabusRoutes["Urdu"]}`}
+          title="Urdu"
+          desc="View syllabus"
+        />
+
+        <SyllabusCard
+          href={`/student/syllabus/student/syllabus/${syllabusRoutes["English"]}`}
+          title="English"
+          desc="View syllabus"
+        />
       </div>
     </div>
   );

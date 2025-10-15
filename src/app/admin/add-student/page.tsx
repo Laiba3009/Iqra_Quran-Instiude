@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
@@ -10,17 +11,29 @@ export default function AddStudent() {
     roll_no: "",
     contact: "",
     email: "",
-    courses: [] as string[],
+    syllabus: [] as string[], // ✅ static syllabus list instead of courses
     student_fee: "",
     fee_status: "unpaid",
+    teachers: [] as string[],
   });
 
   const [rows, setRows] = useState<any[]>([]);
-  const [coursesList, setCoursesList] = useState<string[]>([]); // ✅ dynamic courses
+  const [teacherList, setTeacherList] = useState<
+    { id: string; name: string; email: string }[]
+  >([]);
+
+  // ✅ Static syllabus list (manual)
+  const syllabusList = [
+    "Quran",
+    "Islamic Studies",
+    "Quran Translation & Tafseer",
+    "Urdu",
+    "English",
+  ];
 
   useEffect(() => {
     loadRows();
-    loadCourses();
+    loadTeachers();
   }, []);
 
   // ✅ Fetch existing students
@@ -32,59 +45,69 @@ export default function AddStudent() {
     if (!error && data) setRows(data);
   };
 
-  // ✅ Fetch all unique course names from syllabus table
-  const loadCourses = async () => {
+  // ✅ Fetch teachers list
+  const loadTeachers = async () => {
     const { data, error } = await supabase
-      .from("syllabus")
-      .select("course_name");
-    if (!error && data) {
-      const uniqueCourses = Array.from(
-        new Set(data.map((d) => d.course_name))
-      );
-      setCoursesList(uniqueCourses);
-    }
+      .from("teachers")
+      .select("id, name, email");
+    if (!error && data) setTeacherList(data);
   };
 
-  const toggleCourse = (name: string) => {
+  // ✅ Toggle syllabus
+  const toggleSyllabus = (name: string) => {
     setForm((prev) => ({
       ...prev,
-      courses: prev.courses.includes(name)
-        ? prev.courses.filter((c) => c !== name)
-        : [...prev.courses, name],
+      syllabus: prev.syllabus.includes(name)
+        ? prev.syllabus.filter((c) => c !== name)
+        : [...prev.syllabus, name],
     }));
   };
 
+  // ✅ Toggle teacher
+  const toggleTeacher = (email: string) => {
+    setForm((prev) => ({
+      ...prev,
+      teachers: prev.teachers.includes(email)
+        ? prev.teachers.filter((t) => t !== email)
+        : [...prev.teachers, email],
+    }));
+  };
+
+  // ✅ Save new student
   const save = async () => {
-    if (!form.name || form.courses.length === 0) {
-      alert("Please fill all fields and select at least one course.");
+    if (!form.name || form.syllabus.length === 0) {
+      alert("Please fill all fields and select at least one syllabus.");
       return;
     }
 
-    const payload = { ...form, student_fee: Number(form.student_fee || 0) };
+    const payload = {
+      ...form,
+      student_fee: Number(form.student_fee || 0),
+    };
+
     const { error } = await supabase.from("students").insert([payload]);
     if (error) {
       alert(error.message);
       return;
     }
 
+    // ✅ Reset form
     setForm({
       name: "",
       roll_no: "",
       contact: "",
       email: "",
-      courses: [],
+      syllabus: [],
       student_fee: "",
       fee_status: "unpaid",
+      teachers: [],
     });
     await loadRows();
   };
 
   const toggleFee = async (id: string, status: string) => {
     const newStatus = status === "paid" ? "unpaid" : "paid";
-    await supabase
-      .from("students")
-      .update({ fee_status: newStatus })
-      .eq("id", id);
+    await supabase.from("students").update({ fee_status: newStatus }).eq("id", id);
     await loadRows();
   };
 
@@ -95,12 +118,12 @@ export default function AddStudent() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-12 space-y-8">
-      {/* ✅ Back Button */}
+      {/* 🔙 Back Button */}
       <div className="mt-7">
         <BackButton href="/admin/dashboard" label="Back to Dashboard" />
       </div>
 
-      {/* ✅ Add Student Form */}
+      {/* 🧾 Add Student Form */}
       <div className="bg-white rounded-2xl shadow-lg p-6 space-y-6">
         <h1 className="text-3xl font-bold text-green-800">Add Student</h1>
 
@@ -137,32 +160,54 @@ export default function AddStudent() {
           />
         </div>
 
-        {/* ✅ Dynamic Courses Selection */}
+        {/* 📚 Syllabus Selection (static) */}
         <div>
-          <h2 className="font-semibold mb-2">Select Courses</h2>
+          <h2 className="font-semibold mb-2">Select Syllabus</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {syllabusList.map((s) => (
+              <label
+                key={s}
+                className={`cursor-pointer border px-3 py-2 rounded-lg text-sm transition ${
+                  form.syllabus.includes(s)
+                    ? "bg-green-100 border-green-600"
+                    : "hover:bg-gray-50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="hidden"
+                  checked={form.syllabus.includes(s)}
+                  onChange={() => toggleSyllabus(s)}
+                />
+                {s}
+              </label>
+            ))}
+          </div>
+        </div>
 
-          {coursesList.length === 0 ? (
-            <p className="text-gray-500">No courses found in syllabus.</p>
+        {/* 👩‍🏫 Teacher Selection */}
+        <div>
+          <h2 className="font-semibold mb-2">Select Teachers</h2>
+          {teacherList.length === 0 ? (
+            <p className="text-gray-500">No teachers found.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {coursesList.map((c) => (
+              {teacherList.map((t) => (
                 <label
-                  key={c}
-                  className={`cursor-pointer border px-3 py-2 rounded-lg text-sm transition 
-                    ${
-                      form.courses.includes(c)
-                        ? "bg-green-100 border-green-600"
-                        : "hover:bg-gray-50"
-                    }
-                  `}
+                  key={t.id}
+                  className={`cursor-pointer border px-3 py-2 rounded-lg text-sm transition ${
+                    form.teachers.includes(t.email)
+                      ? "bg-green-100 border-green-600"
+                      : "hover:bg-gray-50"
+                  }`}
                 >
                   <input
                     type="checkbox"
                     className="hidden"
-                    checked={form.courses.includes(c)}
-                    onChange={() => toggleCourse(c)}
+                    checked={form.teachers.includes(t.email)}
+                    onChange={() => toggleTeacher(t.email)}
                   />
-                  {c}
+                  {t.name} ({t.email})
                 </label>
               ))}
             </div>
@@ -174,7 +219,7 @@ export default function AddStudent() {
         </Button>
       </div>
 
-      {/* ✅ Students Table */}
+      {/* 🧍‍♂️ Students Table */}
       <div className="bg-white rounded-2xl shadow-lg p-6">
         <h2 className="text-2xl font-bold mb-4">Students List</h2>
         <div className="overflow-x-auto">
@@ -184,7 +229,8 @@ export default function AddStudent() {
                 <th className="p-3">Name</th>
                 <th className="p-3">Roll</th>
                 <th className="p-3">Email</th>
-                <th className="p-3">Courses</th>
+                <th className="p-3">Syllabus</th>
+                <th className="p-3">Teachers</th>
                 <th className="p-3">Fee</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Actions</th>
@@ -192,14 +238,12 @@ export default function AddStudent() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr
-                  key={r.id}
-                  className="border-t hover:bg-gray-50 transition"
-                >
+                <tr key={r.id} className="border-t hover:bg-gray-50 transition">
                   <td className="p-3">{r.name}</td>
                   <td className="p-3">{r.roll_no}</td>
                   <td className="p-3">{r.email}</td>
-                  <td className="p-3">{r.courses?.join(", ")}</td>
+                  <td className="p-3">{r.syllabus?.join(", ")}</td>
+                  <td className="p-3">{r.teachers?.join(", ") || "—"}</td>
                   <td className="p-3">Rs {r.student_fee}</td>
                   <td
                     className={`p-3 font-medium ${
@@ -216,9 +260,7 @@ export default function AddStudent() {
                       variant="outline"
                       onClick={() => toggleFee(r.id, r.fee_status)}
                     >
-                      {r.fee_status === "paid"
-                        ? "Mark Unpaid"
-                        : "Mark Paid"}
+                      {r.fee_status === "paid" ? "Mark Unpaid" : "Mark Paid"}
                     </Button>
                     <Button
                       size="sm"
@@ -232,7 +274,7 @@ export default function AddStudent() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center text-gray-500 p-4">
+                  <td colSpan={8} className="text-center text-gray-500 p-4">
                     No students found.
                   </td>
                 </tr>
