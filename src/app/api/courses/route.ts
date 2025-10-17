@@ -3,21 +3,21 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // safety check
-if (!SUPABASE_URL || !SERVICE_KEY) {
+if (!SUPABASE_URL || !ANON_KEY) {
   throw new Error("❌ Missing Supabase environment variables on server!");
 }
 
-// always create admin client on server only
-const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY, {
+// create public client
+const supabase = createClient(SUPABASE_URL, ANON_KEY, {
   auth: { persistSession: false },
 });
 
 export async function GET() {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabase
       .from("courses")
       .select("*")
       .order("name");
@@ -33,13 +33,13 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json(); // expect { name }
+    const body = await req.json();
 
     if (!body.name) {
       return NextResponse.json({ error: "Course name required" }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabase
       .from("courses")
       .insert([{ name: body.name }])
       .select();
@@ -51,4 +51,5 @@ export async function POST(req: Request) {
     console.error("❌ Error adding course:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-}
+                  }
+      
