@@ -13,20 +13,25 @@ export default function AddTeacher() {
     salary: '',
     roll_no: '',
     zoom_link: '',
-    courses: [] as string[], // selected courses from the list
+    syllabus: [] as string[], // ✅ syllabus instead of courses
   });
 
   const [rows, setRows] = useState<any[]>([]);
-  const [courseList, setCourseList] = useState<any[]>([]);
 
-  // 🔹 Load teachers & available courses from DB
+  // ✅ Standard syllabus list (same as student form)
+  const syllabusList = [
+    'Quran',
+    'Islamic Studies',
+    'Quran Translation & Tafseer',
+    'Urdu',
+    'English',
+  ];
+
   useEffect(() => {
-    loadRows();
-    loadCourses();
+    loadTeachers();
   }, []);
 
-  // Fetch existing teachers
-  const loadRows = async () => {
+  const loadTeachers = async () => {
     const { data } = await supabase
       .from('teachers')
       .select('*')
@@ -34,16 +39,9 @@ export default function AddTeacher() {
     setRows(data ?? []);
   };
 
-  // Fetch available courses list
-  const loadCourses = async () => {
-    const { data } = await supabase.from('courses').select('id, name');
-    setCourseList(data ?? []);
-  };
-
-  // ✅ Save new teacher
   const save = async () => {
-    if (!form.name || !form.roll_no || form.courses.length === 0 || !form.zoom_link) {
-      alert('Please fill all required fields (including Zoom Link).');
+    if (!form.name || !form.roll_no || form.syllabus.length === 0 || !form.zoom_link) {
+      alert('Please fill all required fields (including Zoom Link and Syllabus).');
       return;
     }
 
@@ -55,7 +53,7 @@ export default function AddTeacher() {
       zoom_link: form.zoom_link,
       salary: Number(form.salary || 0),
       salary_status: 'unpaid',
-      syllabus: form.courses, // ✅ rename courses → syllabus (for StudentDashboard)
+      syllabus: form.syllabus,
     };
 
     const { error } = await supabase.from('teachers').insert([payload]);
@@ -71,41 +69,35 @@ export default function AddTeacher() {
       salary: '',
       roll_no: '',
       zoom_link: '',
-      courses: [],
+      syllabus: [],
     });
 
-    await loadRows();
+    await loadTeachers();
     alert('✅ Teacher added successfully!');
   };
 
-  // ✅ Toggle salary paid/unpaid
   const toggleSalary = async (id: string, status: string) => {
     const newStatus = status === 'paid' ? 'unpaid' : 'paid';
     await supabase.from('teachers').update({ salary_status: newStatus }).eq('id', id);
-    await loadRows();
+    await loadTeachers();
   };
 
-  // ✅ Delete a teacher
   const del = async (id: string) => {
     if (confirm('Are you sure you want to delete this teacher?')) {
       await supabase.from('teachers').delete().eq('id', id);
-      await loadRows();
+      await loadTeachers();
     }
   };
 
-  // ✅ Handle course selection toggle
-  const handleCourseSelect = (courseName: string) => {
+  const toggleSyllabus = (name: string) => {
     setForm((prev) => ({
       ...prev,
-      courses: prev.courses.includes(courseName)
-        ? prev.courses.filter((c) => c !== courseName)
-        : [...prev.courses, courseName],
+      syllabus: prev.syllabus.includes(name)
+        ? prev.syllabus.filter((s) => s !== name)
+        : [...prev.syllabus, name],
     }));
   };
 
-  // ----------------------------
-  // ✅ UI
-  // ----------------------------
   return (
     <div className="max-w-5xl mx-auto mt-20 p-6 space-y-8">
       <BackButton href="/admin/dashboard" label="Back to Dashboard" />
@@ -153,22 +145,22 @@ export default function AddTeacher() {
           />
         </div>
 
-        {/* Multi Course Selection */}
+        {/* ✅ Syllabus Selection */}
         <div>
-          <h3 className="font-semibold mb-2 text-gray-700">Select Courses</h3>
+          <h3 className="font-semibold mb-2 text-gray-700">Select Syllabus</h3>
           <div className="flex flex-wrap gap-2">
-            {courseList.map((course) => (
+            {syllabusList.map((s) => (
               <button
-                key={course.id}
+                key={s}
                 type="button"
-                onClick={() => handleCourseSelect(course.name)}
-                className={`px-3 py-1 rounded-full border ${
-                  form.courses.includes(course.name)
+                onClick={() => toggleSyllabus(s)}
+                className={`px-3 py-1 rounded-full border text-sm ${
+                  form.syllabus.includes(s)
                     ? 'bg-green-600 text-white border-green-600'
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-green-50'
                 }`}
               >
-                {course.name}
+                {s}
               </button>
             ))}
           </div>
@@ -188,7 +180,7 @@ export default function AddTeacher() {
               <tr className="bg-green-100 text-left">
                 <th className="p-3">Roll No</th>
                 <th className="p-3">Name</th>
-                <th className="p-3">Courses</th>
+                <th className="p-3">Syllabus</th>
                 <th className="p-3">Salary</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Zoom Link</th>

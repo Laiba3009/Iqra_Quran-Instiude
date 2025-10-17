@@ -13,8 +13,9 @@ export default function SyllabusHome() {
 
   return (
     <div className="space-y-6 p-4">
-      <h1 className="text-3xl font-bold">📖 Syllabus</h1>
-
+<h1 className="text-4xl font-bold text-center text-gray-800 mb-6">
+        Syllabus
+      </h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* 👇 yahan href mapping ke zariye generate ho raha hai */}
         <SyllabusCard

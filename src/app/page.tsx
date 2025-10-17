@@ -12,7 +12,7 @@ export default function HomePage() {
       <BannerSlider />
 
       {/* 👇 Cards Section */}
-      <section className="w-full bg-gray-50 py-16">
+      <section className="w-full bg-blue-100 py-16">
         <div className="max-w-6xl mx-auto px-6">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-gray-800">
             Welcome to the Portal

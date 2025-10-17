@@ -11,7 +11,7 @@ export default function AddStudent() {
     roll_no: "",
     contact: "",
     email: "",
-    syllabus: [] as string[], // ✅ static syllabus list instead of courses
+    syllabus: [] as string[],
     student_fee: "",
     fee_status: "unpaid",
     teachers: [] as string[],
@@ -22,7 +22,6 @@ export default function AddStudent() {
     { id: string; name: string; email: string }[]
   >([]);
 
-  // ✅ Static syllabus list (manual)
   const syllabusList = [
     "Quran",
     "Islamic Studies",
@@ -36,7 +35,6 @@ export default function AddStudent() {
     loadTeachers();
   }, []);
 
-  // ✅ Fetch existing students
   const loadRows = async () => {
     const { data, error } = await supabase
       .from("students")
@@ -45,7 +43,6 @@ export default function AddStudent() {
     if (!error && data) setRows(data);
   };
 
-  // ✅ Fetch teachers list
   const loadTeachers = async () => {
     const { data, error } = await supabase
       .from("teachers")
@@ -53,7 +50,6 @@ export default function AddStudent() {
     if (!error && data) setTeacherList(data);
   };
 
-  // ✅ Toggle syllabus
   const toggleSyllabus = (name: string) => {
     setForm((prev) => ({
       ...prev,
@@ -63,7 +59,6 @@ export default function AddStudent() {
     }));
   };
 
-  // ✅ Toggle teacher
   const toggleTeacher = (email: string) => {
     setForm((prev) => ({
       ...prev,
@@ -73,7 +68,6 @@ export default function AddStudent() {
     }));
   };
 
-  // ✅ Save new student
   const save = async () => {
     if (!form.name || form.syllabus.length === 0) {
       alert("Please fill all fields and select at least one syllabus.");
@@ -91,7 +85,6 @@ export default function AddStudent() {
       return;
     }
 
-    // ✅ Reset form
     setForm({
       name: "",
       roll_no: "",
@@ -117,52 +110,52 @@ export default function AddStudent() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-8 py-12 space-y-8">
-      {/* 🔙 Back Button */}
-      <div className="mt-7">
-        <BackButton href="/admin/dashboard" label="Back to Dashboard" />
+    <div className="bg-blue-100 min-h-screen py-12 mt-8 px-4 md:px-8 space-y-8">
+      {/* Back Button */}
+      <div>
+        <BackButton href="/admin/dashboard" label="Back" />
       </div>
 
-      {/* 🧾 Add Student Form */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 space-y-6">
+      {/* Add Student Form */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 space-y-6">
         <h1 className="text-3xl font-bold text-green-800">Add Student</h1>
 
         <div className="grid md:grid-cols-2 gap-4">
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none w-full"
             placeholder="Full Name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none w-full"
             placeholder="Roll No"
             value={form.roll_no}
             onChange={(e) => setForm({ ...form, roll_no: e.target.value })}
           />
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none w-full"
             placeholder="Contact"
             value={form.contact}
             onChange={(e) => setForm({ ...form, contact: e.target.value })}
           />
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none w-full"
             placeholder="Email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none w-full"
             placeholder="Fee"
             value={form.student_fee}
             onChange={(e) => setForm({ ...form, student_fee: e.target.value })}
           />
         </div>
 
-        {/* 📚 Syllabus Selection (static) */}
+        {/* Syllabus Selection */}
         <div>
-          <h2 className="font-semibold mb-2">Select Syllabus</h2>
+          <h2 className="font-semibold mb-2 text-gray-700">Select Syllabus</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             {syllabusList.map((s) => (
               <label
@@ -185,9 +178,9 @@ export default function AddStudent() {
           </div>
         </div>
 
-        {/* 👩‍🏫 Teacher Selection */}
+        {/* Teacher Selection */}
         <div>
-          <h2 className="font-semibold mb-2">Select Teachers</h2>
+          <h2 className="font-semibold mb-2 text-gray-700">Select Teachers</h2>
           {teacherList.length === 0 ? (
             <p className="text-gray-500">No teachers found.</p>
           ) : (
@@ -214,14 +207,17 @@ export default function AddStudent() {
           )}
         </div>
 
-        <Button onClick={save} className="w-full md:w-auto">
+        <Button
+          onClick={save}
+          className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white"
+        >
           Save Student
         </Button>
       </div>
 
-      {/* 🧍‍♂️ Students Table */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h2 className="text-2xl font-bold mb-4">Students List</h2>
+      {/* Students Table */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">Students List</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>

@@ -1,7 +1,8 @@
+"use client"
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
-export default function HomeBanner() {
+export default function BannerSlider() {
   const images = [
     'https://images.unsplash.com/photo-1501769214405-5e86c6d0a2c1?w=1600&q=80&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?w=1600&q=80&auto=format&fit=crop',
