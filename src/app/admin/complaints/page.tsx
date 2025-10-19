@@ -67,13 +67,17 @@ export default function ComplaintsList() {
     setComplaints(mapped);
   };
 
+  // ✅ Delete Complaint with confirmation before deleting
   const deleteComplaint = async (id: number) => {
+    const confirmed = window.confirm("Are you sure you want to delete this complaint?");
+    if (!confirmed) return; // agar user cancel kare to kuch nahi hoga ❌
+
     const { error } = await supabase.from("complaints").delete().eq("id", id);
     if (error) {
       toast({ title: "Error", description: error.message });
     } else {
       toast({ title: "Deleted", description: "Complaint removed successfully." });
-      setComplaints(complaints.filter((c) => c.id !== id));
+      setComplaints(complaints.filter((c) => c.id !== id)); // list se hatao ✅
     }
   };
 
@@ -89,7 +93,7 @@ export default function ComplaintsList() {
         📝 Student Complaints
       </h1>
 
-      {/* Complaints Table Card */}
+      {/* Complaints Table */}
       <Card className="w-full">
         <CardContent>
           <div className="overflow-x-auto">
@@ -100,20 +104,20 @@ export default function ComplaintsList() {
                   <th className="p-3 border">Roll No</th>
                   <th className="p-3 border">Complaint</th>
                   <th className="p-3 border">Date</th>
-                  <th className="p-3 border">Action</th>
+                  <th className="p-3 border text-center">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {complaints.length > 0 ? (
                   complaints.map((c) => (
-                    <tr key={c.id} className="border-t hover:bg-gray-50">
+                    <tr key={c.id} className="border-t hover:bg-gray-50 transition">
                       <td className="p-3 border">{c.student_name}</td>
                       <td className="p-3 border">{c.student_roll}</td>
                       <td className="p-3 border">{c.complaint}</td>
                       <td className="p-3 border">
                         {new Date(c.created_at).toLocaleDateString()}
                       </td>
-                      <td className="p-3 border">
+                      <td className="p-3 border text-center">
                         <Button
                           className="bg-red-600 hover:bg-red-700 text-white"
                           size="sm"

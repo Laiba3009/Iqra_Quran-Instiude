@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import BannerSlider from "@/components/BannerSlider";
-
+import TeacherStudents from "./TeacherStudents";
 // ----------------------------
 // 🔹 Helper: get cookie
 // ----------------------------
@@ -143,6 +143,21 @@ export default function TeacherDashboard() {
               </p>
             )}
           </div>
+          {/* =========================
+📘 Assigned Students + Progress Report
+========================= */}
+<div className="bg-gray-50 p-4 rounded-xl border mt-8">
+  <h2 className="text-xl font-semibold text-gray-700 mb-4 text-center">
+    Assigned Students
+  </h2>
+
+  {teacher && teacher.id ? (
+    <TeacherStudents teacherId={teacher.id} />
+  ) : (
+    <p className="text-gray-500 text-center">No students assigned.</p>
+  )}
+</div>
+
 
           {/* Footer Note */}
           <p className="text-sm text-gray-500 text-center mt-4">

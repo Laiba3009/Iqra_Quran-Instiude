@@ -7,18 +7,19 @@ import BackButton from '@/components/ui/BackButton';
 
 export default function AddTeacher() {
   const [form, setForm] = useState({
+    id: '', // 🆕 for editing
     name: '',
     contact: '',
     email: '',
     salary: '',
     roll_no: '',
     zoom_link: '',
-    syllabus: [] as string[], // ✅ syllabus instead of courses
+    syllabus: [] as string[],
   });
 
   const [rows, setRows] = useState<any[]>([]);
+  const [editing, setEditing] = useState(false); // 🆕 track edit mode
 
-  // ✅ Standard syllabus list (same as student form)
   const syllabusList = [
     'Quran',
     'Islamic Studies',
@@ -39,6 +40,15 @@ export default function AddTeacher() {
     setRows(data ?? []);
   };
 
+  const toggleSyllabus = (name: string) => {
+    setForm((prev) => ({
+      ...prev,
+      syllabus: prev.syllabus.includes(name)
+        ? prev.syllabus.filter((s) => s !== name)
+        : [...prev.syllabus, name],
+    }));
+  };
+
   const save = async () => {
     if (!form.name || !form.roll_no || form.syllabus.length === 0 || !form.zoom_link) {
       alert('Please fill all required fields (including Zoom Link and Syllabus).');
@@ -56,13 +66,24 @@ export default function AddTeacher() {
       syllabus: form.syllabus,
     };
 
-    const { error } = await supabase.from('teachers').insert([payload]);
-    if (error) {
-      alert(error.message);
-      return;
+    if (editing) {
+      // 🆕 update existing teacher
+      const { error } = await supabase.from('teachers').update(payload).eq('id', form.id);
+      if (error) {
+        alert(error.message);
+        return;
+      }
+    } else {
+      // insert new teacher
+      const { error } = await supabase.from('teachers').insert([payload]);
+      if (error) {
+        alert(error.message);
+        return;
+      }
     }
 
     setForm({
+      id: '',
       name: '',
       contact: '',
       email: '',
@@ -71,9 +92,9 @@ export default function AddTeacher() {
       zoom_link: '',
       syllabus: [],
     });
-
+    setEditing(false);
     await loadTeachers();
-    alert('✅ Teacher added successfully!');
+    alert(editing ? '✅ Teacher updated successfully!' : '✅ Teacher added successfully!');
   };
 
   const toggleSalary = async (id: string, status: string) => {
@@ -89,63 +110,72 @@ export default function AddTeacher() {
     }
   };
 
-  const toggleSyllabus = (name: string) => {
-    setForm((prev) => ({
-      ...prev,
-      syllabus: prev.syllabus.includes(name)
-        ? prev.syllabus.filter((s) => s !== name)
-        : [...prev.syllabus, name],
-    }));
+  // 🆕 Edit teacher
+  const editTeacher = (teacher: any) => {
+    setForm({
+      id: teacher.id,
+      name: teacher.name,
+      contact: teacher.contact,
+      email: teacher.email,
+      salary: teacher.salary,
+      roll_no: teacher.roll_no,
+      zoom_link: teacher.zoom_link,
+      syllabus: teacher.syllabus ?? [],
+    });
+    setEditing(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
     <div className="max-w-5xl mx-auto mt-20 p-6 space-y-8">
       <BackButton href="/admin/dashboard" label="Back to Dashboard" />
 
-      {/* Add Teacher Form */}
+      {/* Add/Edit Teacher Form */}
       <div className="bg-white shadow-lg rounded-2xl p-6 space-y-6">
-        <h1 className="text-3xl font-bold text-green-800">Add Teacher</h1>
+        <h1 className="text-3xl font-bold text-green-800">
+          {editing ? 'Edit Teacher' : 'Add Teacher'}
+        </h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg outline-none"
             placeholder="Full Name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg outline-none"
             placeholder="Contact"
             value={form.contact}
             onChange={(e) => setForm({ ...form, contact: e.target.value })}
           />
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg outline-none"
             placeholder="Email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg outline-none"
             placeholder="Salary"
             value={form.salary}
             onChange={(e) => setForm({ ...form, salary: e.target.value })}
           />
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg outline-none"
             placeholder="Teacher Roll No"
             value={form.roll_no}
             onChange={(e) => setForm({ ...form, roll_no: e.target.value })}
           />
           <input
-            className="border p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            className="border p-3 rounded-lg outline-none"
             placeholder="Zoom Meeting Link"
             value={form.zoom_link}
             onChange={(e) => setForm({ ...form, zoom_link: e.target.value })}
           />
         </div>
 
-        {/* ✅ Syllabus Selection */}
+        {/* Syllabus Selection */}
         <div>
           <h3 className="font-semibold mb-2 text-gray-700">Select Syllabus</h3>
           <div className="flex flex-wrap gap-2">
@@ -167,7 +197,7 @@ export default function AddTeacher() {
         </div>
 
         <Button onClick={save} className="bg-green-600 hover:bg-green-700 w-full md:w-auto">
-          Save Teacher
+          {editing ? 'Update Teacher' : 'Save Teacher'}
         </Button>
       </div>
 
@@ -192,35 +222,20 @@ export default function AddTeacher() {
                 <tr key={r.id} className="border-t hover:bg-gray-50 transition">
                   <td className="p-3">{r.roll_no}</td>
                   <td className="p-3">{r.name}</td>
-                  <td className="p-3">
-                    {Array.isArray(r.syllabus)
-                      ? r.syllabus.join(', ')
-                      : r.syllabus || '—'}
-                  </td>
+                  <td className="p-3">{Array.isArray(r.syllabus) ? r.syllabus.join(', ') : r.syllabus || '—'}</td>
                   <td className="p-3">Rs {r.salary}</td>
-                  <td
-                    className={`p-3 font-semibold ${
-                      r.salary_status === 'paid' ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
+                  <td className={`p-3 font-semibold ${r.salary_status === 'paid' ? 'text-green-600' : 'text-red-600'}`}>
                     {r.salary_status}
                   </td>
                   <td className="p-3 text-blue-600 truncate max-w-[150px]">
-                    {r.zoom_link ? (
-                      <a href={r.zoom_link} target="_blank" rel="noopener noreferrer">
-                        Join
-                      </a>
-                    ) : (
-                      '—'
-                    )}
+                    {r.zoom_link ? <a href={r.zoom_link} target="_blank" rel="noopener noreferrer">Join</a> : '—'}
                   </td>
                   <td className="p-3 flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => toggleSalary(r.id, r.salary_status)}
-                    >
+                    <Button size="sm" variant="outline" onClick={() => toggleSalary(r.id, r.salary_status)}>
                       {r.salary_status === 'paid' ? 'Mark Unpaid' : 'Mark Paid'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => editTeacher(r)}>
+                      Edit
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => del(r.id)}>
                       Delete
@@ -230,9 +245,7 @@ export default function AddTeacher() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-4 text-center text-gray-500">
-                    No teachers added yet.
-                  </td>
+                  <td colSpan={7} className="p-4 text-center text-gray-500">No teachers added yet.</td>
                 </tr>
               )}
             </tbody>
