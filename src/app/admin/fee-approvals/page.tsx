@@ -20,33 +20,35 @@ export default function AdminFeeApprovals() {
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // ---------------------------------
-  // 🔹 Load fee records
-  // ---------------------------------
   const loadFees = async () => {
     const { data, error } = await supabase
       .from("student_fees")
-      .select(
-        `id, month, status, proof_url, students(name, roll_no)`
-      )
+      .select(`id, month, status, proof_url, students(name, roll_no)`)
       .order("created_at", { ascending: false });
 
-    if (!error && data) setFees(data as FeeRecord[]);
+    if (!error && data) {
+      const mapped = data.map((item: any) => ({
+        ...item,
+        students: item.students?.[0] || { name: "—", roll_no: "—" },
+      })) as FeeRecord[];
+
+      setFees(mapped);
+    }
   };
 
   useEffect(() => {
     loadFees();
   }, []);
 
-  // ---------------------------------
-  // 🔹 Approve / Reject / Delete
-  // ---------------------------------
   const updateStatus = async (id: number, status: string) => {
     await supabase.from("student_fees").update({ status }).eq("id", id);
     await loadFees();
   };
 
   const deleteProof = async (id: number, proof_url?: string) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this proof?");
+    if (!confirmDelete) return;
+
     if (proof_url) {
       try {
         const path = proof_url.split("/fee_proofs/")[1];
@@ -57,20 +59,17 @@ export default function AdminFeeApprovals() {
         console.warn("Storage delete failed", err);
       }
     }
+
     await supabase.from("student_fees").delete().eq("id", id);
     await loadFees();
   };
 
-  // ---------------------------------
-  // 🔹 UI
-  // ---------------------------------
   return (
     <div className="p-6 md:p-10 bg-gray-50 min-h-screen">
       <h1 className="text-3xl font-bold text-green-800 mb-6">
         🧾 Fee Proof Approvals
       </h1>
 
-      {/* Image Popup Modal */}
       {selectedImage && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="relative">
@@ -89,7 +88,6 @@ export default function AdminFeeApprovals() {
         </div>
       )}
 
-      {/* Fee Records Table */}
       <div className="overflow-x-auto bg-white rounded-xl shadow-lg">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-green-100 text-left">
@@ -156,7 +154,6 @@ export default function AdminFeeApprovals() {
                     </Button>
                   )}
 
-                  
                   <Button
                     size="sm"
                     variant="outline"

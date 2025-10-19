@@ -39,7 +39,6 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
       toast({
         title: "Error",
         description: "Failed to load students.",
-        variant: "destructive",
       });
     } else {
       // Ensure student.id is string (UUID)
@@ -58,14 +57,13 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
       toast({
         title: "Empty Report ❌",
         description: "Please write something before saving.",
-        variant: "destructive",
       });
       return;
     }
 
     const { error } = await supabase.from("student_progress").insert({
       student_id: studentId, // UUID
-      teacher_id: teacherId,  // UUID
+      teacher_id: teacherId, // UUID
       report_text: text,
     });
 
@@ -74,7 +72,6 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
       toast({
         title: "Save Failed ❌",
         description: error.message || "Couldn't save progress report.",
-        variant: "destructive",
       });
     } else {
       toast({
