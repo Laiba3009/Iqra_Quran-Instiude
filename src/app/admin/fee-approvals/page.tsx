@@ -23,13 +23,29 @@ export default function AdminFeeApprovals() {
   const loadFees = async () => {
     const { data, error } = await supabase
       .from("student_fees")
-      .select(`id, month, status, proof_url, students(name, roll_no)`)
+      .select(`
+        id,
+        month,
+        status,
+        proof_url,
+        students(name, roll_no)
+      `)
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
+    if (error) {
+      console.error("Error fetching fees:", error);
+    } else if (data) {
+      // 🧠 Fix: unwrap students array safely
       const mapped = data.map((item: any) => ({
-        ...item,
-        students: item.students?.[0] || { name: "—", roll_no: "—" },
+        id: item.id,
+        month: item.month,
+        status: item.status,
+        proof_url: item.proof_url,
+        students: item.students
+          ? Array.isArray(item.students)
+            ? item.students[0] // get first student object
+            : item.students
+          : { name: "—", roll_no: "—" },
       })) as FeeRecord[];
 
       setFees(mapped);
@@ -70,6 +86,7 @@ export default function AdminFeeApprovals() {
         🧾 Fee Proof Approvals
       </h1>
 
+      {/* Image Preview Modal */}
       {selectedImage && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="relative">
@@ -88,6 +105,7 @@ export default function AdminFeeApprovals() {
         </div>
       )}
 
+      {/* Table */}
       <div className="overflow-x-auto bg-white rounded-xl shadow-lg">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-green-100 text-left">
