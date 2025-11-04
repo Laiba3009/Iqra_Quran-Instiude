@@ -1,124 +1,332 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import BackButton from '@/components/ui/BackButton';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+type Teacher = {
+  id: string;
+  name: string;
+  roll_no?: string;
+  syllabus?: string[] | null;
+  salary_status?: string | null;
+  email?: string | null;
+};
+
+type StudentLink = {
+  id: string;
+  name: string;
+  roll_no?: string;
+  teacher_fee?: number;
+  teacher_id?: string;
+};
 
 export default function TeacherList() {
-  const [teachers, setTeachers] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [studentLinks, setStudentLinks] = useState<StudentLink[]>([]); // all student_teachers joined rows
   const [loading, setLoading] = useState(false);
 
+  // Filters / Search
+  const [search, setSearch] = useState('');
+  const [filterSyllabus, setFilterSyllabus] = useState('all');
+  const [filterSalary, setFilterSalary] = useState<'all' | 'paid' | 'unpaid'>('all');
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTeacherId, setModalTeacherId] = useState<string | null>(null);
+
   useEffect(() => {
-    loadTeachers();
+    loadAll();
   }, []);
 
-  const loadTeachers = async () => {
+  const loadAll = async () => {
     setLoading(true);
+    try {
+      // fetch teachers
+      const { data: tData, error: tErr } = await supabase
+        .from('teachers')
+        .select('id, name, roll_no, syllabus, salary_status, email')
+        .order('created_at', { ascending: false });
 
-    const { data: teacherData, error: teacherError } = await supabase
-      .from('teachers')
-      .select('*')
-      .order('created_at', { ascending: false });
+      if (tErr) throw tErr;
 
-    if (teacherError) {
-      alert(teacherError.message);
+      // fetch all student_teachers with student info (joined)
+      // selecting students(...) requires PostgREST relationship named 'students' set up by supabase
+      const { data: stLinks, error: stErr } = await supabase
+        .from('student_teachers')
+        .select('teacher_id, teacher_fee, students(id, name, roll_no)')
+        .order('id', { ascending: true });
+
+      if (stErr) throw stErr;
+
+      // normalize studentLinks to easier shape
+      const normalized: StudentLink[] =
+        stLinks?.map((s: any) => ({
+          id: s.students?.id,
+          name: s.students?.name,
+          roll_no: s.students?.roll_no,
+          teacher_fee: s.teacher_fee,
+          teacher_id: s.teacher_id,
+        })) ?? [];
+
+      setTeachers(tData ?? []);
+      setStudentLinks(normalized);
+    } catch (err: any) {
+      console.error('Load error', err);
+      alert(err.message || 'Error loading data');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const teachersWithStudents = await Promise.all(
-      (teacherData ?? []).map(async (t: any) => {
-        const { data: students } = await supabase
-          .from('students')
-          .select('id, name, roll_no')
-          .contains('teachers', [t.email]); // Assigned teachers by email
-        return { ...t, students: students ?? [] };
-      })
-    );
-
-    setTeachers(teachersWithStudents);
-    setLoading(false);
   };
 
-  const toggleSalary = async (id: string, status: string) => {
+  // Derived: list of syllabus options from teachers
+  const syllabusOptions = useMemo(() => {
+    const setS = new Set<string>();
+    teachers.forEach((t) => {
+      if (Array.isArray(t.syllabus)) t.syllabus.forEach((s) => setS.add(s));
+    });
+    return ['all', ...Array.from(setS)];
+  }, [teachers]);
+
+  // Helper: for a given teacher id, get assigned students and total fee
+  const getAssignedForTeacher = (teacherId: string) => {
+    const assigned = studentLinks.filter((s) => s.teacher_id === teacherId);
+    const totalFee = assigned.reduce((sum, s) => sum + Number(s.teacher_fee || 0), 0);
+    return { assigned, totalFee };
+  };
+
+  // Filtered & searched teachers
+  const visibleTeachers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+
+    return (teachers ?? []).filter((t) => {
+      // syllabus filter
+      if (filterSyllabus !== 'all') {
+        const has = Array.isArray(t.syllabus) && t.syllabus.includes(filterSyllabus);
+        if (!has) return false;
+      }
+
+      // salary filter
+      if (filterSalary !== 'all') {
+        if ((t.salary_status ?? 'unpaid') !== filterSalary) return false;
+      }
+
+      // search by teacher name OR student roll no (we allow searching student rolls too)
+      if (!q) return true;
+
+      // teacher name match
+      if ((t.name ?? '').toLowerCase().includes(q)) return true;
+
+      // student roll match: if any assigned student roll matches query
+      const hasStudentRoll = studentLinks.some(
+        (s) => s.teacher_id === t.id && String(s.roll_no || '').toLowerCase().includes(q)
+      );
+      if (hasStudentRoll) return true;
+
+      return false;
+    });
+  }, [teachers, studentLinks, search, filterSyllabus, filterSalary]);
+
+  // Toggle modal for a teacher
+  const openModalFor = (teacherId: string) => {
+    setModalTeacherId(teacherId);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalTeacherId(null);
+  };
+
+  // Toggle salary status (paid/unpaid)
+  const toggleSalary = async (id: string, status: string | undefined) => {
     const newStatus = status === 'paid' ? 'unpaid' : 'paid';
     await supabase.from('teachers').update({ salary_status: newStatus }).eq('id', id);
-    await loadTeachers();
+    await loadAll();
   };
 
+  // Delete teacher and related student_teachers mappings
   const delTeacher = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this teacher?')) return;
+    if (!confirm('Delete teacher and related mappings?')) return;
+    await supabase.from('student_teachers').delete().eq('teacher_id', id);
     await supabase.from('teachers').delete().eq('id', id);
-    await loadTeachers();
+    await loadAll();
   };
 
-  const calculateSalary = (teacher: any) => {
-    const studentsCount = teacher.students?.length || 0;
-    return (Number(teacher.salary || 0) * studentsCount); // Salary multiplied by students
+  // PDF export for modal (assigned students of a teacher)
+  const downloadAssignedPDF = (teacherId: string) => {
+    const teacher = teachers.find((t) => t.id === teacherId);
+    if (!teacher) return alert('Teacher not found');
+
+    const { assigned, totalFee } = getAssignedForTeacher(teacherId);
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(`Assigned Students — ${teacher.name}`, 14, 18);
+    doc.setFontSize(11);
+    doc.text(`Total Students: ${assigned.length}`, 14, 26);
+    doc.text(`Total Fee: Rs ${totalFee}`, 14, 32);
+
+    const table = assigned.map((s, i) => [i + 1, s.name || '—', s.roll_no || '—', `Rs ${s.teacher_fee || 0}`]);
+
+    autoTable(doc, {
+      head: [['#', 'Student Name', 'Roll No', 'Teacher Fee']],
+      body: table,
+      startY: 40,
+      styles: { fontSize: 10, cellPadding: 3 },
+    });
+
+    doc.save(`AssignedStudents_${teacher.name.replace(/\s+/g, '_')}.pdf`);
   };
 
   return (
-    <div className="max-w-6xl mx-auto mt-20 p-6 space-y-8">
+    <div className="max-w-7xl mx-auto mt-8 p-6 space-y-6">
       <BackButton href="/admin/dashboard" label="Back to Dashboard" />
       <h1 className="text-3xl font-bold text-green-800">Teacher List</h1>
 
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <div className="overflow-x-auto">
+      {/* Filters / Search */}
+      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+        <div className="flex gap-2 w-full md:w-auto">
+          <input
+            placeholder="Search teacher name or student roll..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border p-2 rounded w-full md:w-80"
+          />
+          <select
+            value={filterSalary}
+            onChange={(e) => setFilterSalary(e.target.value as any)}
+            className="border p-2 rounded"
+          >
+            <option value="all">All Status</option>
+            <option value="paid">Paid</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+          <select
+            value={filterSyllabus}
+            onChange={(e) => setFilterSyllabus(e.target.value)}
+            className="border p-2 rounded"
+          >
+            {syllabusOptions.map((s) => (
+              <option key={s} value={s}>
+                {s === 'all' ? 'All Subjects' : s}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              setSearch('');
+              setFilterSyllabus('all');
+              setFilterSalary('all');
+            }}
+            className="bg-gray-200 text-black"
+          >
+            Clear Filters
+          </Button>
+          <Button onClick={() => loadAll()} className="bg-blue-600">Refresh</Button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded shadow overflow-x-auto">
+        {loading ? (
+          <div className="p-6">Loading...</div>
+        ) : (
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-green-100">
-                <th className="p-3">Roll No</th>
                 <th className="p-3">Name</th>
                 <th className="p-3">Syllabus</th>
-                <th className="p-3">Salary</th>
+                <th className="p-3">Total Teacher Fee</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Assigned Students</th>
                 <th className="p-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {teachers.map((t) => (
-                <tr key={t.id} className="border-t hover:bg-gray-50 transition">
-                  <td className="p-3">{t.roll_no}</td>
-                  <td className="p-3">{t.name}</td>
-                  <td className="p-3">{Array.isArray(t.syllabus) ? t.syllabus.join(', ') : t.syllabus || '—'}</td>
-                  <td className="p-3">Rs {calculateSalary(t)}</td>
-                  <td className={`p-3 font-semibold ${t.salary_status === 'paid' ? 'text-green-600' : 'text-red-600'}`}>
-                    {t.salary_status}
-                  </td>
-                  <td className="p-3">
-                    {t.students && t.students.length > 0 ? (
-                      <ul className="list-disc pl-5">
-                        {t.students.map((s: any) => (
-                          <li key={s.id}>{s.name} ({s.roll_no})</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      'No students'
-                    )}
-                  </td>
-                  <td className="p-3 flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={() => toggleSalary(t.id, t.salary_status)}>
-                      {t.salary_status === 'paid' ? 'Mark Unpaid' : 'Mark Paid'}
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => delTeacher(t.id)}>
-                      Delete
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-              {teachers.length === 0 && (
+              {visibleTeachers.map((t) => {
+                const { assigned, totalFee } = getAssignedForTeacher(t.id);
+                return (
+                  <tr key={t.id} className="border-t hover:bg-gray-50">
+                    <td className="p-3 font-medium">{t.name}</td>
+                    <td className="p-3">
+                      {Array.isArray(t.syllabus) ? t.syllabus.join(', ') : t.syllabus || '—'}
+                    </td>
+                    <td className="p-3 text-purple-600 font-semibold">Rs {totalFee}</td>
+                    <td className={`p-3 ${t.salary_status === 'paid' ? 'text-green-600' : 'text-red-600'}`}>
+                      {t.salary_status ?? 'unpaid'}
+                    </td>
+
+                    <td className="p-3">
+                      <Button size="sm" variant="outline" onClick={() => openModalFor(t.id)}>
+                        View Assigned Students ({assigned.length})
+                      </Button>
+                    </td>
+
+                    <td className="p-3 flex gap-2 flex-wrap">
+                      <Button size="sm" variant="outline" onClick={() => toggleSalary(t.id, t.salary_status)}>
+                        {t.salary_status === 'paid' ? 'Mark Unpaid' : 'Mark Paid'}
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => delTeacher(t.id)}>
+                        Delete
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {visibleTeachers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-4 text-center text-gray-500">
-                    No teachers found.
-                  </td>
+                  <td colSpan={6} className="p-6 text-center text-gray-500">No teachers found.</td>
                 </tr>
               )}
             </tbody>
           </table>
+        )}
+      </div>
+
+      {/* Modal - Assigned students */}
+      {modalOpen && modalTeacherId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white w-full max-w-2xl rounded-lg shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div>
+                <h3 className="text-lg font-semibold">
+                  Assigned Students — {teachers.find((x) => x.id === modalTeacherId)?.name}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {getAssignedForTeacher(modalTeacherId).assigned.length} students • Total Fee Rs {getAssignedForTeacher(modalTeacherId).totalFee}
+                </p>
+              </div>
+              <div className="flex gap-2 items-center">
+                <Button onClick={() => downloadAssignedPDF(modalTeacherId)} className="bg-indigo-600">Download PDF</Button>
+                <Button onClick={closeModal} className="bg-gray-200 text-black">Close</Button>
+              </div>
+            </div>
+
+            <div className="p-4 max-h-[60vh] overflow-auto">
+              {getAssignedForTeacher(modalTeacherId).assigned.length > 0 ? (
+                <ul className="space-y-2">
+                  {getAssignedForTeacher(modalTeacherId).assigned.map((s) => (
+                    <li key={s.id} className="p-3 border rounded-md flex justify-between items-center">
+                      <div>
+                        <div className="font-medium">{s.name}</div>
+                        <div className="text-sm text-gray-500">Roll: {s.roll_no || '—'}</div>
+                      </div>
+                      <div className="font-medium">Rs {s.teacher_fee || 0}</div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500">No assigned students.</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

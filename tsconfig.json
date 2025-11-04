@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
     "ignoreDeprecations": "6.0",
+     "typeRoots": ["./node_modules/@types", "./src/types"],
+
     "target": "ES2020",
     "lib": [
       "dom",
