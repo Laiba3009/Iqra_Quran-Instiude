@@ -3,16 +3,16 @@
 import * as React from "react";
 import { Toast, ToastProvider, ToastViewport } from "@/components/ui/toast";
 
-export type ToastOptions = {
+export type ToastPayload = {
   title?: string;
   description?: string;
   // optional variant in future if you want different styles
 };
 
-type InternalToast = ToastOptions & { id: number };
+type InternalToast = ToastPayload & { id: number };
 
 const ToastContext = React.createContext<{
-  toast: (opts: ToastOptions) => void;
+  toast: (opts: ToastPayload) => void;
 } | null>(null);
 
 export function useToast() {
@@ -32,7 +32,7 @@ export function useToast() {
 export function Toaster({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<InternalToast[]>([]);
 
-  const addToast = (opts: ToastOptions) => {
+  const addToast = (opts: ToastPayload) => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
     setToasts((prev) => [...prev, { ...opts, id }]);
 

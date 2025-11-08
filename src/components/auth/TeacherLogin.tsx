@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 
-// ✅ Fixed credentials (from .env)
+// Fixed credentials
 const FIXED_TEACHER_EMAIL =
   process.env.NEXT_PUBLIC_FIXED_TEACHER_EMAIL || "teacher@quran.com";
 const FIXED_TEACHER_PASSWORD =
@@ -22,16 +22,13 @@ export default function TeacherSigninPage() {
     e.preventDefault();
     setErrorMsg("");
 
-    // ✅ Step 1: check fixed credentials
-    if (
-      email.trim() !== FIXED_TEACHER_EMAIL ||
-      password.trim() !== FIXED_TEACHER_PASSWORD
-    ) {
+    // Step 1: Check fixed credentials
+    if (email.trim() !== FIXED_TEACHER_EMAIL || password.trim() !== FIXED_TEACHER_PASSWORD) {
       setErrorMsg("Invalid email or password");
       return;
     }
 
-    // ✅ Step 2: check if roll number exists in Supabase
+    // Step 2: Verify roll number exists
     const { data: teacher, error } = await supabase
       .from("teachers")
       .select("*")
@@ -49,11 +46,12 @@ export default function TeacherSigninPage() {
       return;
     }
 
-    // ✅ Step 3: Save session cookies
+    // Step 3: Save cookies + localStorage for sidebar
     document.cookie = `portal_role=teacher; path=/; max-age=86400;`;
     document.cookie = `teacher_roll=${rollNo}; path=/; max-age=86400;`;
+    localStorage.setItem("userRole", "teacher"); // ✅ Add this
 
-    // ✅ Step 4: Redirect
+    // Step 4: Redirect
     router.push("/teacher/dashboard");
   };
 
@@ -67,7 +65,6 @@ export default function TeacherSigninPage() {
           Teacher Login
         </h1>
 
-        {/* Email */}
         <label className="block text-gray-700 mb-2 font-medium">Email</label>
         <input
           type="email"
@@ -77,7 +74,6 @@ export default function TeacherSigninPage() {
           className="w-full p-3 mb-4 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
 
-        {/* Password */}
         <label className="block text-gray-700 mb-2 font-medium">Password</label>
         <input
           type="password"
@@ -87,10 +83,7 @@ export default function TeacherSigninPage() {
           className="w-full p-3 mb-4 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
 
-        {/* Roll Number */}
-        <label className="block text-gray-700 mb-2 font-medium">
-          Roll Number
-        </label>
+        <label className="block text-gray-700 mb-2 font-medium">Roll Number</label>
         <input
           type="text"
           value={rollNo}

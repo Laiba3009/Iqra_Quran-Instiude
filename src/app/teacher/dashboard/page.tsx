@@ -1,15 +1,16 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import Link from "next/link";
+import TeacherStudents from "@/components/TeacherStudent";
 import BannerSlider from "@/components/BannerSlider";
-import TeacherStudents from "./TeacherStudents";
+import Layout from "@/components/Layout";
+import { Link } from "lucide-react";
 // ----------------------------
-// 🔹 Helper: get cookie
+// 🔹 Helper: Get Cookie
 // ----------------------------
 function getCookie(name: string) {
   return document.cookie.split("; ").reduce((r, v) => {
@@ -18,28 +19,74 @@ function getCookie(name: string) {
   }, "");
 }
 
+// ----------------------------j
+// 🔹 Notice Board Component
 // ----------------------------
-// 🔹 Main Component
+function NoticeBoard() {
+  const [notices, setNotices] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadNotices();
+  }, []);
+
+  const loadNotices = async () => {
+    const { data, error } = await supabase
+      .from("notices")
+      .select("*")
+      .contains("visible_to", ["teacher"])
+      .eq("deleted", false)
+      .order("created_at", { ascending: false });
+
+    if (!error) setNotices(data || []);
+  };
+
+  return (
+    <Card className="bg-yellow-50 border border-yellow-200 shadow">
+      <CardHeader>
+        <CardTitle className="text-lg font-bold text-yellow-800">📢 Notice Board</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {notices.length === 0 ? (
+          <p className="text-gray-500 text-center">No new notices.</p>
+        ) : (
+          <ul className="space-y-3">
+            {notices.map((n) => (
+              <li key={n.id} className="bg-white border rounded p-3 shadow-sm">
+                <h3 className="font-semibold text-green-700">{n.title}</h3>
+                <p className="text-gray-700">{n.message}</p>
+                <span className="text-xs text-gray-400">
+                  {new Date(n.created_at).toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ----------------------------
+// 🔹 Main Teacher Dashboard
 // ----------------------------
 export default function TeacherDashboard() {
   const [teacher, setTeacher] = useState<any>(null);
   const [zoomLink, setZoomLink] = useState("");
   const { toast } = useToast();
 
-  // ----------------------------
-  // 🔹 Load teacher info
-  // ----------------------------
   useEffect(() => {
     const roll = getCookie("teacher_roll");
     if (roll) loadTeacher(roll);
   }, []);
 
   const loadTeacher = async (rollNo: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("teachers")
       .select("*")
       .eq("roll_no", rollNo)
       .maybeSingle();
+
+    if (error || !data) return;
 
     setTeacher(data);
 
@@ -52,52 +99,34 @@ export default function TeacherDashboard() {
     setZoomLink(settings?.current_zoom_link || data?.zoom_link || "");
   };
 
-  // ----------------------------
-  // 🔹 Reminder Stub
-  // ----------------------------
-  const sendReminder = async () => {
+  const sendReminder = () => {
     toast({
       title: "Reminder Sent 📩",
-      description: "Configured reminder system will send this shortly.",
+      description: "Students will be reminded via configured system.",
     });
   };
 
-  if (!teacher)
-    return (
-      <div className="p-8 text-center text-gray-700 font-medium">
-        Loading teacher info...
-      </div>
-    );
+  if (!teacher) return <p className="text-center text-gray-500 mt-10">Loading teacher info...</p>;
 
-  // ----------------------------
-  // 🔹 UI Layout
-  // ----------------------------
   return (
-    <div className="space-y-8 mt-8 px-4 md:px-12">
-      {/* Banner */}
-      <BannerSlider />
+    <Layout>
+      <div className="p-6 space-y-10">
+        <BannerSlider />
 
-      {/* Welcome */}
-      <h1 className="text-3xl md:text-4xl font-bold text-center text-green-800">
-        Welcome, {teacher.name}
-      </h1>
-
-      {/* Main Card Section */}
-      <Card className="shadow-xl border border-gray-200 bg-white">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-center text-purple-700 mb-6">
-          Teacher Dashboard
+        <h1 className="text-3xl font-bold text-center text-green-800">
+          Welcome, {teacher.name}
         </h1>
 
-        <CardContent className="space-y-6">
-          {/* Zoom + Reminder */}
-          <div className="flex flex-wrap justify-center gap-3 mb-4">
+        <NoticeBoard />
+
+        {/* Zoom Controls */}
+        <Card className="shadow-lg border bg-white">
+          <CardContent className="flex flex-wrap justify-center gap-3 p-4">
             <a
               href={zoomLink || "#"}
               target="_blank"
               className={`px-5 py-2 rounded-lg text-white font-medium ${
-                zoomLink
-                  ? "bg-blue-600 hover:bg-blue-700"
-                  : "bg-gray-400 cursor-not-allowed"
+                zoomLink ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-400 cursor-not-allowed"
               }`}
             >
               Join Zoom Class
@@ -109,62 +138,57 @@ export default function TeacherDashboard() {
             >
               Send Reminder
             </Button>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Assigned Syllabus */}
-          <div className="bg-gray-50 p-4 rounded-xl border">
-            <h2 className="text-xl font-semibold text-gray-700 mb-3 text-center">
+        {/* Assigned Syllabus */}
+        <Card className="bg-gray-50 border shadow">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-center text-gray-700">
               Assigned Syllabus
-            </h2>
-
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             {teacher.syllabus?.length ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {teacher.syllabus.map((subject: string, i: number) => (
                   <Link
                     key={i}
-                    href={`/teacher/syllabus/${subject
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")}`}
+                    href={`/teacher/syllabus/${subject.toLowerCase().replace(/\s+/g, "-")}`}
                   >
-                    <div className="p-4 border rounded-lg bg-white hover:bg-green-50 cursor-pointer transition shadow-sm hover:shadow-md">
-                      <h3 className="font-semibold text-green-700 text-lg">
-                        📘 {subject}
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Click to view {subject} syllabus.
-                      </p>
+                    <div className="p-4 border rounded-lg bg-white hover:bg-green-50 shadow-sm hover:shadow-md transition cursor-pointer">
+                      <h3 className="font-semibold text-green-700 text-lg">📘 {subject}</h3>
+                      <p className="text-sm text-gray-600 mt-1">Click to view {subject} syllabus.</p>
                     </div>
                   </Link>
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center">
-                No syllabus assigned yet.
-              </p>
+              <p className="text-gray-500 text-center">No syllabus assigned yet.</p>
             )}
-          </div>
-          {/* =========================
-📘 Assigned Students + Progress Report
-========================= */}
-<div className="bg-gray-50 p-4 rounded-xl border mt-8">
-  <h2 className="text-xl font-semibold text-gray-700 mb-4 text-center">
-    Assigned Students
-  </h2>
+          </CardContent>
+        </Card>
 
-  {teacher && teacher.id ? (
-    <TeacherStudents teacherId={teacher.id} />
-  ) : (
-    <p className="text-gray-500 text-center">No students assigned.</p>
-  )}
-</div>
+        {/* Assigned Students */}
+        <Card className="border shadow bg-white">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-center text-gray-700">
+              🧑‍🎓 Assigned Students & Daily Progress
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {teacher.id ? (
+              <TeacherStudents teacherId={teacher.id} />
+            ) : (
+              <p className="text-center text-gray-500">No students assigned.</p>
+            )}
+          </CardContent>
+        </Card>
 
-
-          {/* Footer Note */}
-          <p className="text-sm text-gray-500 text-center mt-4">
-            Zoom link and syllabus are managed by Admin.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+        <p className="text-sm text-gray-400 text-center">
+          Zoom link and syllabus are managed by Admin.
+        </p>
+      </div>
+    </Layout>
   );
 }

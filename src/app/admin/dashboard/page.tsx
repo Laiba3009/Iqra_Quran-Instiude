@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+
 import Link from "next/link";
 import SyllabusHome from "@/app/student/syllabus/student/syllabus/page";
+import SendNotice from "../send-notice/page";
+
 import StudentSearchBar from "@/components/admin/StudentSearchBar";
 import {
   Users,
@@ -16,6 +19,7 @@ import {
   Banknote,
   CreditCard,
 } from "lucide-react";
+import Layout from "@/components/Layout";
 
 export default function AdminDashboard() {
   const [totalStudents, setTotalStudents] = useState(0);
@@ -89,6 +93,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-10 bg-gray-50 p-6 md:p-10">
+      <Layout>
+        <h1 className="text-2xl font-bold">Welcome Admin Dashboard</h1>
+
+      </Layout>
       <h1 className="text-3xl md:text-4xl font-bold text-center text-gray-800">
         📊 Admin Dashboard
       </h1>
@@ -198,8 +206,15 @@ export default function AdminDashboard() {
         </Link>
         <Link href="/admin/teacher-list">
           <Button className="bg-purple-600 hover:bg-purple-700">Teacher List</Button>
+        </Link><Link href="/admin/teacher-leave-request">
+          <Button className="bg-blue-800 hover:bg-blue-700">Teacher Leave Request </Button>
         </Link>
       </div>
+      {/* Notice Board Section */}
+<section className="mt-10">
+  <SendNotice userRole="admin" />
+</section>
+
 
       <StudentSearchBar />
 

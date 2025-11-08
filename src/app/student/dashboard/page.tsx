@@ -9,6 +9,45 @@ import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import BannerSlider from "@/components/BannerSlider";
 
+// 🔹 Notice Board (Read-only)
+function NoticeComponent({ userRole }: { userRole: "student" | "teacher" }) {
+  const [notices, setNotices] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadNotices();
+  }, []);
+
+  const loadNotices = async () => {
+    const { data, error } = await supabase
+  .from("notices")
+  .select("*")
+  .contains("visible_to", [userRole])
+  .eq("deleted", false) // ✅ only show active notices
+  .order("created_at", { ascending: false });
+
+
+  return (
+    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow mt-4">
+      <h2 className="text-lg font-bold text-yellow-800 mb-2">📢 Notice Board</h2>
+      {notices.length === 0 ? (
+        <p className="text-gray-500">No new notices yet.</p>
+      ) : (
+        <ul className="space-y-3">
+          {notices.map((n) => (
+            <li key={n.id} className="bg-white shadow-sm border p-3 rounded">
+              <h3 className="font-semibold text-green-700">{n.title}</h3>
+              <p className="text-gray-700">{n.message}</p>
+              <span className="text-xs text-gray-400">
+                {new Date(n.created_at).toLocaleString()}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 type Student = {
   id: number;
   name: string;
@@ -39,9 +78,7 @@ export default function StudentDashboard() {
   const [feeStatus, setFeeStatus] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // ----------------------------
-  // 🔹 Fetch Student & Fee Status
-  // ----------------------------
+  // 🧩 Load student data
   useEffect(() => {
     const fetchData = async () => {
       const roll = getCookie("student_roll");
@@ -56,17 +93,16 @@ export default function StudentDashboard() {
       if (studentErr || !studentData) return setStudent(null);
       setStudent(studentData);
 
-      // Fetch teacher list
+      // Fetch teachers
       if (studentData.teachers?.length > 0) {
         const { data: teacherData } = await supabase
           .from("teachers")
           .select("id, name, email, zoom_link")
           .in("email", studentData.teachers);
-
         if (teacherData) setTeachers(teacherData);
       }
 
-      // Fetch current month fee status
+      // Fee status
       const month = new Date().toISOString().slice(0, 7);
       const { data: feeData } = await supabase
         .from("student_fees")
@@ -74,16 +110,13 @@ export default function StudentDashboard() {
         .eq("student_id", studentData.id)
         .eq("month", month)
         .maybeSingle();
-
       if (feeData) setFeeStatus(feeData.status);
     };
 
     fetchData();
   }, []);
 
-  // ----------------------------
-  // 🔹 Handle Upload Fee Proof
-  // ----------------------------
+  // 🧾 Upload Fee Proof
   const handleUploadProof = async () => {
     if (!student) return;
     const fileInput = document.createElement("input");
@@ -129,9 +162,7 @@ export default function StudentDashboard() {
     fileInput.click();
   };
 
-  // ----------------------------
-  // 🔹 Join Class
-  // ----------------------------
+  // 🧑‍🏫 Join Class
   const handleJoinClass = async (teacher: Teacher) => {
     if (!student) return;
     const { error } = await supabase.from("attendance").insert([
@@ -153,9 +184,7 @@ export default function StudentDashboard() {
     else toast({ title: "Zoom Link Missing", description: "This teacher has not added a Zoom link yet." });
   };
 
-  // ----------------------------
-  // 🔹 Cancel Request
-  // ----------------------------
+  // ❌ Cancel Request
   const cancel = async () => {
     if (!reason.trim())
       return toast({
@@ -173,9 +202,7 @@ export default function StudentDashboard() {
     });
   };
 
-  // ----------------------------
-  // 🔹 Complaint
-  // ----------------------------
+  // 😠 Complaint
   const sendComplaint = async () => {
     if (!complaint.trim())
       return toast({
@@ -193,60 +220,46 @@ export default function StudentDashboard() {
     });
   };
 
-  // ----------------------------
-  // 🔹 UI Layout
-  // ----------------------------
+  // 🧩 UI
   if (!student)
-    return (
-      <div className="p-8 text-center text-gray-700 font-medium">
-        Loading student info...
-      </div>
-    );
+    return <div className="p-8 text-center text-gray-700 font-medium">Loading student info...</div>;
 
   return (
     <div className="space-y-8 mt-8 px-4 md:px-12">
-      {/* Banner */}
-      <div className="relative">
-        <BannerSlider />
+      <BannerSlider />
 
-        
-      </div>
-
-      {/* Welcome */}
       <h1 className="text-3xl md:text-4xl font-bold text-center text-green-800">
         Welcome, {student.name} (Roll No: {student.roll_no})
       </h1>
-    {/* Upload Fee Proof Button - slider ke niche right side */}
-<div className="flex justify-end mt-4 md:mt-6 px-4 md:px-0">
-  {feeStatus === "approved" && (
-    <Button
-      disabled
-      className="bg-green-600 hover:bg-green-700 text-white cursor-default"
-    >
-      ✅ Fee Paid
-    </Button>
-  )}
 
-  {feeStatus === "pending" && (
-    <Button
-      disabled
-      className="bg-yellow-500 hover:bg-yellow-600 text-white cursor-default"
-    >
-      ⏳ Waiting for Approval
-    </Button>
-  )}
+      {/* Upload Fee Proof */}
+      <div className="flex justify-end mt-4 md:mt-6 px-4 md:px-0">
+        {feeStatus === "approved" && (
+          <Button disabled className="bg-green-600 hover:bg-green-700 text-white cursor-default">
+            ✅ Fee Paid
+          </Button>
+        )}
 
-  {(!feeStatus || feeStatus === "rejected") && (
-    <Button
-      className="bg-blue-600 hover:bg-blue-700 text-white"
-      onClick={handleUploadProof}
-    >
-      📤 Upload Fee Proof
-    </Button>
-  )}
-</div>
+        {feeStatus === "pending" && (
+          <Button disabled className="bg-yellow-500 hover:bg-yellow-600 text-white cursor-default">
+            ⏳ Waiting for Approval
+          </Button>
+        )}
 
-      {/* Join Class */}
+        {(!feeStatus || feeStatus === "rejected") && (
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={handleUploadProof}
+          >
+            📤 Upload Fee Proof
+          </Button>
+        )}
+      </div>
+
+      {/* 📢 Notice Board */}
+      <NoticeComponent userRole="student" />
+
+      {/* Classes */}
       <Card className="shadow-xl border border-gray-200 bg-white">
         <h1 className="text-3xl font-bold text-center text-green-800 mb-6">
           Student Classes
@@ -287,7 +300,7 @@ export default function StudentDashboard() {
         <CardContent>
           <div className="flex flex-col md:flex-row gap-3">
             <Textarea
-              className="border p-2 rounded-md w-full md:w-2/3 focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="border p-2 rounded-md w-full md:w-2/3"
               placeholder="Enter reason for cancellation..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -312,7 +325,7 @@ export default function StudentDashboard() {
         <CardContent>
           <div className="flex flex-col md:flex-row gap-3">
             <Textarea
-              className="border p-2 rounded-md w-full md:w-2/3 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="border p-2 rounded-md w-full md:w-2/3"
               placeholder="Write your complaint..."
               value={complaint}
               onChange={(e) => setComplaint(e.target.value)}
@@ -343,10 +356,7 @@ export default function StudentDashboard() {
               { title: "English", slug: "english" },
               { title: "Urdu", slug: "urdu" },
             ].map((s) => (
-              <Link
-                key={s.slug}
-                href={`/student/syllabus/student/syllabus/${s.slug}`}
-              >
+              <Link key={s.slug} href={`/student/syllabus/student/syllabus/${s.slug}`}>
                 <div className="p-4 border rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition">
                   <h3 className="font-semibold text-green-700 text-lg">
                     📘 {s.title}

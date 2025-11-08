@@ -215,6 +215,27 @@ export default function AddStudent() {
         <div className="grid md:grid-cols-2 gap-4">
           <input className="border p-3 rounded-lg" placeholder="Total Student Fee" value={form.student_total_fee} onChange={(e) => setForm({ ...form, student_total_fee: e.target.value })} />
         </div>
+        {/* Syllabus Selection */}
+<div>
+  <h3 className="font-semibold mb-2 text-gray-700">Select Syllabus</h3>
+  <div className="flex flex-wrap gap-2">
+    {syllabusList.map((s) => (
+      <button
+        key={s}
+        type="button"
+        onClick={() => toggleSyllabus(s)}
+        className={`px-3 py-1 rounded-full border text-sm ${
+          form.syllabus.includes(s)
+            ? "bg-green-600 text-white border-green-600"
+            : "bg-white text-gray-700 border-gray-300 hover:bg-green-50"
+        }`}
+      >
+        {s}
+      </button>
+    ))}
+  </div>
+    </div>
+
 
         {/* Teachers */}
         <div>

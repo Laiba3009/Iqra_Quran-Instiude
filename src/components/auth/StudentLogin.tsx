@@ -12,7 +12,6 @@ export default function StudentSigninPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const router = useRouter();
 
-  // 🔹 Fixed credentials (you can also store them in .env)
   const FIXED_STUDENT_EMAIL = "student@quran.com";
   const FIXED_STUDENT_PASSWORD = "student123";
 
@@ -20,13 +19,13 @@ export default function StudentSigninPage() {
     e.preventDefault();
     setErrorMsg("");
 
-    // ✅ Step 1: Check fixed credentials
+    // Step 1: Check fixed credentials
     if (email !== FIXED_STUDENT_EMAIL || password !== FIXED_STUDENT_PASSWORD) {
       setErrorMsg("Invalid email or password.");
       return;
     }
 
-    // ✅ Step 2: Verify roll number exists
+    // Step 2: Verify roll number exists
     const { data: student, error } = await supabase
       .from("students")
       .select("id, name, roll_no, courses")
@@ -44,11 +43,12 @@ export default function StudentSigninPage() {
       return;
     }
 
-    // ✅ Step 3: Save cookies
+    // Step 3: Save cookies + localStorage for sidebar
     document.cookie = `student_roll=${rollNo}; path=/; max-age=86400;`;
     document.cookie = `portal_role=student; path=/; max-age=86400;`;
+    localStorage.setItem("userRole", "student"); // ✅ Add this
 
-    // ✅ Step 4: Redirect
+    // Step 4: Redirect
     router.push("/student/dashboard");
   };
 
@@ -62,7 +62,6 @@ export default function StudentSigninPage() {
           Student Login
         </h1>
 
-        {/* Email Field */}
         <label className="block text-gray-700 font-medium mb-2">Email</label>
         <input
           type="email"
@@ -73,10 +72,7 @@ export default function StudentSigninPage() {
           required
         />
 
-        {/* Roll Number Field */}
-        <label className="block text-gray-700 font-medium mb-2">
-          Roll Number
-        </label>
+        <label className="block text-gray-700 font-medium mb-2">Roll Number</label>
         <input
           type="text"
           placeholder="Enter your Roll Number"
@@ -86,7 +82,6 @@ export default function StudentSigninPage() {
           required
         />
 
-        {/* Password Field */}
         <label className="block text-gray-700 font-medium mb-2">Password</label>
         <input
           type="password"
@@ -97,7 +92,6 @@ export default function StudentSigninPage() {
           required
         />
 
-        {/* Error Message */}
         {errorMsg && (
           <p className="text-red-600 bg-red-50 border border-red-200 p-2 rounded text-center mb-4">
             {errorMsg}
