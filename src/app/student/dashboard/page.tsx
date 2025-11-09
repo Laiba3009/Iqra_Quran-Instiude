@@ -1,5 +1,5 @@
 'use client';
-
+ 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
@@ -19,12 +19,14 @@ function NoticeComponent({ userRole }: { userRole: "student" | "teacher" }) {
 
   const loadNotices = async () => {
     const { data, error } = await supabase
-  .from("notices")
-  .select("*")
-  .contains("visible_to", [userRole])
-  .eq("deleted", false) // ✅ only show active notices
-  .order("created_at", { ascending: false });
+      .from("notices")
+      .select("*")
+      .contains("visible_to", [userRole])
+      .eq("deleted", false) // ✅ only show active notices
+      .order("created_at", { ascending: false });
 
+    if (data) setNotices(data);
+  };
 
   return (
     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow mt-4">

@@ -2,6 +2,7 @@
   "name": "iqra-online-quran-institute",
   "version": "0.1.0",
   "private": true,
+   "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,6 +13,7 @@
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-toast": "^1.2.15",
     "@supabase/supabase-js": "^2.56.0",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.12",
@@ -19,6 +21,7 @@
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.542.0",
     "next": "^14.2.32",
+    "nodemailer": "^7.0.10",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwind-merge": "^3.3.1",

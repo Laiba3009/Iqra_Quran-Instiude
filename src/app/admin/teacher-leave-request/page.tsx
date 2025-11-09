@@ -3,121 +3,153 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 
 interface LeaveRequest {
   id: string;
+  teacher_id: string;
+  teacher_name: string;
   leave_date: string;
   reason: string;
   status: string;
+  created_at?: string;
 }
 
-export default function TeacherLeaveRequest({ teacherId, teacherName }: { teacherId: string; teacherName: string }) {
-  const [leaveDate, setLeaveDate] = useState("");
-  const [reason, setReason] = useState("");
-  const [myRequests, setMyRequests] = useState<LeaveRequest[]>([]);
+export default function AdminLeave() {
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
-    loadMyRequests();
+    loadLeaveRequests();
   }, []);
 
-  const loadMyRequests = async () => {
+  const loadLeaveRequests = async () => {
     const { data, error } = await supabase
       .from("teacher_leave")
-      .select("id, leave_date, reason, status")
-      .eq("teacher_id", teacherId)
-      .order("leave_date", { ascending: false });
+      .select("id, teacher_id, teacher_name, reason, leave_date, status, created_at")
+      .order("created_at", { ascending: false });
 
     if (error) {
-      toast({ title: "Error", description: "Failed to load your leave requests." });
+      console.error("Load Error:", error);
+      toast({ title: "Error", description: "Failed to load leave requests." });
       return;
     }
 
-    setMyRequests(data || []);
+    setLeaveRequests(data || []);
   };
 
-  const handleRequestLeave = async () => {
-    if (!leaveDate || !reason.trim()) {
-      toast({ title: "Error", description: "Select a date and enter a reason." });
+  const handleUpdateStatus = async (id: string, status: "Approved" | "Cancelled") => {
+    const { error: updateError } = await supabase
+      .from("teacher_leave")
+      .update({ status })
+      .eq("id", id);
+
+    if (updateError) {
+      toast({ title: "Error", description: "Failed to update status." });
       return;
     }
-const { error } = await supabase.from("teacher_leave").insert([
-  {
-    teacher_id: teacherId,          // UUID string
-    teacher_name: teacherName,      // text
-    leave_date: leaveDate,          // 'YYYY-MM-DD'
-    reason,
-    status: "Pending",
-  },
-]);
 
+    const updatedLeave = leaveRequests.find(l => l.id === id);
+    if (!updatedLeave) return;
 
-    if (error) {
-      toast({ title: "Error", description: "Failed to request leave." });
+    const message =
+      status === "Approved"
+        ? `Your leave for ${new Date(updatedLeave.leave_date).toLocaleDateString()} has been approved ✅`
+        : `Your leave for ${new Date(updatedLeave.leave_date).toLocaleDateString()} has been cancelled ❌`;
+
+    const { error: notifError } = await supabase.from("teacher_notifications").insert([
+      {
+        teacher_id: updatedLeave.teacher_id,
+        message,
+        read: false,
+      },
+    ]);
+
+    if (notifError) {
+      console.error("Notification Error:", notifError);
+      toast({ title: "Error", description: "Failed to send notification to teacher." });
     } else {
-      toast({ title: "✅ Leave Requested", description: "Your request is sent to admin." });
-      setLeaveDate("");
-      setReason("");
-      loadMyRequests(); // Refresh list
+      toast({ title: `Leave ${status}`, description: "Teacher has been notified." });
+    }
+
+    setLeaveRequests(prev => prev.map(l => (l.id === id ? { ...l, status } : l)));
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("teacher_leave").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: "Failed to delete leave request." });
+    } else {
+      toast({ title: "Deleted", description: "Leave request has been deleted." });
+      setLeaveRequests(prev => prev.filter(l => l.id !== id));
     }
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto bg-white rounded-xl border shadow-md">
-      <h1 className="text-2xl font-bold mb-4 text-center">Request Leave</h1>
+    <div className="p-6">
+      <Button
+        onClick={() => history.back()}
+        className="mb-4 bg-blue-800 hover:bg-blue-700 text-white"
+      >
+        Back
+      </Button>
 
-      {/* Leave Request Form */}
-      <div className="mb-6">
-        <label className="block font-medium mb-1">Leave Date:</label>
-        <input
-          type="date"
-          value={leaveDate}
-          onChange={(e) => setLeaveDate(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
+      <h1 className="text-2xl font-bold mb-4 text-center">Teacher Leave Requests</h1>
 
-        <label className="block font-medium mb-1 mt-3">Reason:</label>
-        <Textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Enter reason for leave..."
-          className="w-full"
-        />
-
-        <Button
-          className="bg-blue-600 hover:bg-blue-700 text-white mt-3 w-full"
-          onClick={handleRequestLeave}
-        >
-          Request Leave
-        </Button>
-      </div>
-
-      {/* My Leave Requests Table */}
       <div className="overflow-x-auto">
-        <h2 className="text-lg font-semibold mb-2">My Leave Requests</h2>
         <table className="min-w-full border border-gray-200 rounded-lg">
-          <thead className="bg-gray-100 text-gray-800 text-center">
+          <thead className="bg-blue-800 text-white text-center">
             <tr>
+              <th className="p-3 border-b">Teacher</th>
               <th className="p-3 border-b">Date</th>
               <th className="p-3 border-b">Reason</th>
               <th className="p-3 border-b">Status</th>
+              <th className="p-3 border-b">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {myRequests.length ? (
-              myRequests.map((l) => (
+            {leaveRequests.length ? (
+              leaveRequests.map(l => (
                 <tr key={l.id} className="hover:bg-gray-50 text-center">
-                  <td className="p-3">{l.leave_date}</td>
+                  <td className="p-3">{l.teacher_name}</td>
+                  <td className="p-3">
+                    {l.leave_date ? new Date(l.leave_date).toLocaleDateString() : "—"}
+                  </td>
                   <td className="p-3">{l.reason}</td>
                   <td className="p-3 font-semibold">{l.status}</td>
+                  <td className="p-3 flex justify-center gap-2 flex-wrap">
+                    {l.status === "Pending" && (
+                      <>
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => handleUpdateStatus(l.id, "Approved")}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-gray-600 hover:bg-gray-700  text-white"
+                          onClick={() => handleUpdateStatus(l.id, "Cancelled")}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      size="sm"
+                      className=" bg-red-600 hover:bg-red-700 text-white"
+                      onClick={() => handleDelete(l.id)}
+                    >
+                      Delete
+                    </Button>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={3} className="text-center p-4 text-gray-500">
-                  No leave requests submitted yet.
+                <td colSpan={5} className="text-center p-4 text-gray-500">
+                  No leave requests found.
                 </td>
               </tr>
             )}

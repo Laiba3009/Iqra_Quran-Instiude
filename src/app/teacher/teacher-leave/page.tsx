@@ -1,127 +1,126 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 
-interface LeaveRequest {
+interface Teacher {
   id: string;
-  teacher_id: string;
-  teacher_name: string;
-  leave_date: string;
-  reason: string;
-  status: string;
+  name: string;
+  roll_no: string;
 }
 
-export default function TeacherLeave() {
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+interface Notification {
+  id: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+
+export default function TeacherLeaveRequestPage() {
   const [reason, setReason] = useState("");
+  const [teacher, setTeacher] = useState<Teacher | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const { toast } = useToast();
 
-  const teacherId = getCookie("teacher_id");
-  const teacherName = getCookie("teacher_name");
+  const teacherId = "58e2e233-f013-4f45-8a3b-5842214b1006"; // replace with logged-in teacher ID
 
+  // Load teacher info
   useEffect(() => {
-    if (teacherId) loadLeaveRequests();
-  }, [teacherId]);
+    const loadTeacher = async () => {
+      const { data, error } = await supabase
+        .from("teachers")
+        .select("id, name, roll_no")
+        .eq("id", teacherId)
+        .single();
 
-  const loadLeaveRequests = async () => {
-    const { data, error } = await supabase
-      .from("teacher_leave")
-      .select("*")
-      .eq("teacher_id", teacherId)
-      .order("leave_date", { ascending: false });
+      if (error || !data) {
+        toast({ title: "Error", description: "Failed to load teacher info." });
+        return;
+      }
+      setTeacher(data);
+    };
+    loadTeacher();
+  }, []);
 
-    if (error) {
-      toast({ title: "Error", description: "Failed to load leave requests." });
+  // Load notifications
+  useEffect(() => {
+    const loadNotifications = async () => {
+      const { data, error } = await supabase
+        .from("teacher_notifications")
+        .select("*")
+        .eq("teacher_id", teacherId)
+        .order("created_at", { ascending: false });
+      if (!error && data) setNotifications(data);
+    };
+
+    loadNotifications();
+    // Optionally poll every 10 seconds for new notifications
+    const interval = setInterval(loadNotifications, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Submit leave request
+  const handleSubmit = async () => {
+    if (!reason.trim() || !teacher) {
+      toast({ title: "Error", description: "Please enter a reason." });
       return;
     }
-
-    setLeaveRequests(data || []);
-  };
-
-  const handleRequestLeave = async () => {
-    if (!reason.trim()) {
-      toast({ title: "Error", description: "Please enter reason." });
-      return;
-    }
-
-    const leave_date = new Date().toISOString().split("T")[0];
 
     const { error } = await supabase.from("teacher_leave").insert([
       {
-        teacher_id: teacherId,
-        teacher_name: teacherName,
-        leave_date,
+        teacher_id: teacher.id,
+        teacher_name: teacher.name,
         reason,
-        status: "Pending",
       },
     ]);
 
     if (error) {
       toast({ title: "Error", description: "Failed to request leave." });
     } else {
-      toast({ title: "✅ Leave Requested" });
+      toast({
+        title: "Leave Requested ✅",
+        description: "Your leave request has been sent to admin.",
+      });
       setReason("");
-      loadLeaveRequests();
     }
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4 text-center">Request Leave</h1>
+    <div className="p-6 max-w-md mx-auto">
+      <h1 className="text-2xl font-bold mb-4 text-center">Leave Request</h1>
 
-      <div className="mb-4">
-        <Textarea
-          placeholder="Write reason for leave..."
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          className="mb-2"
-        />
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleRequestLeave}>
-          Submit Leave Request
-        </Button>
-      </div>
+      <Textarea
+        placeholder="Enter your reason for leave..."
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        className="mb-4"
+      />
 
-      <h2 className="text-xl font-semibold mb-2 mt-6 text-center">My Leave Requests</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-200 rounded-lg">
-          <thead className="bg-gray-100 text-gray-800 text-center">
-            <tr>
-              <th className="p-3 border-b">Date</th>
-              <th className="p-3 border-b">Reason</th>
-              <th className="p-3 border-b">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leaveRequests.length ? (
-              leaveRequests.map((l) => (
-                <tr key={l.id} className="hover:bg-gray-50 text-center">
-                  <td className="p-3">{l.leave_date}</td>
-                  <td className="p-3">{l.reason}</td>
-                  <td className="p-3 font-semibold">{l.status}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={3} className="text-center p-4 text-gray-500">
-                  No leave requests found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Button onClick={handleSubmit} className="bg-blue-600 text-white w-full mb-6">
+        Send Leave Request
+      </Button>
+
+      <h2 className="text-xl font-bold mb-2">Notifications</h2>
+      {notifications.length ? (
+        <ul>
+          {notifications.map(n => (
+            <li
+              key={n.id}
+              className={`mb-2 p-2 border rounded ${n.read ? 'bg-gray-100' : 'bg-yellow-100'}`}
+            >
+              {n.message}{" "}
+              <span className="text-xs text-gray-500">
+                {new Date(n.created_at).toLocaleString()}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>No notifications</p>
+      )}
     </div>
   );
-}
-
-// Helper function to get cookie
-function getCookie(name: string) {
-  return document.cookie.split(";").reduce((r, v) => {
-    const parts = v.split("=");
-    return parts[0].trim() === name ? decodeURIComponent(parts[1]) : r;
-  }, "");
 }
