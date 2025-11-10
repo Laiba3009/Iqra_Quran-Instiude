@@ -7,13 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import TeacherStudents from "@/components/TeacherStudent";
 import BannerSlider from "@/components/BannerSlider";
-import RoleBasedLayout from "@/components/RoleBasedLayout"; // ✅ naya layout
+import RoleBasedLayout from "@/components/RoleBasedLayout"; 
 import Link from "next/link";
 
 // ----------------------------
 // 🔹 Helper: Get Cookie
 // ----------------------------
-function getCookie(name: string) {
+function getCookie(name) {
   return document.cookie.split("; ").reduce((r, v) => {
     const parts = v.split("=");
     return parts[0].trim() === name ? decodeURIComponent(parts[1]) : r;
@@ -24,8 +24,8 @@ function getCookie(name: string) {
 // 🔹 Notice Board Component
 // ----------------------------
 function NoticeBoard() {
-  const [notices, setNotices] = useState<any[]>([]);
-
+  const [notices, setNotices] = useState([]);
+  
   useEffect(() => {
     loadNotices();
   }, []);
@@ -71,7 +71,7 @@ function NoticeBoard() {
 // 🔹 Main Teacher Dashboard
 // ----------------------------
 export default function TeacherDashboard() {
-  const [teacher, setTeacher] = useState<any>(null);
+  const [teacher, setTeacher] = useState(null);
   const [zoomLink, setZoomLink] = useState("");
   const { toast } = useToast();
 
@@ -83,7 +83,7 @@ export default function TeacherDashboard() {
     }
   }, []);
 
-  const loadTeacher = async (rollNo: string) => {
+  const loadTeacher = async (rollNo) => {
     const { data, error } = await supabase
       .from("teachers")
       .select("*")
@@ -113,7 +113,7 @@ export default function TeacherDashboard() {
   if (!teacher) return <p className="text-center text-gray-500 mt-10">Loading teacher info...</p>;
 
   return (
-    <RoleBasedLayout role="teacher">
+    <RoleBasedLayout role ="teacher">
       <div className="p-6 space-y-10">
         <BannerSlider />
 
@@ -155,7 +155,7 @@ export default function TeacherDashboard() {
           <CardContent>
             {teacher.syllabus?.length ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {teacher.syllabus.map((subject: string, i: number) => (
+                {teacher.syllabus.map((subject, i) => (
                   <Link
                     key={i}
                     href={`/teacher/syllabus/${subject.toLowerCase().replace(/\s+/g, "-")}`}
