@@ -17,7 +17,7 @@ export default function HomePage() {
   return (
     <div className="w-full overflow-x-hidden">
       {/* 👆 Header */}
-      <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+      <Header toggleSidebar={toggleSidebar} role="guest" />
 
       {/* 👇 Full Width Banner */}
       <div className="mt-16"> {/* Header ke height ka margin */}

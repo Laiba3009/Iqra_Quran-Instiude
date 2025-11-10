@@ -6,12 +6,13 @@ import Link from "next/link";
 
 interface HeaderProps {
   toggleSidebar: () => void;
+  role: string;
 }
 
-export default function Header({ toggleSidebar }: HeaderProps) {
+export default function Header({ toggleSidebar, role }: HeaderProps) {
   return (
     <header className="fixed top-0 left-0 w-full bg-white shadow z-50 flex items-center justify-between px-6 py-3">
-      {/* Left Side - Logo */}
+      {/* Left Side - Logo + Name */}
       <div className="flex items-center gap-2">
         <Image src="/images/logo.png" alt="Logo" width={40} height={40} />
         <span className="font-extrabold text-[#001F3F] text-lg sm:text-xl">
@@ -19,8 +20,9 @@ export default function Header({ toggleSidebar }: HeaderProps) {
         </span>
       </div>
 
-      {/* Right Side - Links + Menu Button */}
+      {/* Right Side - Links + Sidebar Toggle */}
       <div className="flex items-center gap-6">
+        {/* Desktop Links */}
         <nav className="hidden md:flex items-center gap-6">
           <Link
             href="/about"
@@ -36,7 +38,7 @@ export default function Header({ toggleSidebar }: HeaderProps) {
           </Link>
         </nav>
 
-        {/* Menu Button */}
+        {/* Sidebar Toggle Button */}
         <button
           onClick={toggleSidebar}
           className="text-[#001F3F] hover:text-blue-600"

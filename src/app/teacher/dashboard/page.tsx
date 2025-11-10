@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import TeacherStudents from "@/components/TeacherStudent";
 import BannerSlider from "@/components/BannerSlider";
-import Layout from "@/components/Layout";
-import { Link } from "lucide-react";
+import RoleBasedLayout from "@/components/RoleBasedLayout"; // ✅ naya layout
+import Link from "next/link";
+
 // ----------------------------
 // 🔹 Helper: Get Cookie
 // ----------------------------
@@ -19,7 +20,7 @@ function getCookie(name: string) {
   }, "");
 }
 
-// ----------------------------j
+// ----------------------------
 // 🔹 Notice Board Component
 // ----------------------------
 function NoticeBoard() {
@@ -76,7 +77,10 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     const roll = getCookie("teacher_roll");
-    if (roll) loadTeacher(roll);
+    if (roll) {
+      loadTeacher(roll);
+      localStorage.setItem("userRole", "teacher");
+    }
   }, []);
 
   const loadTeacher = async (rollNo: string) => {
@@ -109,7 +113,7 @@ export default function TeacherDashboard() {
   if (!teacher) return <p className="text-center text-gray-500 mt-10">Loading teacher info...</p>;
 
   return (
-    <Layout>
+    <RoleBasedLayout role="teacher">
       <div className="p-6 space-y-10">
         <BannerSlider />
 
@@ -189,6 +193,6 @@ export default function TeacherDashboard() {
           Zoom link and syllabus are managed by Admin.
         </p>
       </div>
-    </Layout>
+    </RoleBasedLayout>
   );
 }

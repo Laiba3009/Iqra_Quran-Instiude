@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import BannerSlider from "@/components/BannerSlider";
+import RoleBasedLayout from "@/components/RoleBasedLayout";
 
 // 🔹 Notice Board (Read-only)
 function NoticeComponent({ userRole }: { userRole: "student" | "teacher" }) {
@@ -227,6 +228,8 @@ export default function StudentDashboard() {
     return <div className="p-8 text-center text-gray-700 font-medium">Loading student info...</div>;
 
   return (
+    <RoleBasedLayout role="student">
+    
     <div className="space-y-8 mt-8 px-4 md:px-12">
       <BannerSlider />
 
@@ -373,5 +376,6 @@ export default function StudentDashboard() {
         </CardContent>
       </Card>
     </div>
+    </RoleBasedLayout >
   );
 }
