@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -19,6 +19,7 @@ export default function AddStudent() {
     class_time: "",
     fee_status: "unpaid",
     join_date: "",
+    class_days: [] as { day: string; subject: string; time: string }[],
   });
 
   const [teacherList, setTeacherList] = useState<
@@ -26,16 +27,17 @@ export default function AddStudent() {
   >([]);
   const [rows, setRows] = useState<any[]>([]);
   const [editing, setEditing] = useState(false);
+  const [search, setSearch] = useState("");
   const { toast } = useToast();
 
   const syllabusList = ["Quran", "Islamic Studies", "Tafseer", "Urdu", "English"];
+  const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
   useEffect(() => {
     loadRows();
     loadTeachers();
   }, []);
 
-  // Load students + teachers + total
   const loadRows = async () => {
     const { data: students } = await supabase.from("students").select("*").order("created_at", { ascending: false });
     if (!students) return;
@@ -88,6 +90,26 @@ export default function AddStudent() {
     );
   };
 
+  const toggleClassDay = (day: string) => {
+    setForm((prev) => {
+      const exists = prev.class_days.find((d) => d.day === day);
+      if (exists) {
+        return { ...prev, class_days: prev.class_days.filter((d) => d.day !== day) };
+      } else {
+        return { ...prev, class_days: [...prev.class_days, { day, subject: "", time: "" }] };
+      }
+    });
+  };
+
+  const handleDayChange = (day: string, field: "subject" | "time", value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      class_days: prev.class_days.map((d) =>
+        d.day === day ? { ...d, [field]: value } : d
+      ),
+    }));
+  };
+
   const save = async () => {
     if (!form.name || !form.roll_no || !form.academy_fee) {
       alert("Please fill all required fields.");
@@ -109,6 +131,7 @@ export default function AddStudent() {
       student_total_fee: totalFee,
       fee_status: form.fee_status,
       join_date: form.join_date || null,
+      class_days: form.class_days,
     };
 
     if (editing) {
@@ -149,6 +172,7 @@ export default function AddStudent() {
       class_time: "",
       fee_status: "unpaid",
       join_date: "",
+      class_days: [],
     });
     setTeacherList((t) => t.map((x) => ({ ...x, selected: false, amount: 0 })));
     setEditing(false);
@@ -169,6 +193,7 @@ export default function AddStudent() {
       class_time: student.class_time ?? "",
       fee_status: student.fee_status,
       join_date: student.join_date ?? "",
+      class_days: student.class_days ?? [],
     });
 
     setTeacherList((prev) =>
@@ -195,73 +220,87 @@ export default function AddStudent() {
     await loadRows();
   };
 
+  const filteredRows = rows.filter(
+    (r) =>
+      r.name.toLowerCase().includes(search.toLowerCase()) ||
+      r.roll_no.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div className="bg-blue-100 min-h-screen py-12 mt-8 px-4 md:px-8 space-y-8">
+    <div className="bg-blue-100 min-h-screen py-12 px-4 md:px-8 space-y-8">
       <BackButton href="/admin/dashboard" label="Back" />
 
       {/* Form */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 space-y-6">
-        <h1 className="text-3xl font-bold text-green-800">{editing ? "Edit Student" : "Add Student"}</h1>
+      <div className="bg-white rounded-xl shadow-lg p-6 space-y-4 max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold text-green-800">{editing ? "Edit Student" : "Add Student"}</h1>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <input className="border p-3 rounded-lg" placeholder="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="border p-3 rounded-lg" placeholder="Roll No" value={form.roll_no} onChange={(e) => setForm({ ...form, roll_no: e.target.value })} />
-          <input className="border p-3 rounded-lg" placeholder="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
-          <input className="border p-3 rounded-lg" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <input className="border p-3 rounded-lg" placeholder="Academy Fee" value={form.academy_fee} onChange={(e) => setForm({ ...form, academy_fee: e.target.value })} />
-          <input className="border p-3 rounded-lg" placeholder="Class Time" value={form.class_time} onChange={(e) => setForm({ ...form, class_time: e.target.value })} />
+        <div className="grid md:grid-cols-2 gap-3">
+          <input className="border p-2 rounded-lg text-sm" placeholder="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input className="border p-2 rounded-lg text-sm" placeholder="Roll No" value={form.roll_no} onChange={(e) => setForm({ ...form, roll_no: e.target.value })} />
+          <input className="border p-2 rounded-lg text-sm" placeholder="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+          <input className="border p-2 rounded-lg text-sm" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <input className="border p-2 rounded-lg text-sm" placeholder="Academy Fee" value={form.academy_fee} onChange={(e) => setForm({ ...form, academy_fee: e.target.value })} />
+          <input className="border p-2 rounded-lg text-sm" placeholder="Class Time" value={form.class_time} onChange={(e) => setForm({ ...form, class_time: e.target.value })} />
+          <input type="date" className="border p-2 rounded-lg text-sm" value={form.join_date} onChange={(e) => setForm({ ...form, join_date: e.target.value })} />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <input className="border p-3 rounded-lg" placeholder="Total Student Fee" value={form.student_total_fee} onChange={(e) => setForm({ ...form, student_total_fee: e.target.value })} />
-        </div>
-        {/* Syllabus Selection */}
-<div>
-  <h3 className="font-semibold mb-2 text-gray-700">Select Syllabus</h3>
-  <div className="flex flex-wrap gap-2">
-    {syllabusList.map((s) => (
-      <button
-        key={s}
-        type="button"
-        onClick={() => toggleSyllabus(s)}
-        className={`px-3 py-1 rounded-full border text-sm ${
-          form.syllabus.includes(s)
-            ? "bg-green-600 text-white border-green-600"
-            : "bg-white text-gray-700 border-gray-300 hover:bg-green-50"
-        }`}
-      >
-        {s}
-      </button>
-    ))}
-  </div>
-    </div>
-
-
-        {/* Teachers */}
         <div>
-          <h2 className="font-semibold mb-2 text-gray-700">Assign Teachers & Fees</h2>
-          <div className="space-y-2">
-            {teacherList.map((t) => (
-              <div key={t.id} className={`flex items-center justify-between border rounded-lg px-3 py-2 ${t.selected ? "bg-green-50 border-green-500" : ""}`}>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" checked={!!t.selected} onChange={() => toggleTeacher(t.id)} />
-                  <span>{t.name}</span>
+          <h3 className="font-semibold mb-2 text-gray-700">Select Syllabus</h3>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {syllabusList.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleSyllabus(s)}
+                className={`px-3 py-1 rounded-full border text-sm ${
+                  form.syllabus.includes(s)
+                    ? "bg-green-600 text-white border-green-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-green-50"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+
+          <h3 className="font-semibold mb-2 text-gray-700">Select Class Days & Time</h3>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {weekDays.map((day) => {
+              const selected = form.class_days.find((d) => d.day === day);
+              return (
+                <div key={day} className={`border rounded-lg px-2 py-1 ${selected ? "bg-green-50 border-green-500" : ""}`}>
+                  <label className="flex items-center gap-1">
+                    <input type="checkbox" checked={!!selected} onChange={() => toggleClassDay(day)} />
+                    {day}
+                  </label>
+                  {selected && (
+                    <div className="flex gap-1 mt-1">
+                      <input type="text" placeholder="Subject" className="border p-1 rounded w-20 text-sm" value={selected.subject} onChange={(e) => handleDayChange(day, "subject", e.target.value)} />
+                      <input type="time" className="border p-1 rounded w-20 text-sm" value={selected.time} onChange={(e) => handleDayChange(day, "time", e.target.value)} />
+                    </div>
+                  )}
                 </div>
+              );
+            })}
+          </div>
+
+          <h3 className="font-semibold mb-2 text-gray-700">Assign Teachers & Fees</h3>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {teacherList.map((t) => (
+              <div key={t.id} className={`border rounded-lg p-2 ${t.selected ? "bg-green-50 border-green-500" : ""}`}>
+                <label className="flex items-center gap-1">
+                  <input type="checkbox" checked={!!t.selected} onChange={() => toggleTeacher(t.id)} />
+                  {t.name}
+                </label>
                 {t.selected && (
-                  <input
-                    type="number"
-                    placeholder="Fee"
-                    className="border p-1 rounded w-24"
-                    value={t.amount || ""}
-                    onChange={(e) => handleTeacherFeeChange(t.id, e.target.value)}
-                  />
+                  <input type="number" placeholder="Fee" className="border p-1 rounded w-16 mt-1 text-sm" value={t.amount || ""} onChange={(e) => handleTeacherFeeChange(t.id, e.target.value)} />
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        <Button onClick={save} className="bg-green-600 text-white hover:bg-green-700">
+        <Button onClick={save} className="bg-green-600 text-white hover:bg-green-700 w-full">
           {editing ? "Update Student" : "Save Student"}
         </Button>
       </div>
@@ -269,6 +308,13 @@ export default function AddStudent() {
       {/* Students Table */}
       <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4">
         <h2 className="text-2xl font-bold text-gray-800">Students List</h2>
+        <input
+          type="text"
+          placeholder="Search by name or roll no..."
+          className="border p-2 rounded-lg w-full text-sm mb-3"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -276,43 +322,43 @@ export default function AddStudent() {
                 <th className="p-3">Name</th>
                 <th className="p-3">Roll</th>
                 <th className="p-3">Class Time</th>
+                <th className="p-3">Class Days</th>
                 <th className="p-3">Teachers</th>
                 <th className="p-3 text-purple-700">Teacher Fee</th>
                 <th className="p-3 text-blue-700">Academy Fee</th>
-                <th className="p-3 text-green-700">Student Total Fee</th>
+                <th className="p-3 text-green-700">Total Fee</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <tr key={r.id} className="border-t hover:bg-gray-50">
                   <td className="p-3">{r.name}</td>
                   <td className="p-3">{r.roll_no}</td>
                   <td className="p-3">{r.class_time || "—"}</td>
+                  <td className="p-3">
+                    {Array.isArray(r.class_days)
+                      ? r.class_days.map((d: any) => `${d.day} (${d.subject} - ${d.time || "—"})`).join(", ")
+                      : "—"}
+                  </td>
                   <td className="p-3 text-purple-600 font-medium">{r.teacherNames.join(", ") || "—"}</td>
                   <td className="p-3 text-purple-700 font-semibold">Rs {r.teacherFee}</td>
                   <td className="p-3 text-blue-700 font-semibold">Rs {r.academy_fee}</td>
                   <td className="p-3 text-green-700 font-bold">Rs {r.student_total_fee || 0}</td>
                   <td className={`p-3 font-medium ${r.fee_status === "paid" ? "text-green-600" : "text-red-600"}`}>{r.fee_status}</td>
                   <td className="p-3 flex gap-2 flex-wrap">
-        <Button size="sm" variant="outline" title="Edit student" onClick={() => editStudent(r)}>
-  Edit
-</Button>
-
-<Button size="sm" variant="outline" title="Toggle fee status" onClick={() => toggleFee(r.id, r.fee_status)}>
-  Toggle Fee
-</Button>
-
-<Button size="sm" variant="destructive" title="Delete student" onClick={() => del(r.id)}>
-  Delete
-</Button>
+                    <Button size="sm" variant="outline" onClick={() => editStudent(r)}>Edit</Button>
+                    <Button size="sm" variant="outline" onClick={() => toggleFee(r.id, r.fee_status)}>Toggle Fee</Button>
+                    <Button size="sm" variant="destructive" onClick={() => del(r.id)}>Delete</Button>
                   </td>
                 </tr>
               ))}
-              {rows.length === 0 && (
+              {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="text-center text-gray-500 p-4">No students found.</td>
+                  <td colSpan={10} className="text-center text-gray-500 p-4">
+                    No students found.
+                  </td>
                 </tr>
               )}
             </tbody>

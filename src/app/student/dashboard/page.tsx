@@ -1,33 +1,31 @@
-'use client';
- 
+"use client";
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import Link from "next/link";
 import BannerSlider from "@/components/BannerSlider";
 import RoleBasedLayout from "@/components/RoleBasedLayout";
 
-// 🔹 Notice Board (Read-only)
+// 🔹 Notice Board
 function NoticeComponent({ userRole }: { userRole: "student" | "teacher" }) {
   const [notices, setNotices] = useState<any[]>([]);
 
   useEffect(() => {
+    const loadNotices = async () => {
+      const { data } = await supabase
+        .from("notices")
+        .select("*")
+        .contains("visible_to", [userRole])
+        .eq("deleted", false)
+        .order("created_at", { ascending: false });
+      if (data) setNotices(data);
+    };
     loadNotices();
   }, []);
-
-  const loadNotices = async () => {
-    const { data, error } = await supabase
-      .from("notices")
-      .select("*")
-      .contains("visible_to", [userRole])
-      .eq("deleted", false) // ✅ only show active notices
-      .order("created_at", { ascending: false });
-
-    if (data) setNotices(data);
-  };
 
   return (
     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow mt-4">
@@ -51,61 +49,37 @@ function NoticeComponent({ userRole }: { userRole: "student" | "teacher" }) {
   );
 }
 
-type Student = {
-  id: number;
-  name: string;
-  roll_no: string;
-  email?: string;
-  teachers?: string[];
+// 🔹 Cookie helper
+const getCookie = (name: string) => {
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? match[2] : null;
 };
 
-type Teacher = {
-  id: number;
-  name: string;
-  email?: string;
-  zoom_link?: string;
-};
-
-function getCookie(name: string) {
-  return document.cookie.split("; ").reduce((r, v) => {
-    const parts = v.split("=");
-    return parts[0].trim() === name ? decodeURIComponent(parts[1]) : r;
-  }, "");
-}
-
+// 🔹 Main Dashboard
 export default function StudentDashboard() {
-  const [student, setStudent] = useState<Student | null>(null);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const { toast } = useToast();
+  const [student, setStudent] = useState<any>(null);
+  const [todaysClasses, setTodaysClasses] = useState<any[]>([]);
+  const [feeStatus, setFeeStatus] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [complaint, setComplaint] = useState("");
-  const [feeStatus, setFeeStatus] = useState<string | null>(null);
-  const { toast } = useToast();
+  const [suggestion, setSuggestion] = useState("");
 
-  // 🧩 Load student data
   useEffect(() => {
     const fetchData = async () => {
       const roll = getCookie("student_roll");
       if (!roll) return;
 
-      const { data: studentData, error: studentErr } = await supabase
+      // ✅ Fetch student
+      const { data: studentData } = await supabase
         .from("students")
-        .select("*")
+        .select("id, name, roll_no, class_days")
         .eq("roll_no", roll)
         .maybeSingle();
-
-      if (studentErr || !studentData) return setStudent(null);
+      if (!studentData) return setStudent(null);
       setStudent(studentData);
 
-      // Fetch teachers
-      if (studentData.teachers?.length > 0) {
-        const { data: teacherData } = await supabase
-          .from("teachers")
-          .select("id, name, email, zoom_link")
-          .in("email", studentData.teachers);
-        if (teacherData) setTeachers(teacherData);
-      }
-
-      // Fee status
+      // ✅ Fee status
       const month = new Date().toISOString().slice(0, 7);
       const { data: feeData } = await supabase
         .from("student_fees")
@@ -114,268 +88,159 @@ export default function StudentDashboard() {
         .eq("month", month)
         .maybeSingle();
       if (feeData) setFeeStatus(feeData.status);
+
+      // 🔹 Fetch all teachers
+      const { data: teachers } = await supabase
+        .from("teachers")
+        .select("id, name, email, zoom_link");
+
+      // 🔹 Filter today’s classes with teacher names
+      const today = new Date().toLocaleString("en-US", { weekday: "long" }).toLowerCase();
+      const todayCls = (studentData.class_days || [])
+        .filter((cls: any) => cls.day.toLowerCase() === today)
+        .map((cls: any, idx: number) => {
+          const teacher = teachers?.find(
+            (t) => t.id === cls.teacher_id || t.email === cls.teacher_email
+          );
+          return {
+            id: `${cls.day}-${idx}`,
+            day: cls.day,
+            time: cls.time || "TBD",
+            subject: cls.subject || "TBD",
+            teacher_name: teacher ? teacher.name : "Unknown",
+            zoom_link: teacher ? teacher.zoom_link : "",
+          };
+        });
+
+      setTodaysClasses(todayCls);
     };
 
     fetchData();
   }, []);
 
-  // 🧾 Upload Fee Proof
-  const handleUploadProof = async () => {
+  const handleJoinClass = async (cls: any) => {
     if (!student) return;
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = "image/*";
 
-    fileInput.onchange = async (e: any) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const fileName = `${student.roll_no}-${Date.now()}.jpg`;
-      const { error: uploadError } = await supabase.storage
-        .from("fee_proofs")
-        .upload(fileName, file);
-
-      if (uploadError)
-        return toast({ title: "Upload Error", description: uploadError.message });
-
-      const { data: publicUrlData } = supabase.storage
-        .from("fee_proofs")
-        .getPublicUrl(fileName);
-
-      const proofUrl = publicUrlData?.publicUrl;
-      const month = new Date().toISOString().slice(0, 7);
-
-      const { error: dbError } = await supabase.from("student_fees").upsert(
-        {
-          student_id: student.id,
-          month,
-          proof_url: proofUrl,
-          status: "pending",
-        },
-        { onConflict: "student_id, month" }
-      );
-
-      if (dbError)
-        return toast({ title: "Database Error", description: dbError.message });
-
-      setFeeStatus("pending");
-      toast({ title: "Fee Proof Uploaded", description: "Waiting for admin approval." });
-    };
-
-    fileInput.click();
-  };
-
-  // 🧑‍🏫 Join Class
-  const handleJoinClass = async (teacher: Teacher) => {
-    if (!student) return;
-    const { error } = await supabase.from("attendance").insert([
+    await supabase.from("attendance").insert([
       {
         student_name: student.name,
         student_roll: student.roll_no,
-        teacher_name: teacher.name,
+          teacher_name: teacher.name,
+        subject: cls.subject,
         joined_at: new Date().toISOString(),
       },
     ]);
 
-    if (error) return toast({ title: "Error", description: error.message });
-    toast({
-      title: "Attendance Marked ✅",
-      description: `Joining ${teacher.name}'s class...`,
-    });
-
-    if (teacher.zoom_link) window.open(teacher.zoom_link, "_blank");
-    else toast({ title: "Zoom Link Missing", description: "This teacher has not added a Zoom link yet." });
+    if (cls.zoom_link) window.open(cls.zoom_link, "_blank");
+    else toast({ title: "Zoom Link Missing", description: "Teacher has not added a Zoom link." });
   };
 
-  // ❌ Cancel Request
-  const cancel = async () => {
-    if (!reason.trim())
-      return toast({
-        title: "Missing Reason",
-        description: "Enter a reason first.",
-      });
-    const { error } = await supabase
-      .from("cancel_reasons")
-      .insert([{ student_roll: student?.roll_no, reason }]);
-    if (error) return toast({ title: "Error", description: error.message });
+  const handleCancelRequest = async () => {
+    if (!reason.trim()) return toast({ title: "Please enter a reason" });
+    await supabase.from("cancel_requests").insert([
+      { student_id: student.id, student_name: student.name, reason },
+    ]);
+    toast({ title: "Cancel Request Sent ✅" });
     setReason("");
-    toast({
-      title: "Cancel Sent",
-      description: "Your class cancel request was sent to admin.",
-    });
   };
 
-  // 😠 Complaint
-  const sendComplaint = async () => {
-    if (!complaint.trim())
-      return toast({
-        title: "Missing Complaint",
-        description: "Please write your complaint before sending.",
-      });
-    const { error } = await supabase
-      .from("complaints")
-      .insert([{ student_roll: student?.roll_no, complaint }]);
-    if (error) return toast({ title: "Error", description: error.message });
+  const handleComplaintSubmit = async () => {
+    if (!complaint.trim()) return toast({ title: "Please enter complaint" });
+    await supabase.from("complaints").insert([
+      { student_id: student.id, student_name: student.name, complaint },
+    ]);
+    toast({ title: "Complaint Submitted ✅" });
     setComplaint("");
-    toast({
-      title: "Complaint Sent",
-      description: "Your complaint was delivered to admin.",
-    });
   };
 
-  // 🧩 UI
-  if (!student)
-    return <div className="p-8 text-center text-gray-700 font-medium">Loading student info...</div>;
+  const handleSuggestionSubmit = async () => {
+    if (!suggestion.trim()) return toast({ title: "Please enter suggestion" });
+    await supabase.from("teacher_suggestions").insert([
+      {
+        student_id: student.id,
+        student_name: student.name,
+        student_roll: student.roll_no,
+        suggestion,
+      },
+    ]);
+    toast({ title: "Suggestion Sent ✅" });
+    setSuggestion("");
+  };
+
+  if (!student) return <div className="p-8 text-center text-gray-700 font-medium">Loading student info...</div>;
 
   return (
     <RoleBasedLayout role="student">
-    
-    <div className="space-y-8 mt-8 px-4 md:px-12">
-      <BannerSlider />
-
-      <h1 className="text-3xl md:text-4xl font-bold text-center text-green-800">
-        Welcome, {student.name} (Roll No: {student.roll_no})
-      </h1>
-
-      {/* Upload Fee Proof */}
-      <div className="flex justify-end mt-4 md:mt-6 px-4 md:px-0">
-        {feeStatus === "approved" && (
-          <Button disabled className="bg-green-600 hover:bg-green-700 text-white cursor-default">
-            ✅ Fee Paid
-          </Button>
-        )}
-
-        {feeStatus === "pending" && (
-          <Button disabled className="bg-yellow-500 hover:bg-yellow-600 text-white cursor-default">
-            ⏳ Waiting for Approval
-          </Button>
-        )}
-
-        {(!feeStatus || feeStatus === "rejected") && (
-          <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={handleUploadProof}
-          >
-            📤 Upload Fee Proof
-          </Button>
-        )}
-      </div>
-
-      {/* 📢 Notice Board */}
-      <NoticeComponent userRole="student" />
-
-      {/* Classes */}
-      <Card className="shadow-xl border border-gray-200 bg-white">
-        <h1 className="text-3xl font-bold text-center text-green-800 mb-6">
-          Student Classes
+      <div className="space-y-8 mt-8 px-4 md:px-12">
+        <BannerSlider />
+        <h1 className="text-3xl md:text-4xl font-bold text-center text-green-800">
+          Welcome, {student.name} (Roll No: {student.roll_no})
         </h1>
-        <CardContent>
-          {teachers.length === 0 ? (
-            <p className="text-gray-600">No teachers assigned yet.</p>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {teachers.map((teacher) => (
-                <div
-                  key={teacher.id}
-                  className="p-4 rounded-lg border hover:shadow-md transition bg-gray-50"
-                >
-                  <h3 className="font-semibold text-green-700 text-lg">
-                    👨‍🏫 {teacher.name}
-                  </h3>
-                  <Button
-                    className="mt-3 w-full bg-blue-600 hover:bg-blue-700"
-                    onClick={() => handleJoinClass(teacher)}
-                  >
-                    Join Class
-                  </Button>
-                </div>
-              ))}
-            </div>
+
+        {/* Fee Status */}
+        <div className="flex justify-end mt-4">
+          {feeStatus === "approved" && (
+            <Button disabled className="bg-green-600 text-white cursor-default">✅ Fee Paid</Button>
           )}
-        </CardContent>
-      </Card>
+          {feeStatus === "pending" && (
+            <Button disabled className="bg-yellow-500 text-white cursor-default">⏳ Waiting for Approval</Button>
+          )}
+        </div>
 
-      {/* Cancel Request */}
-      <Card className="shadow-xl border border-gray-200 bg-white">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-800">
-            Cancel Request
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-3">
-            <Textarea
-              className="border p-2 rounded-md w-full md:w-2/3"
-              placeholder="Enter reason for cancellation..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-            <Button
-              className="bg-red-600 hover:bg-red-700 w-full md:w-auto"
-              onClick={cancel}
-            >
-              Send
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Notice Board */}
+        <NoticeComponent userRole="student" />
 
-      {/* Complaint */}
-      <Card className="shadow-xl border border-gray-200 bg-white">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-800">
-            Teacher Complaint
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-3">
-            <Textarea
-              className="border p-2 rounded-md w-full md:w-2/3"
-              placeholder="Write your complaint..."
-              value={complaint}
-              onChange={(e) => setComplaint(e.target.value)}
-            />
-            <Button
-              className="bg-yellow-600 hover:bg-yellow-700 w-full md:w-auto"
-              onClick={sendComplaint}
-            >
-              Send Complaint
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Today’s Classes */}
+        <Card className="shadow-xl border border-green-200 bg-white">
+          <h1 className="text-3xl font-bold text-center text-green-800 mb-6">📅 Today’s Classes</h1>
+          <CardContent>
+            {todaysClasses.length === 0 ? (
+              <p className="text-center text-gray-600">No classes scheduled for today.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {todaysClasses.map((cls) => (
+                  <Card key={cls.id} className="shadow-md border-green-200">
+                    <CardContent className="p-4 space-y-3">
+                      <h2 className="text-xl font-semibold text-green-700">{cls.day}</h2>
+                      <p className="text-gray-700"><b>Time:</b> {cls.time}</p>
+                      <p className="text-gray-700"><b>Subject:</b> {cls.subject}</p>
+                      <Button className="bg-green-600 hover:bg-green-700 text-white w-full" onClick={() => handleJoinClass(cls)}>Join Zoom Class</Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Syllabus */}
-      <Card className="shadow-xl border border-gray-200 bg-white">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-800">
-            My Syllabus
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { title: "Hadith Course", slug: "hadith" },
-              { title: "Islamic Studies", slug: "islamic-studies" },
-              { title: "Quran", slug: "quran" },
-              { title: "English", slug: "english" },
-              { title: "Urdu", slug: "urdu" },
-            ].map((s) => (
-              <Link key={s.slug} href={`/student/syllabus/student/syllabus/${s.slug}`}>
-                <div className="p-4 border rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition">
-                  <h3 className="font-semibold text-green-700 text-lg">
-                    📘 {s.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Click to view {s.title} syllabus.
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-    </RoleBasedLayout >
+        {/* Cancel Request */}
+        <Card className="shadow-md border border-red-200 bg-red-50">
+          <CardContent className="p-6 space-y-3">
+            <h2 className="text-xl font-bold text-red-700">Cancel Class Request</h2>
+            <Textarea placeholder="Write reason..." value={reason} onChange={(e) => setReason(e.target.value)} />
+            <Button onClick={handleCancelRequest} className="bg-red-600 hover:bg-red-700 text-white">Send Request</Button>
+          </CardContent>
+        </Card>
+
+        {/* Complaint Box */}
+        <Card className="shadow-md border border-yellow-200 bg-yellow-50">
+          <CardContent className="p-6 space-y-3">
+            <h2 className="text-xl font-bold text-yellow-700">Complaint Box</h2>
+            <Textarea placeholder="Write your complaint..." value={complaint} onChange={(e) => setComplaint(e.target.value)} />
+            <Button onClick={handleComplaintSubmit} className="bg-yellow-600 hover:bg-yellow-700 text-white">Submit Complaint</Button>
+          </CardContent>
+        </Card>
+
+        {/* Teacher Suggestion Box */}
+        <Card className="shadow-md border border-green-200 bg-green-50">
+          <CardContent className="p-6 space-y-3">
+            <h2 className="text-xl font-bold text-green-700">Teacher Suggestion</h2>
+            <Textarea placeholder="Write your suggestion..." value={suggestion} onChange={(e) => setSuggestion(e.target.value)} />
+            <Button onClick={handleSuggestionSubmit} className="bg-green-600 hover:bg-green-700 text-white">Send Suggestion</Button>
+          </CardContent>
+        </Card>
+         
+      </div>
+    </RoleBasedLayout>
   );
 }

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -14,6 +14,7 @@ type Attendance = {
   student_name: string;
   student_roll: string;
   teacher_name: string;
+  subject: string;       // ✅ Subject added
   joined_at: string;
 };
 
@@ -26,6 +27,7 @@ type Student = {
 type Teacher = {
   id: number;
   name: string;
+  subjects?: string[];   // Optional subjects array if you want multiple subjects
 };
 
 export default function AttendancePage() {
@@ -35,6 +37,7 @@ export default function AttendancePage() {
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [studentSearch, setStudentSearch] = useState<string>("");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
+  const [selectedSubject, setSelectedSubject] = useState<string>(""); // ✅ Subject selection
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -52,7 +55,7 @@ export default function AttendancePage() {
 
   // 🟢 Fetch Teachers
   const fetchTeachers = async () => {
-    const { data, error } = await supabase.from("teachers").select("id, name");
+    const { data, error } = await supabase.from("teachers").select("id, name, subjects");
     if (!error && data) setTeachers(data);
   };
 
@@ -69,10 +72,10 @@ export default function AttendancePage() {
 
   // 🟢 Add Manual Attendance
   const addAttendance = async () => {
-    if (!selectedStudent || !selectedTeacher) {
+    if (!selectedStudent || !selectedTeacher || !selectedSubject) {
       toast({
         title: "Missing Info ❌",
-        description: "Please select both student and teacher.",
+        description: "Please select student, teacher, and subject.",
       });
       return;
     }
@@ -87,22 +90,16 @@ export default function AttendancePage() {
         student_name: student.name,
         student_roll: student.roll_no,
         teacher_name: teacher.name,
+        subject: selectedSubject, // ✅ Subject inserted
+        joined_at: new Date().toISOString(),
       },
     ]);
 
-    if (error) {
-      toast({
-        title: "Failed ❌",
-        description: error.message,
-      });
-    } else {
-      toast({
-        title: "✅ Attendance Marked",
-        description: "Attendance marked successfully!",
-      });
+    if (!error) {
       setSelectedStudent("");
       setStudentSearch("");
       setSelectedTeacher("");
+      setSelectedSubject("");
       fetchAttendance();
     }
   };
@@ -138,11 +135,6 @@ export default function AttendancePage() {
       return;
     }
 
-    toast({
-      title: "📄 PDF Download Started",
-      description: "Generating your attendance report...",
-    });
-
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text("📘 Students Attendance Report", 14, 18);
@@ -155,12 +147,12 @@ export default function AttendancePage() {
       rec.student_name,
       rec.student_roll,
       rec.teacher_name,
+      rec.subject, // ✅ Subject column
       new Date(rec.joined_at).toLocaleString(),
     ]);
 
-    // ✅ Proper TypeScript-safe usage of autoTable
     autoTable(doc, {
-      head: [["#", "Student Name", "Roll No", "Teacher", "Join Time"]],
+      head: [["#", "Student Name", "Roll No", "Teacher", "Subject", "Join Time"]],
       body: tableData,
       startY: 38,
       styles: { fontSize: 10, cellPadding: 3 },
@@ -185,7 +177,7 @@ export default function AttendancePage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-4 gap-4">
             {/* Student search */}
             <div>
               <label className="block text-sm text-gray-700 mb-1">
@@ -214,9 +206,7 @@ export default function AttendancePage() {
 
             {/* Teacher select */}
             <div>
-              <label className="block text-sm text-gray-700 mb-1">
-                Select Teacher
-              </label>
+              <label className="block text-sm text-gray-700 mb-1">Select Teacher</label>
               <select
                 className="w-full border rounded-lg p-2"
                 value={selectedTeacher}
@@ -229,6 +219,18 @@ export default function AttendancePage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Subject select */}
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Select Subject</label>
+              <input
+                type="text"
+                placeholder="Enter subject"
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                className="w-full border rounded-lg p-2"
+              />
             </div>
 
             {/* Add button */}
@@ -250,10 +252,7 @@ export default function AttendancePage() {
           <CardTitle className="text-xl text-green-700 font-semibold">
             Attendance Records
           </CardTitle>
-          <Button
-            className="bg-red-600 hover:bg-red-700 text-white"
-            onClick={clearAll}
-          >
+          <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={clearAll}>
             Clear All
           </Button>
         </CardHeader>
@@ -262,9 +261,7 @@ export default function AttendancePage() {
           {loading ? (
             <p className="text-center text-gray-500">Loading...</p>
           ) : records.length === 0 ? (
-            <p className="text-center text-gray-500 py-4">
-              No attendance records found.
-            </p>
+            <p className="text-center text-gray-500 py-4">No attendance records found.</p>
           ) : (
             <div className="overflow-x-auto mt-4">
               <table className="w-full border-collapse text-sm">
@@ -273,6 +270,7 @@ export default function AttendancePage() {
                     <th className="p-3 text-left">Student Name</th>
                     <th className="p-3 text-left">Roll No</th>
                     <th className="p-3 text-left">Teacher</th>
+                    <th className="p-3 text-left">Subject</th> {/* ✅ Subject column */}
                     <th className="p-3 text-left">Join Time</th>
                     <th className="p-3 text-left">Action</th>
                   </tr>
@@ -283,6 +281,7 @@ export default function AttendancePage() {
                       <td className="p-3 font-medium">{rec.student_name}</td>
                       <td className="p-3">{rec.student_roll}</td>
                       <td className="p-3">{rec.teacher_name}</td>
+                      <td className="p-3">{rec.subject}</td> {/* ✅ Show subject */}
                       <td className="p-3 text-gray-500 whitespace-nowrap">
                         {new Date(rec.joined_at).toLocaleString()}
                       </td>

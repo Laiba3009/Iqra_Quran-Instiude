@@ -2,11 +2,14 @@ import { Users, CreditCard, Book, FileText, CheckCircle, AlertTriangle, Calendar
 
 export const sidebars = {
   admin: [
-    { name: "Dashboard", link: "/admin/dashboard", icon: Users },
+    { name: "Dashboard", link: "/admin/dashboard", icon: Users },          
     { name: "Manage Users", link: "/admin/users", icon: Users },
-    { name: "Cancel Reasons", link: "/admin/cancel-reasons", icon: AlertTriangle },
+    { name: " Student Cancel Class", link: "/admin/cancel-reasons", icon: AlertTriangle },
+    { name: "Teacher Suggestions List", link: "/admin/teacher-suggestions", icon: AlertTriangle },
     { name: "Fee Approvals", link: "/admin/fee-approvals", icon: CreditCard },
-    { name: "Complaints", link: "/admin/complaints", icon: FileText },
+    { name: "Students Complaints", link: "/admin/complaints", icon: FileText },
+        { name: "Syllabus", link: "/student/syllabus/student/syllabus", icon: FileText },
+
     { name: "Logout", link: "#", icon: X, logout: true },
 
   ],
@@ -19,8 +22,9 @@ export const sidebars = {
   ],
   student: [
     { name: "Dashboard", link: "/student/dashboard", icon: Users },
+        { name: "Class Schedule", link: "/student/class-schedule", icon: Users },
     { name: "Assignments", link: "/student/assignments", icon: FileText },
-    { name: "Attendance", link: "/student/attendance", icon: CheckCircle },
+    { name: "Syllabus", link: "/student/view-syllabus", icon: CheckCircle },
     { name: "Logout", link: "#", icon: X, logout: true },
   ],
 };

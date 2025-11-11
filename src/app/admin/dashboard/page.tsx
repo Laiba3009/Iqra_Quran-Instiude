@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import SendNotice from "../send-notice/page";
 import StudentSearchBar from "@/components/admin/StudentSearchBar";
-import SyllabusHome from "@/app/student/syllabus/student/syllabus/page";
 import { Users, Wallet, DollarSign, GraduationCap, AlertTriangle, Banknote, CreditCard, Calendar } from "lucide-react";
 import RoleBasedLayout from "@/components/RoleBasedLayout";
 
@@ -173,10 +172,6 @@ export default function AdminDashboard() {
       {/* Student Search */}
       <StudentSearchBar />
 
-      {/* Syllabus */}
-      <section className="mt-10">
-        <SyllabusHome />
-      </section>
     </RoleBasedLayout>
   );
 }
