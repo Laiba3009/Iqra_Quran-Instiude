@@ -6,7 +6,7 @@ import Link from "next/link";
 
 interface HeaderProps {
   toggleSidebar: () => void;
-  role?: string | null; // role can be undefined or null
+  role: string; // "admin" | "teacher" | "student" | "" (for homepage)
 }
 
 export default function Header({ toggleSidebar, role }: HeaderProps) {
@@ -31,8 +31,8 @@ export default function Header({ toggleSidebar, role }: HeaderProps) {
             About
           </Link>
 
-          {/* ✅ Show Admin Signin only if no role is set */}
-          {!role && (
+          {/* 👇 Admin Signin sirf tab dikhayenge jab role khali ya guest ho */}
+          {(!role || role === "guest") && (
             <Link
               href="/admin/signin"
               className="text-[#001F3F] font-medium hover:text-blue-600"
