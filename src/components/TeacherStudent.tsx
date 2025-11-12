@@ -23,15 +23,18 @@ interface Student {
   roll_no: string;
   syllabus: string[] | null;
   class_time: string | null;
+  join_date?: string | null;
 }
 
 export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
   const [students, setStudents] = useState<Student[]>([]);
   const [teacherName, setTeacherName] = useState<string>("Unknown");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [showWeeklyModal, setShowWeeklyModal] = useState(false);
+  const [showMonthlyModal, setShowMonthlyModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
-  const [progressText, setProgressText] = useState("");
+  const [weeklyText, setWeeklyText] = useState("");
+  const [monthlyText, setMonthlyText] = useState("");
   const [complaintText, setComplaintText] = useState("");
   const [attendance, setAttendance] = useState<{ [key: string]: string }>({});
   const { toast } = useToast();
@@ -57,7 +60,7 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
   const loadStudents = async () => {
     const { data, error } = await supabase
       .from("student_teachers")
-      .select("students(id, name, roll_no, syllabus, class_time)")
+      .select("students(id, name, roll_no, syllabus, class_time, join_date)")
       .eq("teacher_id", teacherId);
 
     if (error) {
@@ -83,62 +86,81 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
   };
 
   // 🔹 Save Attendance (tsattendance table)
-const handleAttendance = async (student: Student, status: "present" | "absent") => {
-  if (!teacherId) return;
+  const handleAttendance = async (student: Student, status: "present" | "absent") => {
+    if (!teacherId) return;
 
-  // Local date format YYYY-MM-DD
-  const today = new Date();
-  const date = today.getFullYear() + "-" + 
-               String(today.getMonth() + 1).padStart(2, '0') + "-" + 
-               String(today.getDate()).padStart(2, '0');
+    const today = new Date();
+    const date =
+      today.getFullYear() +
+      "-" +
+      String(today.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(today.getDate()).padStart(2, "0");
 
-  setAttendance((prev) => ({ ...prev, [student.id]: status }));
+    setAttendance((prev) => ({ ...prev, [student.id]: status }));
 
-  const { error } = await supabase.from("tsattendance").insert([
-    {
-      student_id: student.id,
-      teacher_id: teacherId,
-      date,
-      status,
-    },
-  ]);
+    const { error } = await supabase.from("tsattendance").insert([
+      {
+        student_id: student.id,
+        teacher_id: teacherId,
+        date,
+        status,
+      },
+    ]);
 
-  if (error) {
-    console.error("Attendance Error:", error);
-    toast({
-      title: "❌ Error",
-      description: "Attendance mark karte hue issue aya.",
-    });
-  } else {
-    toast({
-      title: "✅ Attendance Marked",
-      description: `${student.name} marked ${status}.`,
-    });
-  }
-};
+    if (error) {
+      console.error("Attendance Error:", error);
+      toast({
+        title: "❌ Error",
+        description: "Attendance mark karte hue issue aya.",
+      });
+    } else {
+      toast({
+        title: "✅ Attendance Marked",
+        description: `${student.name} marked ${status}.`,
+      });
+    }
+  };
 
-
- 
-   
-
-  // 🔹 Save Daily Progress
-  const handleSaveProgress = async () => {
-    if (!progressText.trim() || !selectedStudent) return;
+  // 🔹 Save Weekly Report
+  const handleSaveWeekly = async () => {
+    if (!weeklyText.trim() || !selectedStudent) return;
 
     const { error } = await supabase.from("student_progress").insert([
       {
         student_id: selectedStudent.id,
         teacher_id: teacherId,
-        report_text: progressText,
+        report_text: weeklyText,
       },
     ]);
 
     if (error)
       toast({ title: "Error", description: error.message });
     else {
-      toast({ title: "Progress Saved ✅" });
-      setProgressText("");
-      setShowProgressModal(false);
+      toast({ title: "Weekly Report Saved ✅" });
+      setWeeklyText("");
+      setShowWeeklyModal(false);
+    }
+  };
+
+  // 🔹 Save Monthly Report
+  const handleSaveMonthly = async () => {
+    if (!monthlyText.trim() || !selectedStudent) return;
+
+    const { error } = await supabase.from("student_monthly_reports").insert([
+      {
+        student_id: selectedStudent.id,
+        teacher_id: teacherId,
+        report_text: monthlyText,
+      },
+    ]);
+
+    if (error)
+      toast({ title: "Error", description: error.message });
+    else {
+      toast({ title: "Monthly Report Saved ✅" });
+      setMonthlyText("");
+      setShowMonthlyModal(false);
     }
   };
 
@@ -163,6 +185,15 @@ const handleAttendance = async (student: Student, status: "present" | "absent") 
     }
   };
 
+  // 🔹 Helper: check if new (joined within 30 days)
+  const isNewStudent = (join_date?: string | null) => {
+    if (!join_date) return false;
+    const join = new Date(join_date);
+    const today = new Date();
+    const diff = (today.getTime() - join.getTime()) / (1000 * 60 * 60 * 24);
+    return diff <= 30;
+  };
+
   return (
     <div className="bg-white rounded-xl border shadow-md p-6">
       <div className="overflow-x-auto">
@@ -171,6 +202,7 @@ const handleAttendance = async (student: Student, status: "present" | "absent") 
             <tr>
               <th className="p-3 border-b">Name</th>
               <th className="p-3 border-b">Roll No</th>
+              <th className="p-3 border-b">Joining Date</th>
               <th className="p-3 border-b">Syllabus</th>
               <th className="p-3 border-b">Class Time</th>
               <th className="p-3 border-b text-center">Attendance</th>
@@ -180,8 +212,20 @@ const handleAttendance = async (student: Student, status: "present" | "absent") 
           <tbody>
             {students.map((s) => (
               <tr key={s.id} className="hover:bg-gray-50 transition">
-                <td className="p-3">{s.name}</td>
+                <td className="p-3">
+                  <div className="font-medium">
+                    {s.name}{" "}
+                    {isNewStudent(s.join_date) && (
+                      <span className="text-xs text-blue-600">(New)</span>
+                    )}
+                  </div>
+                </td>
                 <td className="p-3">{s.roll_no}</td>
+                <td className="p-3 text-gray-700">
+                  {s.join_date
+                    ? new Date(s.join_date).toLocaleDateString()
+                    : "—"}
+                </td>
                 <td className="p-3 text-sm text-gray-600">
                   {s.syllabus?.length ? s.syllabus.join(", ") : "—"}
                 </td>
@@ -192,33 +236,54 @@ const handleAttendance = async (student: Student, status: "present" | "absent") 
                   <div className="flex justify-center gap-2">
                     <Button
                       size="sm"
-                      className={`${attendance[s.id] === "present" ? "bg-green-700" : "bg-green-500"} text-white`}
+                      className={`${
+                        attendance[s.id] === "present"
+                          ? "bg-green-700"
+                          : "bg-green-500"
+                      } text-white`}
                       onClick={() => handleAttendance(s, "present")}
                     >
                       Present
                     </Button>
                     <Button
                       size="sm"
-                      className={`${attendance[s.id] === "absent" ? "bg-red-700" : "bg-red-500"} text-white`}
+                      className={`${
+                        attendance[s.id] === "absent"
+                          ? "bg-red-700"
+                          : "bg-red-500"
+                      } text-white`}
                       onClick={() => handleAttendance(s, "absent")}
                     >
                       Absent
                     </Button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {attendance[s.id] ? `Marked ${attendance[s.id]}` : "Not Marked"}
+                    {attendance[s.id]
+                      ? `Marked ${attendance[s.id]}`
+                      : "Not Marked"}
                   </p>
                 </td>
-                <td className="p-3 flex justify-center gap-2">
+                <td className="p-3 flex justify-center gap-2 flex-wrap">
                   <Button
                     size="sm"
                     className="bg-emerald-600 hover:bg-emerald-700 text-white"
                     onClick={() => {
                       setSelectedStudent(s);
-                      setShowProgressModal(true);
+                      setShowWeeklyModal(true);
                     }}
                   >
-                    Daily Progress
+                    Weekly Report
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => {
+                      setSelectedStudent(s);
+                      setShowMonthlyModal(true);
+                    }}
+                  >
+                    Monthly Report
                   </Button>
 
                   <Button
@@ -239,23 +304,47 @@ const handleAttendance = async (student: Student, status: "present" | "absent") 
         </table>
       </div>
 
-      {/* Progress Modal */}
-      <Dialog open={showProgressModal} onOpenChange={setShowProgressModal}>
+      {/* Weekly Report Modal */}
+      <Dialog open={showWeeklyModal} onOpenChange={setShowWeeklyModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              Write Progress for {selectedStudent?.name}
-            </DialogTitle>
+            <DialogTitle>Weekly Report for {selectedStudent?.name}</DialogTitle>
           </DialogHeader>
           <Textarea
-            placeholder="Write today's progress..."
-            value={progressText}
-            onChange={(e) => setProgressText(e.target.value)}
+            placeholder="Write weekly report..."
+            value={weeklyText}
+            onChange={(e) => setWeeklyText(e.target.value)}
             className="mt-2"
           />
           <DialogFooter>
-            <Button onClick={handleSaveProgress} className="bg-green-600 text-white">
-              Save Progress
+            <Button
+              onClick={handleSaveWeekly}
+              className="bg-emerald-600 text-white"
+            >
+              Save Weekly Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Monthly Report Modal */}
+      <Dialog open={showMonthlyModal} onOpenChange={setShowMonthlyModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Monthly Report for {selectedStudent?.name}</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            placeholder="Write monthly report..."
+            value={monthlyText}
+            onChange={(e) => setMonthlyText(e.target.value)}
+            className="mt-2"
+          />
+          <DialogFooter>
+            <Button
+              onClick={handleSaveMonthly}
+              className="bg-blue-600 text-white"
+            >
+              Save Monthly Report
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -265,9 +354,7 @@ const handleAttendance = async (student: Student, status: "present" | "absent") 
       <Dialog open={showComplaintModal} onOpenChange={setShowComplaintModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              Submit Complaint for {selectedStudent?.name}
-            </DialogTitle>
+            <DialogTitle>Submit Complaint for {selectedStudent?.name}</DialogTitle>
           </DialogHeader>
           <Textarea
             placeholder="Write complaint..."
@@ -276,7 +363,10 @@ const handleAttendance = async (student: Student, status: "present" | "absent") 
             className="mt-2"
           />
           <DialogFooter>
-            <Button onClick={handleSaveComplaint} className="bg-red-600 text-white">
+            <Button
+              onClick={handleSaveComplaint}
+              className="bg-red-600 text-white"
+            >
               Submit Complaint
             </Button>
           </DialogFooter>

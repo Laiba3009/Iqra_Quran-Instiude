@@ -13,7 +13,7 @@ import Link from "next/link";
 // ----------------------------
 // 🔹 Helper: Get Cookie
 // ----------------------------
-function getCookie(name) {
+function getCookie(name: string) {
   return document.cookie.split("; ").reduce((r, v) => {
     const parts = v.split("=");
     return parts[0].trim() === name ? decodeURIComponent(parts[1]) : r;
@@ -24,7 +24,7 @@ function getCookie(name) {
 // 🔹 Notice Board Component
 // ----------------------------
 function NoticeBoard() {
-  const [notices, setNotices] = useState([]);
+  const [notices, setNotices] = useState<any[]>([]);
   
   useEffect(() => {
     loadNotices();
@@ -68,10 +68,96 @@ function NoticeBoard() {
 }
 
 // ----------------------------
+// 🔹 Monthly Report Form
+// ----------------------------
+function MonthlyReportForm({ teacher }: { teacher: any }) {
+  const [month, setMonth] = useState("");
+  const [summary, setSummary] = useState("");
+  const [details, setDetails] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleSubmit = async () => {
+    if (!month || !summary) {
+      toast({ title: "⚠️ Missing Info", description: "Please fill all required fields." });
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.from("monthly_reports").insert([
+      {
+        teacher_id: teacher.id,
+        teacher_name: teacher.name,
+        month,
+        report_summary: summary,
+        details,
+      },
+    ]);
+
+    setLoading(false);
+
+    if (error) {
+      toast({ title: "❌ Error", description: error.message });
+    } else {
+      toast({ title: "✅ Submitted", description: "Monthly report saved successfully." });
+      setMonth("");
+      setSummary("");
+      setDetails("");
+    }
+  };
+
+  return (
+    <Card className="bg-white border shadow">
+      <CardHeader>
+        <CardTitle className="text-xl font-semibold text-center text-gray-700">
+          📅 Monthly Report
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <label className="font-medium text-gray-600">Select Month</label>
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="border rounded p-2 w-full"
+          />
+        </div>
+        <div>
+          <label className="font-medium text-gray-600">Short Summary</label>
+          <input
+            value={summary}
+            onChange={(e) => setSummary(e.target.value)}
+            placeholder="e.g. Excellent progress this month"
+            className="border rounded p-2 w-full"
+          />
+        </div>
+        <div>
+          <label className="font-medium text-gray-600">Detailed Report</label>
+          <textarea
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            placeholder="Write more details..."
+            className="border rounded p-2 w-full h-28"
+          ></textarea>
+        </div>
+        <Button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="bg-green-600 hover:bg-green-700 text-white w-full"
+        >
+          {loading ? "Submitting..." : "Submit Monthly Report"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ----------------------------
 // 🔹 Main Teacher Dashboard
 // ----------------------------
 export default function TeacherDashboard() {
-  const [teacher, setTeacher] = useState(null);
+  const [teacher, setTeacher] = useState<any>(null);
   const [zoomLink, setZoomLink] = useState("");
   const { toast } = useToast();
 
@@ -83,7 +169,7 @@ export default function TeacherDashboard() {
     }
   }, []);
 
-  const loadTeacher = async (rollNo) => {
+  const loadTeacher = async (rollNo: string) => {
     const { data, error } = await supabase
       .from("teachers")
       .select("*")
@@ -113,7 +199,7 @@ export default function TeacherDashboard() {
   if (!teacher) return <p className="text-center text-gray-500 mt-10">Loading teacher info...</p>;
 
   return (
-    <RoleBasedLayout role ="teacher">
+    <RoleBasedLayout role="teacher">
       <div className="p-6 space-y-10">
         <BannerSlider />
 
@@ -155,7 +241,7 @@ export default function TeacherDashboard() {
           <CardContent>
             {teacher.syllabus?.length ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {teacher.syllabus.map((subject, i) => (
+                {teacher.syllabus.map((subject: string, i: number) => (
                   <Link
                     key={i}
                     href={`/teacher/syllabus/${subject.toLowerCase().replace(/\s+/g, "-")}`}
@@ -173,11 +259,11 @@ export default function TeacherDashboard() {
           </CardContent>
         </Card>
 
-        {/* Assigned Students */}
+        {/* Assigned Students + Weekly Progress */}
         <Card className="border shadow bg-white">
           <CardHeader>
             <CardTitle className="text-xl font-semibold text-center text-gray-700">
-              🧑‍🎓 Assigned Students & Daily Progress
+              🧑‍🎓 Assigned Students & Weekly Report
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -188,6 +274,9 @@ export default function TeacherDashboard() {
             )}
           </CardContent>
         </Card>
+
+        {/* Monthly Report Section */}
+        <MonthlyReportForm teacher={teacher} />
 
         <p className="text-sm text-gray-400 text-center">
           Zoom link and syllabus are managed by Admin.

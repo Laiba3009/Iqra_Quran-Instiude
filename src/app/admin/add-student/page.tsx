@@ -5,6 +5,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import BackButton from "@/components/ui/BackButton";
 import { useToast } from "@/components/ui/use-toast";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function AddStudent() {
   const [form, setForm] = useState({
@@ -225,9 +227,63 @@ export default function AddStudent() {
       r.name.toLowerCase().includes(search.toLowerCase()) ||
       r.roll_no.toLowerCase().includes(search.toLowerCase())
   );
+const downloadPDF = () => {
+  const doc = new jsPDF("p", "mm", "a4");
+
+  // === Header ===
+  const logo = new Image();
+  logo.src = "/images/logo1.jpg";
+  logo.onload = () => {
+    // Logo + Title
+    doc.addImage(logo, "JPEG", 10, 8, 20, 20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("Iqra Online Quran Institute", 35, 18);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text("Student Details Report", 35, 26);
+
+    // Line below header
+    doc.setDrawColor(150);
+    doc.line(10, 32, 200, 32);
+
+    // === Table ===
+    const tableData = filteredRows.map((r) => [
+      r.name,
+      r.roll_no,
+      r.class_time || "—",
+      Array.isArray(r.class_days)
+        ? r.class_days.map((d) => `${d.day} (${d.subject})`).join(", ")
+        : "—",
+      r.teacherNames.join(", ") || "—",
+      `Rs ${r.student_total_fee || 0}`,
+      r.fee_status.toUpperCase(),
+    ]);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [["Name", "Roll", "Class Time", "Days", "Teachers", "Total Fee", "Status"]],
+      body: tableData,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [34, 139, 34] },
+      alternateRowStyles: { fillColor: [245, 255, 245] },
+    });
+
+    // === Footer ===
+    const date = new Date().toLocaleString();
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${date}`, 10, 285);
+
+    // === Save PDF ===
+    doc.save("students_list.pdf");
+  };
+};
+ 
+
 
   return (
-    <div className="bg-blue-100 min-h-screen py-12 px-4 md:px-8 space-y-8">
+    <div className="bg-blue-100 min-h-screen  px-4 md:px-8 space-y-8">
       <BackButton href="/admin/dashboard" label="Back" />
 
       {/* Form */}
@@ -307,6 +363,29 @@ export default function AddStudent() {
 
       {/* Students Table */}
       <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4">
+        <div className="flex justify-between items-center mb-4">
+  <div className="flex items-center gap-3">
+    <img
+      src="/images/logo1.jpg"
+      alt="Institute Logo"
+      className="w-12 h-12 rounded-full border"
+    />
+    <div>
+      <h1 className="text-xl font-bold text-green-800">
+        Iqra Online Quran Institute
+      </h1>
+      <p className="text-sm text-gray-600">Student Management </p>
+    </div>
+  </div>
+<Button
+  onClick={downloadPDF}
+  className="bg-green-600 text-white hover:bg-green-700"
+>
+  Download PDF
+</Button>
+
+</div>
+
         <h2 className="text-2xl font-bold text-gray-800">Students List</h2>
         <input
           type="text"
@@ -327,6 +406,7 @@ export default function AddStudent() {
                 <th className="p-3 text-purple-700">Teacher Fee</th>
                 <th className="p-3 text-blue-700">Academy Fee</th>
                 <th className="p-3 text-green-700">Total Fee</th>
+                <th className="p-3">Joining Date</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Actions</th>
               </tr>
@@ -346,6 +426,7 @@ export default function AddStudent() {
                   <td className="p-3 text-purple-700 font-semibold">Rs {r.teacherFee}</td>
                   <td className="p-3 text-blue-700 font-semibold">Rs {r.academy_fee}</td>
                   <td className="p-3 text-green-700 font-bold">Rs {r.student_total_fee || 0}</td>
+                   <td>{r.join_date ? new Date(r.join_date).toLocaleDateString() : '—'}</td>
                   <td className={`p-3 font-medium ${r.fee_status === "paid" ? "text-green-600" : "text-red-600"}`}>{r.fee_status}</td>
                   <td className="p-3 flex gap-2 flex-wrap">
                     <Button size="sm" variant="outline" onClick={() => editStudent(r)}>Edit</Button>

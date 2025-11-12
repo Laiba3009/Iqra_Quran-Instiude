@@ -9,6 +9,7 @@ export const sidebars = {
     { name: "Fee Approvals", link: "/admin/fee-approvals", icon: CreditCard },
     { name: "Students Complaints", link: "/admin/complaints", icon: FileText },
         { name: "Syllabus", link: "/student/syllabus/student/syllabus", icon: FileText },
+    { name: "Student Monthly Reports", link: "/admin/montly-reports", icon: FileText },
 
     { name: "Logout", link: "#", icon: X, logout: true },
 
