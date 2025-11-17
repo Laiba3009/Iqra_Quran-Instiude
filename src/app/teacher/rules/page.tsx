@@ -1,36 +1,48 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
 export default function TeacherRulesPage() {
   return (
-    <div className="p-6">
-      <Card className="shadow-lg border border-gray-200 bg-white">
-        <CardHeader>
-          <CardTitle className="text-2xl text-green-800">📜 Teacher Rules & Regulations</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p>
-            Welcome to the Teacher Rules & Regulations page. Please follow all the guidelines
-            strictly to maintain a professional and productive environment.
-          </p>
+    <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-950 text-white px-8 py-12">
+      {/* 🔹 Header */}
+      <header className="flex items-center gap-4 mb-10">
+        <img
+          src="/images/logo1.jpg"
+          alt="Institute Logo"
+          className="w-14 h-14 rounded-full border-2 border-blue-300"
+        />
+        <h1 className="text-4xl font-bold text-blue-200">
+          Iqra Online Quran Institute
+        </h1>
+      </header>
 
-          <ul className="list-disc list-inside space-y-2 text-gray-700">
-            <li>Arrive on time for classes and meetings.</li>
-            <li>Maintain accurate attendance records for all students.</li>
-            <li>Prepare and submit lesson plans regularly.</li>
-            <li>Ensure that all classroom activities follow the school’s code of conduct.</li>
-            <li>Communicate with parents and administration professionally.</li>
-            <li>Maintain confidentiality of student information.</li>
-            <li>Report any issues or concerns to the administration promptly.</li>
-          </ul>
+      {/* 🔹 Page Title */}
+      <h2 className="text-3xl font-bold text-blue-100 mb-6 border-b border-blue-700 pb-2">
+         Teacher Rules & Regulations
+      </h2>
 
-          <p className="text-gray-500 text-sm">
-            These rules are mandatory for all teaching staff. Violation of rules may lead to
-            administrative action.
-          </p>
-        </CardContent>
-      </Card>
+      {/* 🔹 Intro */}
+      <p className="text-lg text-blue-100 leading-relaxed mb-8">
+        Welcome respected teachers! Please go through the following guidelines carefully. 
+        These rules are designed to maintain professionalism and ensure a disciplined 
+        and effective teaching environment at our institute.
+      </p>
+
+      {/* 🔹 Rules List */}
+      <ul className="space-y-4 text-blue-100 text-lg leading-relaxed list-disc list-inside">
+        <li>Be punctual and attend all scheduled classes on time.</li>
+        <li>Maintain accurate attendance records for every student.</li>
+        <li>Submit lesson plans and student progress reports weekly.</li>
+        <li>Ensure discipline and respect during every class session.</li>
+        <li>Communicate politely and professionally with students and parents.</li>
+        <li>Keep all student data and discussions confidential.</li>
+        <li>Report any issues or misconduct immediately to the administration.</li>
+      </ul>
+
+      {/* 🔹 Footer Note */}
+      <p className="mt-10 text-blue-300 text-base border-t border-blue-700 pt-4">
+        ⚠️ All teachers must comply with these regulations. Violations may result 
+        in disciplinary action by the administration of Iqra Online Quran Institute.
+      </p>
     </div>
   );
 }
