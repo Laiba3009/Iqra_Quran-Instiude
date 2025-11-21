@@ -19,6 +19,8 @@ export const sidebars = {
     { name: "Syllabus", link: "/teacher/syllabus", icon: Book },
     { name: "Attendance", link: "/teacher/attendance", icon: CheckCircle },
     { name: "Leave Management", link: "/teacher/teacher-leave", icon: Calendar },
+          { name: "Salary Records", link: "/teacher/salary-record", icon: Book },
+
         { name: "Bank Details", link: "/teacher/bank-details", icon: Users },
       { name: "Rules & Regulation", link: "/teacher/rules", icon: Book },
     { name: "Logout", link: "#", icon: X, logout: true },

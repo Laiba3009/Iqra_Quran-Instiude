@@ -51,6 +51,10 @@ export default function TeacherSigninPage() {
     document.cookie = `teacher_roll=${rollNo}; path=/; max-age=86400;`;
     localStorage.setItem("userRole", "teacher"); // ✅ Add this
 
+    
+// ✅ Add this line to save roll number
+localStorage.setItem("teacher_roll_no", rollNo); 
+localStorage.setItem("userRole", "teacher");
     // Step 4: Redirect
     router.push("/teacher/dashboard");
   };
