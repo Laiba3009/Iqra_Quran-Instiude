@@ -12,9 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface MonthlyReport {
   id: string;
@@ -23,6 +21,7 @@ interface MonthlyReport {
   teacher_name: string;
   report_text: string;
   created_at: string;
+  month: string;
 }
 
 export default function AdminMonthlyReports() {
@@ -33,6 +32,7 @@ export default function AdminMonthlyReports() {
 
   const [studentAllReports, setStudentAllReports] = useState<MonthlyReport[]>([]);
   const [popupOpen, setPopupOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('');
 
   useEffect(() => {
     loadReports();
@@ -52,19 +52,23 @@ export default function AdminMonthlyReports() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error loading monthly reports:', error);
+      console.error(error);
       setLoading(false);
       return;
     }
 
-    const formatted = (data || []).map((r: any) => ({
-      id: r.id,
-      student_name: r.students?.name || '—',
-      roll_no: r.students?.roll_no || '—',
-      teacher_name: r.teachers?.name || '—',
-      report_text: r.report_text || '',
-      created_at: new Date(r.created_at).toLocaleDateString(),
-    }));
+    const formatted: MonthlyReport[] = (data || []).map((r: any) => {
+      const dateObj = new Date(r.created_at);
+      return {
+        id: r.id,
+        student_name: r.students?.name || '—',
+        roll_no: r.students?.roll_no || '—',
+        teacher_name: r.teachers?.name || '—',
+        report_text: r.report_text || '',
+        created_at: dateObj.toLocaleDateString(),
+        month: dateObj.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+      };
+    });
 
     setReports(formatted);
 
@@ -82,23 +86,14 @@ export default function AdminMonthlyReports() {
   const loadStudentReports = (roll_no: string) => {
     const all = reports.filter((r) => r.roll_no === roll_no);
     setStudentAllReports(all);
+    setSelectedMonth('');
     setPopupOpen(true);
   };
 
   const deleteReport = async (id: string) => {
     if (!confirm('Are you sure you want to delete this report?')) return;
-
-    const { error } = await supabase
-      .from('student_monthly_reports')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      alert('Error deleting report: ' + error.message);
-      return;
-    }
-
-    // Refresh reports
+    const { error } = await supabase.from('student_monthly_reports').delete().eq('id', id);
+    if (error) return alert('Error deleting report: ' + error.message);
     loadReports();
     alert('Report deleted successfully!');
   };
@@ -107,88 +102,57 @@ export default function AdminMonthlyReports() {
     (r.student_name.toLowerCase() + r.roll_no.toLowerCase()).includes(search.toLowerCase())
   );
 
-  const loadImageAsDataURL = (src: string): Promise<{ dataUrl: string; mime: string }> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) throw new Error('Canvas not supported');
-          ctx.drawImage(img, 0, 0);
-          let mime = 'image/jpeg';
-          if (src.match(/\.png(\?.*)?$/i)) mime = 'image/png';
-          if (src.match(/\.webp(\?.*)?$/i)) mime = 'image/webp';
-          const dataUrl = canvas.toDataURL(mime);
-          resolve({ dataUrl, mime });
-        } catch (err) {
-          reject(err);
-        }
-      };
-      img.onerror = () => reject(new Error('Image failed to load: ' + src));
-      img.src = src;
-      if (img.complete && img.naturalWidth !== 0) {
-        setTimeout(() => {
-          img.dispatchEvent(new Event('load'));
-        }, 50);
-      }
-    });
-  };
+  const filteredStudentReports = studentAllReports.filter((r) =>
+    selectedMonth ? r.month === selectedMonth : true
+  );
 
-  const downloadPDF = async () => {
-    if (!studentAllReports || studentAllReports.length === 0) {
-      alert('No report selected.');
-      return;
-    }
+  const downloadPDF = () => {
+    if (filteredStudentReports.length === 0) return alert('No report for selected month.');
 
-    const LOGO_PATH = '/images/logo1.jpg';
     const doc = new jsPDF('p', 'pt', 'a4');
-    try {
-      let addedLogoHeight = 0;
-      try {
-        const { dataUrl, mime } = await loadImageAsDataURL(LOGO_PATH);
-        const format = mime.includes('png') ? 'PNG' : 'JPEG';
-        const imgWidth = 60;
-        const imgHeight = 60;
-        doc.addImage(dataUrl, format, 40, 20, imgWidth, imgHeight);
-        addedLogoHeight = imgHeight;
-      } catch (imgErr) {
-        console.warn('Logo load failed, continuing without logo:', imgErr);
-      }
 
+    // Light blue background
+    doc.setFillColor(173, 216, 230); // light blue
+    doc.rect(0, 0, doc.internal.pageSize.width, doc.internal.pageSize.height, 'F');
+
+    // Logo
+    const img = new Image();
+    img.src = '/images/logo1.jpg';
+    img.onload = () => {
+      doc.addImage(img, 'JPEG', 40, 20, 60, 60);
+
+      // Institute Name
       doc.setFontSize(22);
-      doc.text('Iqra Online Institute', 150, 50);
+      doc.setTextColor(0, 0, 80);
+      doc.text('Iqra Online Institute', 120, 50);
 
-      doc.setFontSize(14);
-      doc.text(`Student: ${studentAllReports[0]?.student_name}`, 40, 110);
+      // Student Info
+      doc.setFontSize(16);
+      doc.setTextColor(0);
+      doc.text(`Student: ${filteredStudentReports[0].student_name}`, 40, 100);
+      doc.text(`Roll No: ${filteredStudentReports[0].roll_no}`, 40, 120);
+      doc.text(`Month: ${selectedMonth || filteredStudentReports[0].month}`, 40, 140);
 
-      autoTable(doc, {
-        startY: 140,
-        head: [['Date', 'Teacher', 'Monthly Report']],
-        body: studentAllReports.map((r) => [r.created_at, r.teacher_name, r.report_text]),
-        styles: { cellWidth: 'wrap', fontSize: 10 },
-        columnStyles: { 0: { cellWidth: 70 }, 1: { cellWidth: 100 }, 2: { cellWidth: 350 } },
-        margin: { left: 40, right: 40 },
-        didDrawPage: () => {
-          const page = doc.getNumberOfPages();
-          doc.setFontSize(9);
-          doc.text(
-            `Page ${page}`,
-            doc.internal.pageSize.getWidth() - 60,
-            doc.internal.pageSize.getHeight() - 30
-          );
-        },
+      let startY = 160;
+      doc.setFontSize(13);
+
+      filteredStudentReports.forEach((r) => {
+        const textLines = doc.splitTextToSize(r.report_text, 500);
+        const boxHeight = Math.max(textLines.length * 14 + 20, 60);
+
+        doc.setDrawColor(0);
+        doc.setLineWidth(1);
+        doc.roundedRect(40, startY, 500, boxHeight, 10, 10);
+
+        doc.text(textLines, 50, startY + 20);
+
+        startY += boxHeight + 10;
+        if (startY > doc.internal.pageSize.getHeight() - 60) doc.addPage() && (startY = 40);
       });
 
-      const safeName = (studentAllReports[0]?.student_name || 'student').replace(/\s+/g, '_');
-      doc.save(`Monthly_Reports_${safeName}.pdf`);
-    } catch (err) {
-      console.error('PDF generation error:', err);
-      alert('Error generating PDF. Check console.');
-    }
+      const safeName = (filteredStudentReports[0].student_name || 'student').replace(/\s+/g, '_');
+      doc.save(`Monthly_Report_${safeName}.pdf`);
+    };
   };
 
   return (
@@ -196,7 +160,6 @@ export default function AdminMonthlyReports() {
       <Card className="shadow-md border rounded-xl">
         <CardHeader className="flex justify-between items-center flex-wrap gap-4">
           <CardTitle className="text-xl font-semibold text-green-700">📅 Monthly Reports</CardTitle>
-
           <div className="flex items-center gap-2">
             <Input
               placeholder="Search by student name or roll no..."
@@ -224,8 +187,6 @@ export default function AdminMonthlyReports() {
                   <tr>
                     <th className="p-3 border-b">Student Name</th>
                     <th className="p-3 border-b">Roll No</th>
-                    <th className="p-3 border-b">Teacher</th>
-                    <th className="p-3 border-b">Date</th>
                     <th className="p-3 border-b">Actions</th>
                   </tr>
                 </thead>
@@ -234,11 +195,12 @@ export default function AdminMonthlyReports() {
                     <tr key={r.id} className="hover:bg-gray-50">
                       <td className="p-3 border-b font-medium">{r.student_name}</td>
                       <td className="p-3 border-b">{r.roll_no}</td>
-                      <td className="p-3 border-b text-gray-700">{r.teacher_name}</td>
-                      <td className="p-3 border-b text-gray-600">{r.created_at}</td>
                       <td className="p-3 border-b flex gap-2">
-                        <Button onClick={() => loadStudentReports(r.roll_no)} className="bg-blue-600 text-white">
-                          View
+                        <Button
+                          onClick={() => loadStudentReports(r.roll_no)}
+                          className="bg-blue-600 text-white"
+                        >
+                          View / PDF
                         </Button>
                         <Button onClick={() => deleteReport(r.id)} className="bg-red-600 text-white">
                           <Trash2 className="w-4 h-4 mr-1" /> Delete
@@ -253,12 +215,12 @@ export default function AdminMonthlyReports() {
         </CardContent>
       </Card>
 
-      {/* POPUP */}
+      {/* Popup */}
       <Dialog open={popupOpen} onOpenChange={setPopupOpen}>
-        <DialogContent className="max-w-[95vw] h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[650px] h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between gap-4 w-full">
-              <DialogTitle>All Monthly Reports - {studentAllReports[0]?.student_name}</DialogTitle>
+              <DialogTitle>Reports - {studentAllReports[0]?.student_name}</DialogTitle>
               <div className="flex items-center gap-2">
                 <Button className="bg-red-600 text-white" onClick={downloadPDF}>
                   Download PDF
@@ -270,14 +232,33 @@ export default function AdminMonthlyReports() {
             </div>
           </DialogHeader>
 
-          <div className="max-h-[75vh] overflow-y-auto space-y-4 mt-4">
-            {studentAllReports.map((r) => (
-              <div key={r.id} className="p-4 border rounded-lg bg-gray-50">
-                <p className="text-sm text-gray-600">{r.created_at}</p>
-                <p className="font-semibold">{r.teacher_name}</p>
+          {/* Month Filter inside popup */}
+          <div className="mb-4">
+            <select
+              className="border rounded-lg p-2 w-full"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+            >
+              <option value="">All Months</option>
+              {[...new Set(studentAllReports.map((r) => r.month))].map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Report Boxes */}
+          <div className="space-y-4">
+            {filteredStudentReports.map((r) => (
+              <div key={r.id} className="p-4 border rounded-xl bg-gray-50 shadow-md">
+                <p className="text-sm text-gray-600">{r.month}</p>
                 <p className="mt-2 whitespace-pre-wrap">{r.report_text}</p>
               </div>
             ))}
+            {filteredStudentReports.length === 0 && (
+              <p className="text-center text-gray-500 py-10">No reports for selected month.</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>

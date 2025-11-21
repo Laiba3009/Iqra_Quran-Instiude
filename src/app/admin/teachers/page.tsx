@@ -1,134 +1,187 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-import TeacherForm from "../../../components/TeacherForm";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { Button } from "@/components/ui/button";
+import BackButton from "@/components/ui/BackButton";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+interface Teacher {
+  id: string;
+  name: string;
+  roll_no?: string;
+  syllabus?: string[] | null;
+  email?: string | null;
+}
 
-export default function TeacherListPage() {
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [viewImg, setViewImg] = useState<string | null>(null);
+interface StudentLink {
+  id: string;
+  name: string;
+  roll_no?: string;
+  teacher_fee?: number;
+  teacher_id?: string;
+  join_date?: string;
+}
 
-  const fetchTeachers = async () => {
-    const { data } = await supabase.from("teacher_salary_form").select("*");
-    setTeachers(data || []);
-  };
+export default function TeacherList() {
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [studentLinks, setStudentLinks] = useState<StudentLink[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const deleteTeacher = async (id: string) => {
-    const ok = confirm("Are you sure you want to delete this teacher?");
-    if (!ok) return;
-
-    await supabase.from("teacher_salary_form").delete().eq("id", id);
-    fetchTeachers();
-  };
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTeacherId, setModalTeacherId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTeachers();
+    loadAll();
   }, []);
 
+  const loadAll = async () => {
+    setLoading(true);
+    try {
+      const { data: tData } = await supabase
+        .from("teachers")
+        .select("id, name, roll_no, syllabus, email")
+        .order("created_at", { ascending: false });
+
+      const { data: stLinks } = await supabase
+        .from("student_teachers")
+        .select("teacher_id, teacher_fee, students(id, name, roll_no, join_date)")
+        .order("id", { ascending: true });
+
+      const normalized: StudentLink[] = stLinks?.map((s: any) => ({
+        id: s.students?.id,
+        name: s.students?.name,
+        roll_no: s.students?.roll_no,
+        teacher_fee: s.teacher_fee,
+        teacher_id: s.teacher_id,
+        join_date: s.students?.join_date,
+      })) ?? [];
+
+      setTeachers(tData ?? []);
+      setStudentLinks(normalized);
+    } catch (err: any) {
+      console.error("Load error", err);
+      alert(err.message || "Error loading data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAssignedForTeacher = (teacherId: string) => {
+    const assigned = studentLinks.filter((s) => s.teacher_id === teacherId);
+    const today = new Date();
+
+    const totalFee = assigned.reduce((sum, s) => {
+      const joinDate = s.join_date ? new Date(s.join_date) : null;
+      if (joinDate && joinDate > today) return sum;
+      return sum + Number(s.teacher_fee || 0);
+    }, 0);
+
+    return { assigned, totalFee };
+  };
+
+  const visibleTeachers = useMemo(() => teachers, [teachers]);
+
+  const openModalFor = (teacherId: string) => {
+    setModalTeacherId(teacherId);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalTeacherId(null);
+  };
+
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto mt-8 p-6 space-y-6">
+      <BackButton href="/admin/dashboard" label="Back to Dashboard" />
+      <h1 className="text-3xl font-bold text-green-800">Teacher List</h1>
 
-      <h1 className="text-3xl font-extrabold mb-6">Teachers Management</h1>
-
-      {/* Teacher Add Form */}
-      <TeacherForm onTeacherAdded={fetchTeachers} />
-
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow mt-6 overflow-hidden">
-        <table className="w-full border-collapse">
-          <thead className="bg-gray-100 text-gray-700">
-            <tr>
-              <th className="p-3 border">Name</th>
-              <th className="p-3 border">Subjects</th>
-              <th className="p-3 border">Joining</th>
-              <th className="p-3 border">Total Fee</th>
-              <th className="p-3 border">Security</th>
-              <th className="p-3 border">Agreement</th>
-              <th className="p-3 border">Actions</th>
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <table className="w-full table-auto border-collapse mt-4">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="p-2 border">Name</th>
+              <th className="p-2 border">Syllabus</th>
+              <th className="p-2 border">Total Fee</th>
+              <th className="p-2 border">Actions</th>
             </tr>
           </thead>
-
           <tbody>
-            {teachers.map((t) => (
-              <tr
-                key={t.id}
-                className="border-b hover:bg-gray-50 transition-all"
-              >
-                <td className="p-3 border font-medium">{t.name}</td>
-                <td className="p-3 border">{t.subjects}</td>
-                <td className="p-3 border">{t.joining_date}</td>
-                <td className="p-3 border">{t.total_fee}</td>
-                <td className="p-3 border">{t.security_fee}</td>
+            {visibleTeachers.map((t) => {
+              const { assigned, totalFee } = getAssignedForTeacher(t.id);
+              return (
+                <tr key={t.id} className="border-b hover:bg-gray-50">
+                  <td className="p-2">{t.name}</td>
+                  <td className="p-2">{t.syllabus?.join(", ") || "—"}</td>
+                  <td className="p-2">Rs {totalFee}</td>
+                  <td className="p-2">
+                   <Button
+  size="sm"
+  variant="outline"
+  onClick={() => window.location.href = `/admin/teachers/salary/${t.id}`}
+>
+  View Salary Record
+</Button>
 
-                <td className="p-3 border">
-                  {t.agreement_file ? (
-                    <button
-                      className="text-blue-600 hover:text-blue-800 underline"
-                      onClick={() => setViewImg(t.agreement_file)}
-                    >
-                      View
-                    </button>
-                  ) : (
-                    "-"
-                  )}
-                </td>
+                  </td>
+                </tr>
+              );
+            })}
 
-                <td className="p-3 border">
-                  <div className="flex gap-4">
-
-                    {/* Salary Page */}
-                    <Link
-                      href={`/admin/teachers/${t.id}`}
-                      className="px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition"
-                    >
-                      Salary Record
-                    </Link>
-
-                    {/* Edit Button */}
-                    <Link
-                      href={`/admin/teachers/edit/${t.id}`}
-                      className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 transition"
-                    >
-                      Edit
-                    </Link>
-
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => deleteTeacher(t.id)}
-                      className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 transition"
-                    >
-                      Delete
-                    </button>
-
-                  </div>
+            {visibleTeachers.length === 0 && (
+              <tr>
+                <td colSpan={4} className="p-4 text-center text-gray-500">
+                  No teachers found.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
-      </div>
+      )}
 
-      {/* IMAGE VIEW MODAL */}
-      {viewImg && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex justify-center items-center z-50">
-          <div className="relative">
-            <img src={viewImg} className="max-w-3xl rounded-lg shadow-2xl" />
-            <button
-              onClick={() => setViewImg(null)}
-              className="absolute -top-4 -right-4 bg-white text-black rounded-full px-3 py-1 shadow hover:bg-gray-200"
-            >
-              ✕
-            </button>
+      {/* Modal for Assigned Students */}
+      {modalOpen && modalTeacherId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white w-full max-w-2xl rounded-lg shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold">
+                Assigned Students — {teachers.find((x) => x.id === modalTeacherId)?.name}
+              </h3>
+              <Button onClick={closeModal} className="bg-gray-200 text-black">
+                Close
+              </Button>
+            </div>
+
+            <div className="p-4 max-h-[60vh] overflow-auto">
+              {getAssignedForTeacher(modalTeacherId).assigned.length > 0 ? (
+                <ul className="space-y-2">
+                  {getAssignedForTeacher(modalTeacherId).assigned.map((s) => {
+                    const isFuture = s.join_date && new Date(s.join_date) > new Date();
+                    return (
+                      <li key={s.id} className="p-3 border rounded-md flex justify-between items-center">
+                        <div>
+                          <div className="font-medium">
+                            {s.name} {isFuture && <span className="text-xs text-blue-600">(New)</span>}
+                          </div>
+                          <div className="text-sm text-gray-500">Roll: {s.roll_no || "—"}</div>
+                          <div className="text-xs text-gray-400">
+                            Join Date: {s.join_date ? new Date(s.join_date).toLocaleDateString() : "—"}
+                          </div>
+                        </div>
+                        <div className="font-medium">Rs {isFuture ? 0 : s.teacher_fee || 0}</div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-gray-500">No assigned students.</p>
+              )}
+            </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

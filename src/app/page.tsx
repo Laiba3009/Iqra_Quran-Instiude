@@ -22,7 +22,6 @@ export default function HomePage() {
       {/* 👇 Full Width Banner */}
       <div className="mt-16"> {/* Header ke height ka margin */}
         <BannerSlider />
-
         {/* 👇 Cards Section */}
         <section className="w-full bg-blue-100 py-16">
           <div className="max-w-6xl mx-auto px-6">
