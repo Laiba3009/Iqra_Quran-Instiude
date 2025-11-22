@@ -276,7 +276,6 @@ export default function TeacherDashboard() {
         </Card>
 
         {/* Monthly Report Section */}
-        <MonthlyReportForm teacher={teacher} />
 
         <p className="text-sm text-gray-400 text-center">
           Zoom link and syllabus are managed by Admin.

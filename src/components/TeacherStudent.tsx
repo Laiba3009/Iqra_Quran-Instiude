@@ -266,7 +266,7 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
                 <td className="p-3 flex justify-center gap-2 flex-wrap">
                   <Button
                     size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="bg-emerald-600 hover:bg-emerald-400 text-white"
                     onClick={() => {
                       setSelectedStudent(s);
                       setShowWeeklyModal(true);
@@ -277,7 +277,7 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
 
                   <Button
                     size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    className="bg-blue-600 hover:bg-blue-400 text-white"
                     onClick={() => {
                       setSelectedStudent(s);
                       setShowMonthlyModal(true);
@@ -289,13 +289,13 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-red-500 text-red-600 hover:bg-red-50"
+                    className="bg-pink-600 text-white hover:bg-pink-400"
                     onClick={() => {
                       setSelectedStudent(s);
                       setShowComplaintModal(true);
                     }}
                   >
-                    Complaint
+                    Note
                   </Button>
                 </td>
               </tr>
@@ -354,10 +354,10 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
       <Dialog open={showComplaintModal} onOpenChange={setShowComplaintModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Submit Complaint for {selectedStudent?.name}</DialogTitle>
+            <DialogTitle>Submit Note for {selectedStudent?.name}</DialogTitle>
           </DialogHeader>
           <Textarea
-            placeholder="Write complaint..."
+            placeholder="Write note..."
             value={complaintText}
             onChange={(e) => setComplaintText(e.target.value)}
             className="mt-2"
@@ -367,7 +367,7 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
               onClick={handleSaveComplaint}
               className="bg-red-600 text-white"
             >
-              Submit Complaint
+              Submit Note
             </Button>
           </DialogFooter>
         </DialogContent>
