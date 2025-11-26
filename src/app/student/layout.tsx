@@ -4,27 +4,29 @@ import { useState } from "react";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-
+export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className=" bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
 
+      {/* Sidebar */}
       <Sidebar
-        role="admin"                 // ← IMPORTANT FIX
+        role="student"
         open={sidebarOpen}
         toggleSidebar={() => setSidebarOpen(false)}
       />
 
       <div className="flex-1 flex flex-col">
 
-        <Header 
-          role="admin"               // optional, but safe
-          toggleSidebar={() => setSidebarOpen(!sidebarOpen)} 
+        {/* Header */}
+        <Header
+          role="student"
+          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         />
 
-        <main className="pt-18">
+        {/* Page content */}
+        <main className="pt-20 ">
           {children}
         </main>
 

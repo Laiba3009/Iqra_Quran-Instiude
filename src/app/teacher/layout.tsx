@@ -1,33 +1,29 @@
 "use client";
-
 import { useState } from "react";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-
+export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className=" bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
 
       <Sidebar
-        role="admin"                 // ← IMPORTANT FIX
+        role="teacher"
         open={sidebarOpen}
         toggleSidebar={() => setSidebarOpen(false)}
       />
 
       <div className="flex-1 flex flex-col">
-
-        <Header 
-          role="admin"               // optional, but safe
-          toggleSidebar={() => setSidebarOpen(!sidebarOpen)} 
+        <Header
+          role="teacher"
+          toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         />
 
-        <main className="pt-18">
+        <main className=" ">
           {children}
         </main>
-
       </div>
     </div>
   );

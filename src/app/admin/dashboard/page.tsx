@@ -148,7 +148,7 @@ export default function AdminDashboard() {
       {/* Buttons */}
       <div className="flex flex-wrap gap-3 justify-center mt-6">
         <Link href="/admin/progress-reports">
-          <Button className="bg-teal-600 hover:bg-teal-700">View Progress Reports</Button>
+          <Button className="bg-teal-600 hover:bg-teal-700">Weekly  Reports + Notice</Button>
         </Link>
         <Link href="/admin/add-student">
           <Button className="bg-blue-600 hover:bg-blue-700">+ Add Student</Button>

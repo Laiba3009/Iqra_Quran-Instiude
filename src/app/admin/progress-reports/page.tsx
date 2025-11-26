@@ -187,7 +187,7 @@ export default function AdminProgressPage() {
             <DialogHeader>
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center w-full gap-2">
                 <DialogTitle className="text-xl font-bold text-center sm:text-left w-full">
-                  📘 Progress Report & Notes — {selectedStudent?.name}
+                  📘 Progress Report & Notice — {selectedStudent?.name}
                 </DialogTitle>
 
                 {selectedStudent && (filteredReports.length > 0 || filteredComplaints.length > 0) && (
@@ -250,7 +250,7 @@ export default function AdminProgressPage() {
 
               {/* NOTES */}
               <div className="flex flex-col gap-4 w-full md:w-1/2">
-                <h2 className="font-bold text-xl text-center">📝 Notes</h2>
+                <h2 className="font-bold text-xl text-center">📝 Notice</h2>
                 {filteredComplaints.length > 0 ? filteredComplaints.map((c) => (
                   <div
                     key={c.id}

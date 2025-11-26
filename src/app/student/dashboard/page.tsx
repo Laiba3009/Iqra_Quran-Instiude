@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import BannerSlider from "@/components/BannerSlider";
@@ -55,6 +54,34 @@ const getCookie = (name: string) => {
   return match ? match[2] : null;
 };
 
+// 🔹 Timezone helper
+const tzOffsets: Record<string, number> = {
+  "Pakistan (PKT)": 5,
+  "Turkey (TRT)": 3,
+  "United Kingdom (GMT)": 0,
+  "USA - New York (EST)": -5,
+  "China (CST)": 8,
+  "Japan (JST)": 9,
+  "Australia (AEST)": 10,
+  "India (IST)": 5.5,
+  "Singapore (SGT)": 8,
+  "New Zealand (NZST)": 12,
+  "Germany (CET)": 1,
+  "Belgium (CET)": 1,
+  "Gulf (UAE/Oman)": 4,
+};
+
+const formatTimeByOffset = (utcTime: string, tzOffset: number) => {
+  if (!utcTime) return "TBD";
+  const [hh, mm] = utcTime.split(":").map(Number);
+  let local = hh + tzOffset;
+  if (local >= 24) local -= 24;
+  if (local < 0) local += 24;
+  const period = local >= 12 ? "PM" : "AM";
+  const h12 = local % 12 || 12;
+  return `${h12}:${String(mm).padStart(2, "0")} ${period}`;
+};
+
 // 🔹 Main Dashboard
 export default function StudentDashboard() {
   const { toast } = useToast();
@@ -73,10 +100,11 @@ export default function StudentDashboard() {
       // ✅ Fetch student
       const { data: studentData } = await supabase
         .from("students")
-        .select("id, name, roll_no, class_days")
+        .select("id, name, roll_no, class_days, timezone")
         .eq("roll_no", roll)
         .maybeSingle();
-      if (!studentData) return setStudent(null);
+      if (!studentData) return;
+
       setStudent(studentData);
 
       // ✅ Fee status
@@ -94,8 +122,16 @@ export default function StudentDashboard() {
         .from("teachers")
         .select("id, name, email, zoom_link");
 
-      // 🔹 Filter today’s classes with teacher names
-      const today = new Date().toLocaleString("en-US", { weekday: "long" }).toLowerCase();
+      // 🔹 Determine today's day in student timezone
+      const tzOffset = tzOffsets[studentData.timezone] || 5; // default PKT
+      const todayDate = new Date();
+      const utcDayIndex = todayDate.getUTCDay();
+      const localHour = todayDate.getUTCHours() + tzOffset;
+      const adjustedDate = new Date(todayDate);
+      adjustedDate.setUTCHours(localHour);
+      const today = adjustedDate.toLocaleString("en-US", { weekday: "long" }).toLowerCase();
+
+      // 🔹 Filter today’s classes
       const todayCls = (studentData.class_days || [])
         .filter((cls: any) => cls.day.toLowerCase() === today)
         .map((cls: any, idx: number) => {
@@ -105,9 +141,9 @@ export default function StudentDashboard() {
           return {
             id: `${cls.day}-${idx}`,
             day: cls.day,
-            time: cls.time || "TBD",
+            time: formatTimeByOffset(cls.time, tzOffset),
             subject: cls.subject || "TBD",
-            teacher_name: teacher ? teacher.name : "Unknown",
+            teacher_name: teacher ? teacher.name:"",
             zoom_link: teacher ? teacher.zoom_link : "",
           };
         });
@@ -125,7 +161,7 @@ export default function StudentDashboard() {
       {
         student_name: student.name,
         student_roll: student.roll_no,
-          teacher_name: teacher.name,
+        teacher_name: cls.teacher_name,
         subject: cls.subject,
         joined_at: new Date().toISOString(),
       },
@@ -191,20 +227,25 @@ export default function StudentDashboard() {
         <NoticeComponent userRole="student" />
 
         {/* Today’s Classes */}
-        <Card className="shadow-xl border border-green-200 bg-white">
+        <Card className="shadow-xl border border-green-200 w-[500px] text-center h-[310px] bg-white">
           <h1 className="text-3xl font-bold text-center text-green-800 mb-6">📅 Today’s Classes</h1>
           <CardContent>
             {todaysClasses.length === 0 ? (
               <p className="text-center text-gray-600">No classes scheduled for today.</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1  gap-6">
                 {todaysClasses.map((cls) => (
                   <Card key={cls.id} className="shadow-md border-green-200">
                     <CardContent className="p-4 space-y-3">
-                      <h2 className="text-xl font-semibold text-green-700">{cls.day}</h2>
+                      <h2 className="text-xl font-semibold text-green-700">{cls.day}{cls.teacher_name}</h2>
                       <p className="text-gray-700"><b>Time:</b> {cls.time}</p>
                       <p className="text-gray-700"><b>Subject:</b> {cls.subject}</p>
-                      <Button className="bg-green-600 hover:bg-green-700 text-white w-full" onClick={() => handleJoinClass(cls)}>Join Zoom Class</Button>
+                      <Button
+                        className="bg-green-600 hover:bg-green-700 text-white w-full"
+                        onClick={() => handleJoinClass(cls)}
+                      >
+                        Join Zoom Class
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
@@ -239,7 +280,7 @@ export default function StudentDashboard() {
             <Button onClick={handleSuggestionSubmit} className="bg-green-600 hover:bg-green-700 text-white">Send Suggestion</Button>
           </CardContent>
         </Card>
-         
+
       </div>
     </RoleBasedLayout>
   );

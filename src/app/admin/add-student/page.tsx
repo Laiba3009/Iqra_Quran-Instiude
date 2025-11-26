@@ -7,18 +7,19 @@ import BackButton from "@/components/ui/BackButton";
 import { useToast } from "@/components/ui/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import TimeWithTimeZone from "@/components/TimeWithTimezone";
 
 export default function AddStudent() {
   const [form, setForm] = useState({
     id: "",
     name: "",
     roll_no: "",
+    timezone: "",   // ← add this
     contact: "",
     email: "",
     syllabus: [] as string[],
     academy_fee: "",
     student_total_fee: "",
-    class_time: "",
     fee_status: "unpaid",
     join_date: "",
     class_days: [] as { day: string; subject: string; time: string }[],
@@ -40,8 +41,12 @@ export default function AddStudent() {
     loadTeachers();
   }, []);
 
+  // ================= Load Students =================
   const loadRows = async () => {
-    const { data: students } = await supabase.from("students").select("*").order("created_at", { ascending: false });
+    const { data: students } = await supabase
+      .from("students")
+      .select("*")
+      .order("created_at", { ascending: false });
     if (!students) return;
 
     const fullData = await Promise.all(
@@ -56,7 +61,11 @@ export default function AddStudent() {
 
         return {
           ...s,
-          teacherNames: teacherMap?.map((m) => `${m.teachers?.name} (Rs ${m.teacher_fee})`) || [],
+          teacherNames:
+            teacherMap?.map((m) => {
+              const t = Array.isArray(m.teachers) ? m.teachers[0] : m.teachers;
+              return `${t?.name ?? "Unknown"} (Rs ${m.teacher_fee})`;
+            }) || [],
           teacherFee: totalTeacherFee,
           totalFee: s.student_total_fee || totalFee,
         };
@@ -71,6 +80,7 @@ export default function AddStudent() {
     if (!error && data) setTeacherList(data);
   };
 
+  // ================= Toggle Functions =================
   const toggleSyllabus = (name: string) => {
     setForm((prev) => ({
       ...prev,
@@ -106,12 +116,25 @@ export default function AddStudent() {
   const handleDayChange = (day: string, field: "subject" | "time", value: string) => {
     setForm((prev) => ({
       ...prev,
-      class_days: prev.class_days.map((d) =>
-        d.day === day ? { ...d, [field]: value } : d
-      ),
+      class_days: prev.class_days.map((d) => (d.day === day ? { ...d, [field]: value } : d)),
     }));
   };
+  // 🟢 Time ko clean 12-hour AM/PM me convert karega
+function cleanTime(t: string) {
+  if (!t) return "";
 
+  const [hour, minute] = t.split(":");
+  let h = Number(hour);
+  const m = minute;
+  const period = h >= 12 ? "PM" : "AM";
+
+  h = h % 12 || 12;
+
+  return `${h}:${m} ${period}`;
+}
+
+
+  // ================= Save Student =================
   const save = async () => {
     if (!form.name || !form.roll_no || !form.academy_fee) {
       alert("Please fill all required fields.");
@@ -122,6 +145,12 @@ export default function AddStudent() {
     const totalTeacherFee = selectedTeachers.reduce((sum, t) => sum + (t.amount || 0), 0);
     const totalFee = Number(form.academy_fee || 0) + totalTeacherFee;
 
+    // Convert each class_day.time to UTC
+   const class_days_utc = form.class_days.map((d) => ({
+  ...d,
+  time: d.time,   // ← Correct (Do not clean/format again)
+}));
+
     const payload = {
       name: form.name,
       roll_no: form.roll_no,
@@ -129,11 +158,12 @@ export default function AddStudent() {
       email: form.email,
       syllabus: form.syllabus,
       academy_fee: Number(form.academy_fee),
-      class_time: form.class_time,
       student_total_fee: totalFee,
       fee_status: form.fee_status,
       join_date: form.join_date || null,
-      class_days: form.class_days,
+      class_days: class_days_utc,
+    timezone: form.timezone || "Pakistan (PKT)",  // 🟢 add this
+
     };
 
     if (editing) {
@@ -166,12 +196,12 @@ export default function AddStudent() {
       id: "",
       name: "",
       roll_no: "",
+     timezone: "",   // ← add this
       contact: "",
       email: "",
       syllabus: [],
       academy_fee: "",
       student_total_fee: "",
-      class_time: "",
       fee_status: "unpaid",
       join_date: "",
       class_days: [],
@@ -181,21 +211,34 @@ export default function AddStudent() {
     await loadRows();
   };
 
+  // ================= Edit Student =================
   const editStudent = async (student: any) => {
-    const { data: map } = await supabase.from("student_teachers").select("teacher_id, teacher_fee").eq("student_id", student.id);
+    const { data: map } = await supabase
+      .from("student_teachers")
+      .select("teacher_id, teacher_fee")
+      .eq("student_id", student.id);
+
+   const localClassDays = (student.class_days || []).map((d) => ({
+  ...d,
+  time: d.time
+    ? String(d.time).substring(0, 5) // 👈 Yahi correct & safe solution
+    : "",
+}));
+
     setForm({
       id: student.id,
       name: student.name,
       roll_no: student.roll_no,
+      timezone: "",   // ← add this
+
       contact: student.contact,
       email: student.email,
       syllabus: student.syllabus ?? [],
       academy_fee: student.academy_fee,
       student_total_fee: student.student_total_fee,
-      class_time: student.class_time ?? "",
       fee_status: student.fee_status,
       join_date: student.join_date ?? "",
-      class_days: student.class_days ?? [],
+      class_days: localClassDays,
     });
 
     setTeacherList((prev) =>
@@ -209,12 +252,14 @@ export default function AddStudent() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // ================= Toggle Fee =================
   const toggleFee = async (id: string, status: string) => {
     const newStatus = status === "paid" ? "unpaid" : "paid";
     await supabase.from("students").update({ fee_status: newStatus }).eq("id", id);
     await loadRows();
   };
 
+  // ================= Delete Student =================
   const del = async (id: string) => {
     if (!confirm("Are you sure to delete?")) return;
     await supabase.from("student_teachers").delete().eq("student_id", id);
@@ -222,68 +267,75 @@ export default function AddStudent() {
     await loadRows();
   };
 
+  // ================= Format 12-hour time =================
+  // Convert UTC HH:MM → 12-hour format
+  function formatTime12Hour(utcTime: string, tzOffset = 5) { // default Pakistan offset
+  if (!utcTime) return "—";
+  const [hh, mm] = utcTime.split(":").map(Number);
+  let local = hh + tzOffset;
+  if (local >= 24) local -= 24;
+  if (local < 0) local += 24;
+
+  const period = local >= 12 ? "PM" : "AM";
+  const h12 = local % 12 || 12;
+
+  return `${h12}:${String(mm).padStart(2, "0")} ${period}`;
+}
+
+
+
   const filteredRows = rows.filter(
     (r) =>
       r.name.toLowerCase().includes(search.toLowerCase()) ||
       r.roll_no.toLowerCase().includes(search.toLowerCase())
   );
-const downloadPDF = () => {
-  const doc = new jsPDF("p", "mm", "a4");
 
-  // === Header ===
-  const logo = new Image();
-  logo.src = "/images/logo1.jpg";
-  logo.onload = () => {
-    // Logo + Title
-    doc.addImage(logo, "JPEG", 10, 8, 20, 20);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("Iqra Online Quran Institute", 35, 18);
+  // ================= PDF Download =================
+  const downloadPDF = () => {
+    const doc = new jsPDF("p", "mm", "a4");
+    const logo = new Image();
+    logo.src = "/images/logo1.jpg";
+    logo.onload = () => {
+      doc.addImage(logo, "JPEG", 10, 8, 20, 20);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("Iqra Online Quran Institute", 35, 18);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.text("Student Details Report", 35, 26);
+      doc.setDrawColor(150);
+      doc.line(10, 32, 200, 32);
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.text("Student Details Report", 35, 26);
+      const tableData = filteredRows.map((r) => [
+        r.name,
+        r.roll_no,
+        Array.isArray(r.class_days)
+          ? r.class_days.map((d) => `${d.day} (${d.subject} - ${formatTime12Hour(d.time)})`).join(", ")
+          : "—",
+        r.teacherNames.join(", ") || "—",
+        `Rs ${r.student_total_fee || 0}`,
+        r.fee_status.toUpperCase(),
+      ]);
 
-    // Line below header
-    doc.setDrawColor(150);
-    doc.line(10, 32, 200, 32);
+      autoTable(doc, {
+        startY: 40,
+        head: [["Name", "Roll", "Class Days", "Teachers", "Total Fee", "Status"]],
+        body: tableData,
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [34, 139, 34] },
+        alternateRowStyles: { fillColor: [245, 255, 245] },
+      });
 
-    // === Table ===
-    const tableData = filteredRows.map((r) => [
-      r.name,
-      r.roll_no,
-      r.class_time || "—",
-      Array.isArray(r.class_days)
-        ? r.class_days.map((d) => `${d.day} (${d.subject})`).join(", ")
-        : "—",
-      r.teacherNames.join(", ") || "—",
-      `Rs ${r.student_total_fee || 0}`,
-      r.fee_status.toUpperCase(),
-    ]);
-
-    autoTable(doc, {
-      startY: 40,
-      head: [["Name", "Roll", "Class Time", "Days", "Teachers", "Total Fee", "Status"]],
-      body: tableData,
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [34, 139, 34] },
-      alternateRowStyles: { fillColor: [245, 255, 245] },
-    });
-
-    // === Footer ===
-    const date = new Date().toLocaleString();
-    doc.setFontSize(10);
-    doc.text(`Generated on: ${date}`, 10, 285);
-
-    // === Save PDF ===
-    doc.save("students_list.pdf");
+      const date = new Date().toLocaleString();
+      doc.setFontSize(10);
+      doc.text(`Generated on: ${date}`, 10, 285);
+      doc.save("students_list.pdf");
+    };
   };
-};
- 
-
 
   return (
-    <div className="bg-blue-100 min-h-screen  px-4 md:px-8 space-y-8">
+    <div className="bg-blue-100 min-h-screen px-4 md:px-8 space-y-8 pb-10">
+      {/* Back Button */}
       <BackButton href="/admin/dashboard" label="Back" />
 
       {/* Form */}
@@ -291,69 +343,144 @@ const downloadPDF = () => {
         <h1 className="text-2xl font-bold text-green-800">{editing ? "Edit Student" : "Add Student"}</h1>
 
         <div className="grid md:grid-cols-2 gap-3">
-          <input className="border p-2 rounded-lg text-sm" placeholder="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="border p-2 rounded-lg text-sm" placeholder="Roll No" value={form.roll_no} onChange={(e) => setForm({ ...form, roll_no: e.target.value })} />
-          <input className="border p-2 rounded-lg text-sm" placeholder="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
-          <input className="border p-2 rounded-lg text-sm" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <input className="border p-2 rounded-lg text-sm" placeholder="Academy Fee" value={form.academy_fee} onChange={(e) => setForm({ ...form, academy_fee: e.target.value })} />
-          <input className="border p-2 rounded-lg text-sm" placeholder="Class Time" value={form.class_time} onChange={(e) => setForm({ ...form, class_time: e.target.value })} />
-          <input type="date" className="border p-2 rounded-lg text-sm" value={form.join_date} onChange={(e) => setForm({ ...form, join_date: e.target.value })} />
+          <select
+  className="border p-2 rounded-lg text-sm"
+  value={form.timezone}
+  onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+>
+  <option value="">Select Country</option>
+  <option value="Pakistan (PKT)">Pakistan</option>
+  <option value="Turkey (TRT)">Turkey</option>
+  <option value="United Kingdom (GMT)">United Kingdom</option>
+  <option value="USA - New York (EST)">USA (New York)</option>
+  <option value="China (CST)">China</option>
+  <option value="Japan (JST)">Japan</option>
+  <option value="Australia (AEST)">Australia</option>
+  <option value="India (IST)">India</option>
+  <option value="Singapore (SGT)">Singapore</option>
+  <option value="New Zealand (NZST)">New Zealand</option>
+  <option value="Germany (CET)">Germany</option>
+  <option value="Belgium (CET)">Belgium</option>
+  <option value="Gulf (UAE/Oman)">Gulf</option>
+</select>
+
+          <input
+            className="border p-2 rounded-lg text-sm"
+            placeholder="Full Name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <input
+            className="border p-2 rounded-lg text-sm"
+            placeholder="Roll No"
+            value={form.roll_no}
+            onChange={(e) => setForm({ ...form, roll_no: e.target.value })}
+          />
+          <input
+            className="border p-2 rounded-lg text-sm"
+            placeholder="Contact"
+            value={form.contact}
+            onChange={(e) => setForm({ ...form, contact: e.target.value })}
+          />
+          <input
+            className="border p-2 rounded-lg text-sm"
+            placeholder="Email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+          <input
+            className="border p-2 rounded-lg text-sm"
+            placeholder="Academy Fee"
+            value={form.academy_fee}
+            onChange={(e) => setForm({ ...form, academy_fee: e.target.value })}
+          />
+          <input
+            type="date"
+            className="border p-2 rounded-lg text-sm"
+            value={form.join_date}
+            onChange={(e) => setForm({ ...form, join_date: e.target.value })}
+          />
         </div>
 
-        <div>
-          <h3 className="font-semibold mb-2 text-gray-700">Select Syllabus</h3>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {syllabusList.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggleSyllabus(s)}
-                className={`px-3 py-1 rounded-full border text-sm ${
-                  form.syllabus.includes(s)
-                    ? "bg-green-600 text-white border-green-600"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-green-50"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+        {/* Syllabus */}
+        <h3 className="font-semibold mb-2 text-gray-700">Select Syllabus</h3>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {syllabusList.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => toggleSyllabus(s)}
+              className={`px-3 py-1 rounded-full border text-sm ${
+                form.syllabus.includes(s)
+                  ? "bg-green-600 text-white border-green-600"
+                  : "bg-white text-gray-700 border-gray-300 hover:bg-green-50"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
 
-          <h3 className="font-semibold mb-2 text-gray-700">Select Class Days & Time</h3>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {weekDays.map((day) => {
-              const selected = form.class_days.find((d) => d.day === day);
-              return (
-                <div key={day} className={`border rounded-lg px-2 py-1 ${selected ? "bg-green-50 border-green-500" : ""}`}>
-                  <label className="flex items-center gap-1">
-                    <input type="checkbox" checked={!!selected} onChange={() => toggleClassDay(day)} />
-                    {day}
-                  </label>
-                  {selected && (
-                    <div className="flex gap-1 mt-1">
-                      <input type="text" placeholder="Subject" className="border p-1 rounded w-20 text-sm" value={selected.subject} onChange={(e) => handleDayChange(day, "subject", e.target.value)} />
-                      <input type="time" className="border p-1 rounded w-20 text-sm" value={selected.time} onChange={(e) => handleDayChange(day, "time", e.target.value)} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <h3 className="font-semibold mb-2 text-gray-700">Assign Teachers & Fees</h3>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {teacherList.map((t) => (
-              <div key={t.id} className={`border rounded-lg p-2 ${t.selected ? "bg-green-50 border-green-500" : ""}`}>
+        {/* Class Days & Time */}
+        <h3 className="font-semibold mb-2 text-gray-700">Select Class Days & Time</h3>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {weekDays.map((day) => {
+            const selected = form.class_days.find((d) => d.day === day);
+            return (
+              <div key={day} className={`border rounded-lg px-2 py-1 ${selected ? "bg-green-50 border-green-500" : ""}`}>
                 <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={!!t.selected} onChange={() => toggleTeacher(t.id)} />
-                  {t.name}
+                  <input type="checkbox" checked={!!selected} onChange={() => toggleClassDay(day)} />
+                  {day}
                 </label>
-                {t.selected && (
-                  <input type="number" placeholder="Fee" className="border p-1 rounded w-16 mt-1 text-sm" value={t.amount || ""} onChange={(e) => handleTeacherFeeChange(t.id, e.target.value)} />
+
+                {selected && (
+                  <div className="flex gap-2 items-center mt-2">
+                    {/* Subject */}
+                    <input
+                      type="text"
+                      placeholder="Subject"
+                      className="border p-1 rounded w-28 text-sm"
+                      value={selected.subject}
+                      onChange={(e) => handleDayChange(day, "subject", e.target.value)}
+                    />
+                    {/* Time Picker with Timezone */}
+ 
+<TimeWithTimeZone
+  value={selected.time}
+  timezone="Pakistan (PKT)"    // Form hamesha Pakistan
+  onChange={(utcTime) => handleDayChange(day, "time", utcTime)}
+/>
+
+
+
+                   
+                  </div>
                 )}
               </div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
+
+        {/* Assign Teachers */}
+        <h3 className="font-semibold mb-2 text-gray-700">Assign Teachers & Fees</h3>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {teacherList.map((t) => (
+            <div key={t.id} className={`border rounded-lg p-2 ${t.selected ? "bg-green-50 border-green-500" : ""}`}>
+              <label className="flex items-center gap-1">
+                <input type="checkbox" checked={!!t.selected} onChange={() => toggleTeacher(t.id)} />
+                {t.name}
+              </label>
+              {t.selected && (
+                <input
+                  type="number"
+                  placeholder="Fee"
+                  className="border p-1 rounded w-16 mt-1 text-sm"
+                  value={t.amount || ""}
+                  onChange={(e) => handleTeacherFeeChange(t.id, e.target.value)}
+                />
+              )}
+            </div>
+          ))}
         </div>
 
         <Button onClick={save} className="bg-green-600 text-white hover:bg-green-700 w-full">
@@ -362,31 +489,21 @@ const downloadPDF = () => {
       </div>
 
       {/* Students Table */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4">
+      <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4 max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-4">
-  <div className="flex items-center gap-3">
-    <img
-      src="/images/logo1.jpg"
-      alt="Institute Logo"
-      className="w-12 h-12 rounded-full border"
-    />
-    <div>
-      <h1 className="text-xl font-bold text-green-800">
-        Iqra Online Quran Institute
-      </h1>
-      <p className="text-sm text-gray-600">Student Management </p>
-    </div>
-  </div>
-<Button
-  onClick={downloadPDF}
-  className="bg-green-600 text-white hover:bg-green-700"
->
-  Download PDF
-</Button>
+          <div className="flex items-center gap-3">
+            <img src="/images/logo1.jpg" alt="Institute Logo" className="w-12 h-12 rounded-full border" />
+            <div>
+              <h1 className="text-xl font-bold text-green-800">Iqra Online Quran Institute</h1>
+              <p className="text-sm text-gray-600">Student Management</p>
+            </div>
+          </div>
 
-</div>
+          <Button onClick={downloadPDF} className="bg-green-600 text-white hover:bg-green-700">
+            Download PDF
+          </Button>
+        </div>
 
-        <h2 className="text-2xl font-bold text-gray-800">Students List</h2>
         <input
           type="text"
           placeholder="Search by name or roll no..."
@@ -394,58 +511,65 @@ const downloadPDF = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-green-100 text-left">
-                <th className="p-3">Name</th>
-                <th className="p-3">Roll</th>
-                <th className="p-3">Class Time</th>
-                <th className="p-3">Class Days</th>
-                <th className="p-3">Teachers</th>
-                <th className="p-3 text-purple-700">Teacher Fee</th>
-                <th className="p-3 text-blue-700">Academy Fee</th>
-                <th className="p-3 text-green-700">Total Fee</th>
-                <th className="p-3">Joining Date</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Actions</th>
+                            <tr className="bg-green-100 text-left">
+              <th className="p-3">Name</th>
+              <th className="p-3">Roll</th>
+              <th className="p-3">Class Days</th>
+              <th className="p-3">Teachers</th>
+              <th className="p-3 text-purple-700">Teacher Fee</th>
+              <th className="p-3 text-blue-700">Academy Fee</th>
+              <th className="p-3 text-green-700">Total Fee</th>
+              <th className="p-3">Joining Date</th>
+              <th className="p-3">Status</th>
+              <th className="p-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.map((r) => (
+              <tr key={r.id} className="border-t hover:bg-gray-50">
+                <td className="p-3">{r.name}</td>
+                <td className="p-3">{r.roll_no}</td>
+                
+               <td className="p-3">
+  {Array.isArray(r.class_days)
+    ? r.class_days
+        .map((d: any) => `${d.day} (${d.subject} - ${formatTime12Hour(d.time)})`)
+        .join(", ")
+    : "—"}
+</td>
+
+              
+                <td className="p-3 text-purple-600 font-medium">{r.teacherNames.join(", ") || "—"}</td>
+                <td className="p-3 text-purple-700 font-semibold">Rs {r.teacherFee}</td>
+                <td className="p-3 text-blue-700 font-semibold">Rs {r.academy_fee}</td>
+                <td className="p-3 text-green-700 font-bold">Rs {r.student_total_fee || 0}</td>
+                <td>{r.join_date ? new Date(r.join_date).toLocaleDateString() : "—"}</td>
+                <td className={`p-3 font-medium ${r.fee_status === "paid" ? "text-green-600" : "text-red-600"}`}>
+                  {r.fee_status}
+                </td>
+                <td className="p-3 flex gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => editStudent(r)}>Edit</Button>
+                  <Button size="sm" variant="outline" onClick={() => toggleFee(r.id, r.fee_status)}>Toggle Fee</Button>
+                  <Button size="sm" variant="destructive" onClick={() => del(r.id)}>Delete</Button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((r) => (
-                <tr key={r.id} className="border-t hover:bg-gray-50">
-                  <td className="p-3">{r.name}</td>
-                  <td className="p-3">{r.roll_no}</td>
-                  <td className="p-3">{r.class_time || "—"}</td>
-                  <td className="p-3">
-                    {Array.isArray(r.class_days)
-                      ? r.class_days.map((d: any) => `${d.day} (${d.subject} - ${d.time || "—"})`).join(", ")
-                      : "—"}
-                  </td>
-                  <td className="p-3 text-purple-600 font-medium">{r.teacherNames.join(", ") || "—"}</td>
-                  <td className="p-3 text-purple-700 font-semibold">Rs {r.teacherFee}</td>
-                  <td className="p-3 text-blue-700 font-semibold">Rs {r.academy_fee}</td>
-                  <td className="p-3 text-green-700 font-bold">Rs {r.student_total_fee || 0}</td>
-                   <td>{r.join_date ? new Date(r.join_date).toLocaleDateString() : '—'}</td>
-                  <td className={`p-3 font-medium ${r.fee_status === "paid" ? "text-green-600" : "text-red-600"}`}>{r.fee_status}</td>
-                  <td className="p-3 flex gap-2 flex-wrap">
-                    <Button size="sm" variant="outline" onClick={() => editStudent(r)}>Edit</Button>
-                    <Button size="sm" variant="outline" onClick={() => toggleFee(r.id, r.fee_status)}>Toggle Fee</Button>
-                    <Button size="sm" variant="destructive" onClick={() => del(r.id)}>Delete</Button>
-                  </td>
-                </tr>
-              ))}
-              {filteredRows.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="text-center text-gray-500 p-4">
-                    No students found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            ))}
+            {filteredRows.length === 0 && (
+              <tr>
+                <td colSpan={10} className="text-center text-gray-500 p-4">
+                  No students found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
-    </div>
-  );
+   </div>
+  </div>
+);
 }
+
