@@ -162,6 +162,9 @@ export default function AdminDashboard() {
         <Link href="/admin/teacher-list">
           <Button className="bg-purple-600 hover:bg-purple-700">Teacher List</Button>
         </Link>
+          <Link href="/admin/teacher-attendance">
+          <Button className="bg-pink-600 hover:bg-pink-700">Teacher  Attendance</Button>
+        </Link>
       </div>
 
       {/* Notice Board */}

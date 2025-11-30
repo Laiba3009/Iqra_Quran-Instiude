@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -27,7 +26,7 @@ export default function ViewAttendance() {
 
   useEffect(() => {
     loadAttendance();
-  }, [month]); // ✅ reload automatically when month changes
+  }, [month]);
 
   const loadAttendance = async () => {
     const year = new Date().getFullYear();
@@ -56,21 +55,18 @@ export default function ViewAttendance() {
     setOpen(true);
   };
 
-  // ✅ PDF Download
   const handleDownloadPDF = async () => {
+    if (!selectedStudent) return;
     const doc = new jsPDF();
 
     const logoPath = '/images/logo1.jpg';
     const imgData = await fetch(logoPath)
-      .then((res) => res.blob())
-      .then(
-        (blob) =>
-          new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          })
-      );
+      .then(res => res.blob())
+      .then(blob => new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      }));
 
     doc.addImage(imgData, 'JPEG', 15, 10, 25, 25);
     doc.setFontSize(16);
@@ -110,7 +106,7 @@ export default function ViewAttendance() {
           </thead>
           <tbody>
             {uniqueStudents.length ? (
-              uniqueStudents.map((name) => (
+              uniqueStudents.map(name => (
                 <tr key={name} className="hover:bg-gray-50 text-center">
                   <td className="p-3 border-b">{name}</td>
                   <td className="p-3 border-b">
@@ -135,23 +131,23 @@ export default function ViewAttendance() {
         </table>
       </div>
 
-      {/* ✅ Popup Attendance Details */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <div className="flex justify-between items-center w-full">
-              <DialogTitle>
+      {/* 🔹 Custom Popup */}
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-lg flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-lg font-bold">
                 Attendance for <strong>{selectedStudent}</strong>
-              </DialogTitle>
+              </h2>
 
               <div className="flex gap-3 items-center">
-                {/* month selector */}
                 <select
                   value={month}
-                  onChange={(e) => setMonth(e.target.value)}
+                  onChange={e => setMonth(e.target.value)}
                   className="border p-2 rounded text-sm"
                 >
-                  {[...Array(12).keys()].map((i) => {
+                  {[...Array(12).keys()].map(i => {
                     const m = String(i + 1).padStart(2, '0');
                     return (
                       <option key={m} value={m}>
@@ -161,57 +157,60 @@ export default function ViewAttendance() {
                   })}
                 </select>
 
-                {/* download button */}
                 <Button
                   onClick={handleDownloadPDF}
                   className="bg-green-600 hover:bg-green-700 text-white text-sm"
                 >
                   📄 Download PDF
                 </Button>
+
+                <Button
+                  onClick={() => setOpen(false)}
+                  className="bg-red-600 hover:bg-red-700 text-white text-sm"
+                >
+                  Close
+                </Button>
               </div>
             </div>
-          </DialogHeader>
 
-          <div className="overflow-x-auto mt-4">
-            <table className="min-w-full border border-gray-200 text-sm">
-              <thead className="bg-green-100 text-green-800 text-center">
-                <tr>
-                  <th className="p-2 border-b">Roll No</th>
-                  <th className="p-2 border-b">Teacher</th>
-                  <th className="p-2 border-b">Class Time</th>
-                  <th className="p-2 border-b">Status</th>
-                  <th className="p-2 border-b">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {studentAttendance.length ? (
-                  studentAttendance.map((a) => (
-                    <tr key={a.id} className="hover:bg-gray-50 text-center">
-                      <td className="p-2 border-b">{a.roll_no}</td>
-                      <td className="p-2 border-b">{a.teacher_name}</td>
-                      <td className="p-2 border-b">{a.class_time}</td>
-                      <td
-                        className={`p-2 border-b font-medium ${
-                          a.status === 'present' ? 'text-green-600' : 'text-red-600'
-                        }`}
-                      >
-                        {a.status}
-                      </td>
-                      <td className="p-2 border-b">{a.date}</td>
-                    </tr>
-                  ))
-                ) : (
+            {/* Table */}
+            <div className="overflow-auto p-4 flex-1">
+              <table className="min-w-full border border-gray-200 text-sm">
+                <thead className="bg-green-100 text-green-800 text-center sticky top-0">
                   <tr>
-                    <td colSpan={5} className="text-center p-4 text-gray-500">
-                      No attendance found.
-                    </td>
+                    <th className="p-2 border-b">Roll No</th>
+                    <th className="p-2 border-b">Teacher</th>
+                    <th className="p-2 border-b">Class Time</th>
+                    <th className="p-2 border-b">Status</th>
+                    <th className="p-2 border-b">Date</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {studentAttendance.length ? (
+                    studentAttendance.map(a => (
+                      <tr key={a.id} className="hover:bg-gray-50 text-center">
+                        <td className="p-2 border-b">{a.roll_no}</td>
+                        <td className="p-2 border-b">{a.teacher_name}</td>
+                        <td className="p-2 border-b">{a.class_time}</td>
+                        <td className={`p-2 border-b font-medium ${a.status === 'present' ? 'text-green-600' : 'text-red-600'}`}>
+                          {a.status}
+                        </td>
+                        <td className="p-2 border-b">{a.date}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="text-center p-4 text-gray-500">
+                        No attendance found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }

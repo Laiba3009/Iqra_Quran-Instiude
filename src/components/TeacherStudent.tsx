@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -29,17 +29,31 @@ interface Student {
 export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
   const [students, setStudents] = useState<Student[]>([]);
   const [teacherName, setTeacherName] = useState<string>("Unknown");
+
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+
+  // Existing Modals
   const [showWeeklyModal, setShowWeeklyModal] = useState(false);
   const [showMonthlyModal, setShowMonthlyModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
+
+  // NEW Attendance Modal
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [attendanceStatus, setAttendanceStatus] =
+    useState<"present" | "absent" | null>(null);
+  const [attendanceDate, setAttendanceDate] = useState(
+    new Date().toISOString().slice(0, 10)
+  );
+
   const [weeklyText, setWeeklyText] = useState("");
   const [monthlyText, setMonthlyText] = useState("");
   const [complaintText, setComplaintText] = useState("");
+
   const [attendance, setAttendance] = useState<{ [key: string]: string }>({});
+
   const { toast } = useToast();
 
-  // 🔹 Load teacher name
+  // Load teacher name
   useEffect(() => {
     const loadTeacher = async () => {
       const { data } = await supabase
@@ -52,7 +66,7 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
     loadTeacher();
   }, [teacherId]);
 
-  // 🔹 Load Assigned Students
+  // Load assigned students
   useEffect(() => {
     if (teacherId) loadStudents();
   }, [teacherId]);
@@ -79,50 +93,50 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
 
     setStudents(parsed);
 
-    // Initialize attendance state
     const initialAttendance: { [key: string]: string } = {};
     parsed.forEach((s) => (initialAttendance[s.id] = ""));
     setAttendance(initialAttendance);
   };
 
-  // 🔹 Save Attendance (tsattendance table)
-  const handleAttendance = async (student: Student, status: "present" | "absent") => {
-    if (!teacherId) return;
+  // OPEN Attendance Modal
+  const openAttendanceModal = (student: Student, status: "present" | "absent") => {
+    setSelectedStudent(student);
+    setAttendanceStatus(status);
+    setAttendanceDate(new Date().toISOString().slice(0, 10));
+    setShowAttendanceModal(true);
+  };
 
-    const today = new Date();
-    const date =
-      today.getFullYear() +
-      "-" +
-      String(today.getMonth() + 1).padStart(2, "0") +
-      "-" +
-      String(today.getDate()).padStart(2, "0");
+  // SAVE attendance with selected date
+  const saveAttendance = async () => {
+    if (!selectedStudent || !attendanceStatus) return;
 
-    setAttendance((prev) => ({ ...prev, [student.id]: status }));
+    setAttendance((prev) => ({ ...prev, [selectedStudent.id]: attendanceStatus }));
 
     const { error } = await supabase.from("tsattendance").insert([
       {
-        student_id: student.id,
+        student_id: selectedStudent.id,
         teacher_id: teacherId,
-        date,
-        status,
+        date: attendanceDate,
+        status: attendanceStatus,
       },
     ]);
 
     if (error) {
-      console.error("Attendance Error:", error);
       toast({
         title: "❌ Error",
-        description: "Attendance mark karte hue issue aya.",
+        description: "Attendance save nahi hui.",
       });
     } else {
       toast({
-        title: "✅ Attendance Marked",
-        description: `${student.name} marked ${status}.`,
+        title: "✅ Attendance Saved",
+        description: `${selectedStudent.name} marked ${attendanceStatus} on ${attendanceDate}.`,
       });
     }
+
+    setShowAttendanceModal(false);
   };
 
-  // 🔹 Save Weekly Report
+  // Weekly Report
   const handleSaveWeekly = async () => {
     if (!weeklyText.trim() || !selectedStudent) return;
 
@@ -134,16 +148,14 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
       },
     ]);
 
-    if (error)
-      toast({ title: "Error", description: error.message });
-    else {
+    if (!error) {
       toast({ title: "Weekly Report Saved ✅" });
       setWeeklyText("");
       setShowWeeklyModal(false);
     }
   };
 
-  // 🔹 Save Monthly Report
+  // Monthly Report
   const handleSaveMonthly = async () => {
     if (!monthlyText.trim() || !selectedStudent) return;
 
@@ -155,16 +167,14 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
       },
     ]);
 
-    if (error)
-      toast({ title: "Error", description: error.message });
-    else {
+    if (!error) {
       toast({ title: "Monthly Report Saved ✅" });
       setMonthlyText("");
       setShowMonthlyModal(false);
     }
   };
 
-  // 🔹 Save Complaint
+  // Complaint / Note
   const handleSaveComplaint = async () => {
     if (!complaintText.trim() || !selectedStudent) return;
 
@@ -176,29 +186,26 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
       },
     ]);
 
-    if (error)
-      toast({ title: "Error", description: error.message });
-    else {
+    if (!error) {
       toast({ title: "Complaint Submitted 📨" });
       setComplaintText("");
       setShowComplaintModal(false);
     }
   };
 
-  // 🔹 Helper: check if new (joined within 30 days)
+  // Check if new student
   const isNewStudent = (join_date?: string | null) => {
     if (!join_date) return false;
     const join = new Date(join_date);
     const today = new Date();
-    const diff = (today.getTime() - join.getTime()) / (1000 * 60 * 60 * 24);
-    return diff <= 30;
+    return (today.getTime() - join.getTime()) / (1000 * 60 * 60 * 24) <= 30;
   };
 
   return (
     <div className="bg-white rounded-xl border shadow-md p-6">
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse border border-gray-200 rounded-lg">
-          <thead className="bg-green-100 text-green-800 text-left">
+          <thead className="bg-green-100 text-green-800">
             <tr>
               <th className="p-3 border-b">Name</th>
               <th className="p-3 border-b">Roll No</th>
@@ -209,29 +216,28 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
               <th className="p-3 border-b text-center">Actions</th>
             </tr>
           </thead>
+
           <tbody>
             {students.map((s) => (
-              <tr key={s.id} className="hover:bg-gray-50 transition">
+              <tr key={s.id} className="hover:bg-gray-50">
                 <td className="p-3">
-                  <div className="font-medium">
-                    {s.name}{" "}
-                    {isNewStudent(s.join_date) && (
-                      <span className="text-xs text-blue-600">(New)</span>
-                    )}
-                  </div>
+                  {s.name}{" "}
+                  {isNewStudent(s.join_date) && (
+                    <span className="text-xs text-blue-600">(New)</span>
+                  )}
                 </td>
+
                 <td className="p-3">{s.roll_no}</td>
-                <td className="p-3 text-gray-700">
+                <td className="p-3">
                   {s.join_date
                     ? new Date(s.join_date).toLocaleDateString()
                     : "—"}
                 </td>
-                <td className="p-3 text-sm text-gray-600">
+                <td className="p-3 text-sm">
                   {s.syllabus?.length ? s.syllabus.join(", ") : "—"}
                 </td>
-                <td className="p-3 text-sm text-gray-600">
-                  {s.class_time || "—"}
-                </td>
+                <td className="p-3">{s.class_time || "—"}</td>
+
                 <td className="p-3 text-center">
                   <div className="flex justify-center gap-2">
                     <Button
@@ -241,10 +247,11 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
                           ? "bg-green-700"
                           : "bg-green-500"
                       } text-white`}
-                      onClick={() => handleAttendance(s, "present")}
+                      onClick={() => openAttendanceModal(s, "present")}
                     >
                       Present
                     </Button>
+
                     <Button
                       size="sm"
                       className={`${
@@ -252,21 +259,17 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
                           ? "bg-red-700"
                           : "bg-red-500"
                       } text-white`}
-                      onClick={() => handleAttendance(s, "absent")}
+                      onClick={() => openAttendanceModal(s, "absent")}
                     >
                       Absent
                     </Button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {attendance[s.id]
-                      ? `Marked ${attendance[s.id]}`
-                      : "Not Marked"}
-                  </p>
                 </td>
+
                 <td className="p-3 flex justify-center gap-2 flex-wrap">
                   <Button
                     size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-400 text-white"
+                    className="bg-emerald-600 text-white"
                     onClick={() => {
                       setSelectedStudent(s);
                       setShowWeeklyModal(true);
@@ -277,7 +280,7 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
 
                   <Button
                     size="sm"
-                    className="bg-blue-600 hover:bg-blue-400 text-white"
+                    className="bg-blue-600 text-white"
                     onClick={() => {
                       setSelectedStudent(s);
                       setShowMonthlyModal(true);
@@ -288,8 +291,7 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
 
                   <Button
                     size="sm"
-                    variant="outline"
-                    className="bg-pink-600 text-white hover:bg-pink-400"
+                    className="bg-pink-600 text-white"
                     onClick={() => {
                       setSelectedStudent(s);
                       setShowComplaintModal(true);
@@ -304,46 +306,72 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
         </table>
       </div>
 
-      {/* Weekly Report Modal */}
+      {/* 🟢 Attendance Modal */}
+      <Dialog open={showAttendanceModal} onOpenChange={setShowAttendanceModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Mark Attendance – {selectedStudent?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <label className="text-sm mb-1 block">Select Date:</label>
+          <input
+            type="date"
+            value={attendanceDate}
+            onChange={(e) => setAttendanceDate(e.target.value)}
+            className="border p-2 rounded w-full"
+          />
+
+          <DialogFooter>
+            <Button
+              className={`${
+                attendanceStatus === "present" ? "bg-green-600" : "bg-red-600"
+              } text-white w-full`}
+              onClick={saveAttendance}
+            >
+              Save Attendance
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Weekly Modal */}
       <Dialog open={showWeeklyModal} onOpenChange={setShowWeeklyModal}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Weekly Report for {selectedStudent?.name}</DialogTitle>
           </DialogHeader>
+
           <Textarea
             placeholder="Write weekly report..."
             value={weeklyText}
             onChange={(e) => setWeeklyText(e.target.value)}
-            className="mt-2"
           />
+
           <DialogFooter>
-            <Button
-              onClick={handleSaveWeekly}
-              className="bg-emerald-600 text-white"
-            >
+            <Button onClick={handleSaveWeekly} className="bg-emerald-600 text-white">
               Save Weekly Report
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Monthly Report Modal */}
+      {/* Monthly Modal */}
       <Dialog open={showMonthlyModal} onOpenChange={setShowMonthlyModal}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Monthly Report for {selectedStudent?.name}</DialogTitle>
           </DialogHeader>
+
           <Textarea
             placeholder="Write monthly report..."
             value={monthlyText}
             onChange={(e) => setMonthlyText(e.target.value)}
-            className="mt-2"
           />
+
           <DialogFooter>
-            <Button
-              onClick={handleSaveMonthly}
-              className="bg-blue-600 text-white"
-            >
+            <Button onClick={handleSaveMonthly} className="bg-blue-600 text-white">
               Save Monthly Report
             </Button>
           </DialogFooter>
@@ -356,17 +384,15 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
           <DialogHeader>
             <DialogTitle>Submit Note for {selectedStudent?.name}</DialogTitle>
           </DialogHeader>
+
           <Textarea
             placeholder="Write note..."
             value={complaintText}
             onChange={(e) => setComplaintText(e.target.value)}
-            className="mt-2"
           />
+
           <DialogFooter>
-            <Button
-              onClick={handleSaveComplaint}
-              className="bg-red-600 text-white"
-            >
+            <Button onClick={handleSaveComplaint} className="bg-red-600 text-white">
               Submit Note
             </Button>
           </DialogFooter>

@@ -15,6 +15,8 @@ export default function AddTeacher() {
     email: '',
     roll_no: '',
     zoom_link: '',
+    google_meet_link: '', // ✅ Google Meet
+    job_time:'', 
     syllabus: [] as string[],
     joining_date: '',
   });
@@ -65,8 +67,11 @@ export default function AddTeacher() {
       email: form.email,
       roll_no: form.roll_no,
       zoom_link: form.zoom_link,
+      google_meet_link: form.google_meet_link, // ✅ Google Meet
+       job_time: form.job_time, 
       syllabus: form.syllabus,
       joining_date: form.joining_date || null,
+
     };
 
     if (editing) {
@@ -84,6 +89,8 @@ export default function AddTeacher() {
       email: '',
       roll_no: '',
       zoom_link: '',
+       google_meet_link:'' , // ✅ added
+       job_time: '', 
       syllabus: [],
       joining_date: '',
     });
@@ -107,6 +114,8 @@ export default function AddTeacher() {
       email: teacher.email,
       roll_no: teacher.roll_no,
       zoom_link: teacher.zoom_link,
+      google_meet_link: teacher.google_meet_link, // ✅ added
+       job_time: teacher.job_time,         // ✅ added
       syllabus: teacher.syllabus ?? [],
       joining_date: teacher.joining_date ?? '',
     });
@@ -146,12 +155,13 @@ export default function AddTeacher() {
       r.name,
       r.contact || '—',
       r.email || '—',
+     r.job_time || '—', // added
       Array.isArray(r.syllabus) ? r.syllabus.join(', ') : r.syllabus || '—',
       r.joining_date || '—',
     ]);
 
     autoTable(doc, {
-      head: [['#', 'Roll No', 'Name', 'Contact', 'Email', 'Syllabus', 'Joining Date']],
+      head: [['#', 'Roll No', 'Name', 'Contact', 'Email', 'Time', 'Syllabus', 'Joining Date']],
       body: tableData,
       startY: 38,
       styles: { fontSize: 10, cellPadding: 4 },
@@ -208,6 +218,41 @@ export default function AddTeacher() {
             value={form.zoom_link}
             onChange={(e) => setForm({ ...form, zoom_link: e.target.value })}
           />
+          <input
+  className="border p-3 rounded-lg outline-none"
+  placeholder="Google Meet Link"
+  value={form.google_meet_link}
+  onChange={(e) => setForm({ ...form, google_meet_link: e.target.value })}
+/>
+<div className="flex gap-3">
+  {/* Time Input */}
+  <input
+    type="text"
+    placeholder="Enter Time (e.g. 07:30)"
+    className="border p-3 rounded-lg outline-none w-1/2"
+    value={(form.job_time || "").split(" ")[0] || ""}
+    onChange={(e) => {
+      const ampm = (form.job_time || "").split(" ")[1] || "";
+      setForm({ ...form, job_time: `${e.target.value} ${ampm}`.trim() });
+    }}
+  />
+
+  {/* AM/PM Select */}
+  <select
+    className="border p-3 rounded-lg outline-none w-1/2"
+    value={(form.job_time || "").split(" ")[1] || ""}
+    onChange={(e) => {
+      const time = (form.job_time || "").split(" ")[0] || "";
+      setForm({ ...form, job_time: `${time} ${e.target.value}`.trim() });
+    }}
+  >
+    <option value="">AM / PM</option>
+    <option value="AM">AM</option>
+    <option value="PM">PM</option>
+  </select>
+</div>
+
+
         </div>
 
         {/* Syllabus Selection */}
@@ -274,6 +319,8 @@ export default function AddTeacher() {
                 <th className="p-3">Name</th>
                 <th className="p-3">Contact</th>
                 <th className="p-3">Email</th>
+                <th className="p-3">Job Time</th>
+                <th className="p-3">Google Meet Link</th>
                 <th className="p-3">Syllabus</th>
                 <th className="p-3">Joining Date</th>
                 <th className="p-3">Zoom Link</th>
@@ -287,6 +334,25 @@ export default function AddTeacher() {
                   <td className="p-3">{r.name}</td>
                   <td className="p-3">{r.contact}</td>
                   <td className="p-3">{r.email}</td>
+<td className="p-3">
+  {r.job_time ? (() => {
+    // r.job_time = "09:00:00" or "14:05:00"
+    const [hourStr, minuteStr] = r.job_time.split(':');
+    let hour = parseInt(hourStr, 10);
+    const minute = minuteStr;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    if (hour === 0) hour = 12;
+    else if (hour > 12) hour = hour - 12;
+    return `${hour}:${minute} ${ampm}`;
+  })() : '—'}
+</td>
+
+                   <td className="p-3 text-blue-600 truncate max-w-[150px]">
+                     {r.google_meet_link ? (
+                 <a href={r.google_meet_link} target="_blank" rel="noopener noreferrer">Join</a>
+                      ) : '—'}
+                       </td>
+
                   <td className="p-3">
                     {Array.isArray(r.syllabus) ? r.syllabus.join(', ') : r.syllabus || '—'}
                   </td>
