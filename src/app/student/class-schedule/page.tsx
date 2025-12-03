@@ -12,6 +12,7 @@ interface ClassInfo {
   teacher_name: string;
   subject: string;
   zoom_link: string;
+  google_meet_link: string;
 }
 
 // ----------------------
@@ -74,7 +75,6 @@ export default function ClassSchedulePage() {
       const rollNo = getCookie("student_roll");
       if (!rollNo) return;
 
-      // Fetch student info with timezone
       const { data: student } = await supabase
         .from("students")
         .select("id, name, roll_no, timezone, class_days")
@@ -85,41 +85,44 @@ export default function ClassSchedulePage() {
 
       setStudentName(student.name);
 
+      // Fetch teacher + links
       const { data: teacherMap } = await supabase
         .from("student_teachers")
-        .select("teacher_id, teachers(name, zoom_link)")
+        .select("teacher_id, teachers(name, zoom_link, google_meet_link)")
         .eq("student_id", student.id);
 
-      const teacherInfoMap: Record<string, { name: string; zoom_link: string }> = {};
+      const teacherInfoMap: Record<
+        string,
+        { name: string; zoom_link: string; google_meet_link: string }
+      > = {};
 
-      teacherMap?.forEach((t) => {
-        if (t.teachers) {
-          teacherInfoMap[t.teacher_id] = {
-            name: t.teachers.name,
-            zoom_link: t.teachers.zoom_link || "",
-          };
-        }
+      // 🟢 FIXED — no more TS errors
+      teacherMap?.forEach((t: any) => {
+        const teacher = t.teachers || {};
+        teacherInfoMap[t.teacher_id] = {
+          name: teacher.name || "",
+          zoom_link: teacher.zoom_link || "",
+          google_meet_link: teacher.google_meet_link || "",
+        };
       });
 
       // BUILD WEEKLY CLASSES
       const weeklyClasses: ClassInfo[] = (student.class_days || []).map(
-        (cd, idx) => {
+        (cd: any, idx: number) => {
           const teacherIds = Object.keys(teacherInfoMap);
           const teacher =
             teacherIds.length > 0
               ? teacherInfoMap[teacherIds[0]]
-              : { name: "TBD", zoom_link: "" };
+              : { name: "TBD", zoom_link: "", google_meet_link: "" };
 
           return {
             id: `${cd.day}-${idx}`,
             day: cd.day,
-
-            // ⭐ FIX: Always convert UTC → student's timezone (12-HR format)
             time: utcToLocal(cd.time, student.timezone),
-
             subject: cd.subject || "TBD",
             teacher_name: teacher.name,
             zoom_link: teacher.zoom_link,
+            google_meet_link: teacher.google_meet_link,
           };
         }
       );
@@ -190,13 +193,33 @@ export default function ClassSchedulePage() {
                   <b>Subject:</b> {cls.subject}
                 </p>
 
-                <Button
-                  className="bg-green-600 hover:bg-green-700 text-white w-full"
-                  disabled={!cls.zoom_link}
-                  onClick={() => handleJoinClass(cls)}
-                >
-                  Join Zoom Class
-                </Button>
+                {/* BUTTONS SIDE BY SIDE */}
+                <div className="flex gap-2">
+                  {/* Zoom Button */}
+                  <Button
+                    className="bg-green-600 hover:bg-green-700 text-white w-1/2 py-2"
+                    disabled={!cls.zoom_link}
+                    onClick={() => handleJoinClass(cls)}
+                  >
+                    Zoom
+                  </Button>
+
+                  {/* Google Meet Button */}
+                  <a
+                    href={cls.google_meet_link || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`w-1/2 py-2 text-center rounded-md text-white font-medium
+                      ${
+                        cls.google_meet_link
+                          ? "bg-pink-500 hover:bg-pink-600"
+                          : "bg-gray-400 cursor-not-allowed"
+                      }
+                    `}
+                  >
+                    Google Meet
+                  </a>
+                </div>
               </CardContent>
             </Card>
           ))}

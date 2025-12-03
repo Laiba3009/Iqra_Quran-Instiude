@@ -253,14 +253,7 @@ export default function TeacherDashboard() {
     }
   };
 
-  // Reminder
-  const sendReminder = () => {
-    toast({
-      title: "📩 Reminder Sent",
-      description: "Students will receive your reminder.",
-    });
-  };
-
+ 
   if (!teacher)
     return <p className="text-center mt-10 text-gray-500">Loading...</p>;
 
@@ -290,22 +283,19 @@ export default function TeacherDashboard() {
               Join Zoom Class
             </a>
 
-            <Button
-              onClick={sendReminder}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              Send Reminder
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* ATTENDANCE BUTTON */}
-        <Card className="shadow-lg border bg-white">
-          <CardHeader>
-            <CardTitle className="text-center text-xl text-gray-700">
-              Today Attendance
-            </CardTitle>
-          </CardHeader>
+    <a
+      href={teacher.google_meet_link || "#"}  // teacher ke Google Meet link
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`px-5 py-2 rounded-lg text-white font-medium ${
+        teacher.google_meet_link
+          ? "bg-blue-600 hover:bg-pink-500"
+          : "bg-gray-400 cursor-not-allowed"
+      }`}
+    >
+      Join Google Meet Class
+    </a>
+        
           <CardContent className="text-center space-y-3">
             <Button
               onClick={markAttendance}
@@ -329,7 +319,13 @@ export default function TeacherDashboard() {
               </p>
             )}
           </CardContent>
-        </Card>
+  </CardContent>
+</Card>
+
+        
+
+        {/* ATTENDANCE BUTTON */}
+       
 
         {/* SYLLABUS */}
         <Card className="bg-gray-50 border shadow">
@@ -383,9 +379,7 @@ export default function TeacherDashboard() {
           </CardContent>
         </Card>
 
-        <p className="text-sm text-gray-400 text-center">
-          Zoom link & syllabus controlled by Admin.
-        </p>
+        
       </div>
     </RoleBasedLayout>
   );

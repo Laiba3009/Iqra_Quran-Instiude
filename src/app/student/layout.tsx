@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import Footer from "@/components/Footer";          
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -29,6 +30,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         <main className="pt-20 ">
           {children}
         </main>
+           <Footer/>
 
       </div>
     </div>

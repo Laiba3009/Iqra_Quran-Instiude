@@ -7,8 +7,22 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import SendNotice from "../send-notice/page";
 import StudentSearchBar from "@/components/admin/StudentSearchBar";
-import { Users, Wallet, DollarSign, GraduationCap, AlertTriangle, Banknote, CreditCard, Calendar } from "lucide-react";
+import { Users, Wallet, DollarSign, GraduationCap, AlertTriangle, Banknote, CreditCard } from "lucide-react";
 import RoleBasedLayout from "@/components/RoleBasedLayout";
+
+// ✅ TypeScript Interfaces
+interface Student {
+  id: string;
+  name: string;
+  roll_no: string;
+  contact?: string;
+  email?: string;
+  courses?: string[];
+  fee_status: string;
+  academy_fee?: number;
+  student_total_fee?: number;
+  join_date?: string; // important
+}
 
 export default function AdminDashboard() {
   const [role, setRole] = useState<string | null>(null);
@@ -19,6 +33,7 @@ export default function AdminDashboard() {
   const [teacherFeeTotal, setTeacherFeeTotal] = useState(0);
   const [academyFeeTotal, setAcademyFeeTotal] = useState(0);
   const [studentFeeTotal, setStudentFeeTotal] = useState(0);
+  const [newStudentsCount, setNewStudentsCount] = useState(0);
 
   useEffect(() => {
     const storedRole = localStorage.getItem("userRole");
@@ -29,13 +44,15 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     const { count: studentCount, data: students } = await supabase
       .from("students")
-      .select("fee_status, academy_fee, student_total_fee", { count: "exact" });
+      .select("fee_status, academy_fee, student_total_fee, join_date", { count: "exact" });
     setTotalStudents(studentCount || 0);
 
     if (students) {
-      const paid = students.filter((s) => s.fee_status === "paid")
+      const paid = students
+        .filter((s) => s.fee_status === "paid")
         .reduce((sum, s) => sum + Number(s.student_total_fee || 0), 0);
-      const pending = students.filter((s) => s.fee_status === "unpaid")
+      const pending = students
+        .filter((s) => s.fee_status === "unpaid")
         .reduce((sum, s) => sum + Number(s.student_total_fee || 0), 0);
       const totalAcademyFee = students.reduce((sum, s) => sum + Number(s.academy_fee || 0), 0);
       const totalStudentFee = students.reduce((sum, s) => sum + Number(s.student_total_fee || 0), 0);
@@ -44,6 +61,16 @@ export default function AdminDashboard() {
       setFeesPending(pending);
       setAcademyFeeTotal(totalAcademyFee);
       setStudentFeeTotal(totalStudentFee);
+
+      // ✅ New Students in last 30 days
+      const today = new Date();
+      const newStudents = students.filter((s) => {
+        if (!s.join_date) return false;
+        const joinDate = new Date(s.join_date);
+        const diffInDays = (today.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24);
+        return diffInDays <= 30;
+      });
+      setNewStudentsCount(newStudents.length);
     }
 
     const { count: teacherCount, data: teacherFees } = await supabase
@@ -61,11 +88,8 @@ export default function AdminDashboard() {
 
   return (
     <RoleBasedLayout role="admin">
-      {/* Page content inside RoleBasedLayout */}
-
       <h1 className="text-3xl md:text-4xl font-bold text-center text-gray-800">📊 Admin Dashboard</h1>
 
-      {/* Stats Cards */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4 mt-6">
         {/* Total Students */}
         <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
@@ -143,6 +167,17 @@ export default function AdminDashboard() {
             <p className="text-2xl font-bold">Rs {studentFeeTotal}</p>
           </CardContent>
         </Card>
+
+        {/* New Students Last 30 Days */}
+        <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
+          <CardHeader className="flex flex-col items-center">
+            <Users className="h-8 w-8 mb-1" />
+            <CardTitle>New Students (Last 30 Days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{newStudentsCount}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Buttons */}
@@ -162,7 +197,7 @@ export default function AdminDashboard() {
         <Link href="/admin/teacher-list">
           <Button className="bg-purple-600 hover:bg-purple-700">Teacher List</Button>
         </Link>
-          <Link href="/admin/teacher-attendance">
+        <Link href="/admin/teacher-attendance">
           <Button className="bg-pink-600 hover:bg-pink-700">Teacher  Attendance</Button>
         </Link>
       </div>
@@ -174,7 +209,6 @@ export default function AdminDashboard() {
 
       {/* Student Search */}
       <StudentSearchBar />
-
     </RoleBasedLayout>
   );
 }

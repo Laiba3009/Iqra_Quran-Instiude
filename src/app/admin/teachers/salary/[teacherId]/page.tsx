@@ -26,6 +26,22 @@ export default function TeacherSalaryPage() {
   const [securityMonth, setSecurityMonth] = useState(1);
   const [securityYear, setSecurityYear] = useState(new Date().getFullYear());
   const [securityAmount, setSecurityAmount] = useState("");
+const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
+const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+
+
+const monthStart = new Date(filterYear, filterMonth - 1, 1);
+const monthEnd = new Date(filterYear, filterMonth, 0);
+
+const monthlyStudents = students.filter((s) => {
+  const join = new Date(s.join_date);
+  const left = s.assign_end ? new Date(s.assign_end) : null;
+
+  return (
+    join <= monthEnd && 
+    (!left || left >= monthStart)
+  );
+});
 
 // -------- FETCH TEACHER --------
 const fetchTeacher = async () => {
@@ -45,6 +61,22 @@ const fetchTeacher = async () => {
 
   setTeacher(data);
 };
+const deleteSecurity = async (id: number) => {
+  // Sirf ye record delete hoga
+  const { error } = await supabase
+    .from("security_fee")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    alert("Error deleting security fee!");
+    return;
+  }
+
+  alert("Deleted successfully!");
+  fetchSecurityFee(); // list refresh
+};
+
 
   // -------- FETCH STUDENTS --------
   const fetchStudents = async () => {
@@ -270,12 +302,21 @@ const fetchTeacher = async () => {
             {/* LIST */}
             <h3 className="mt-5 font-semibold">Security Records</h3>
             <ul className="mt-2 max-h-40 overflow-y-auto">
-              {security.map((s) => (
-                <li key={s.id} className="border p-2 mb-1 rounded">
-                  {MONTHS[s.month - 1]} {s.year} — Rs {s.amount}
-                </li>
-              ))}
-            </ul>
+  {security.map((s) => (
+    <li key={s.id} className="border p-2 mb-1 rounded flex justify-between items-center">
+      <span>
+        {MONTHS[s.month - 1]} {s.year} — Rs {s.amount}
+      </span>
+
+      <button
+        className="text-red-600 font-bold"
+        onClick={() => deleteSecurity(s.id)}
+      >
+        ❌
+      </button>
+       </li>
+      ))}
+    </ul>
 
             <button
               className="w-full mt-4 bg-red-500 text-white p-2 rounded"
@@ -288,42 +329,82 @@ const fetchTeacher = async () => {
       )}
 
       {/* STUDENTS TABLE */}
-      <div className="bg-white rounded shadow p-4">
-        <h2 className="font-semibold mb-3 text-lg">Assigned Students</h2>
-        <p>Total Fee: Rs {totalStudentFee}</p>
+     <div className="bg-white rounded shadow p-4">
+  <h2 className="font-semibold mb-3 text-lg">Assigned Students</h2>
+  <p>Total Fee: Rs {totalStudentFee}</p>
 
-        <table className="w-full mt-3">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-2 border">Name</th>
-              <th className="p-2 border">Roll No</th>
-              <th className="p-2 border">Join Date</th>
-              <th className="p-2 border">Teacher Fee</th>
-            </tr>
-          </thead>
-          <tbody>
-            {students.map((s) => {
-              const isFuture =
-                s.join_date && new Date(s.join_date) > new Date();
+  {/* ===== Month Filter ===== */}
+  <div className="flex gap-4 items-center mb-3">
+    <label className="font-medium">Select Month:</label>
+    <select
+      className="border p-2"
+      value={filterMonth}
+      onChange={(e) => setFilterMonth(Number(e.target.value))}
+    >
+      {MONTHS.map((m, i) => (
+        <option key={i} value={i + 1}>{m}</option>
+      ))}
+    </select>
 
-              return (
-                <tr key={s.id} className="border-b">
-                  <td className="p-2">{s.name}</td>
-                  <td className="p-2">{s.roll_no || "—"}</td>
-                  <td className="p-2">
-                    {s.join_date
-                      ? new Date(s.join_date).toLocaleDateString()
-                      : "—"}
-                  </td>
-                  <td className="p-2">
-                    Rs {isFuture ? 0 : s.teacher_fee || 0}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <label className="font-medium">Year:</label>
+    <input
+      type="number"
+      className="border p-2 w-32"
+      value={filterYear}
+      onChange={(e) => setFilterYear(Number(e.target.value))}
+    />
+  </div>
+
+  {/* ===== Students Table ===== */}
+  <table className="w-full mt-3">
+    <thead className="bg-gray-100">
+      <tr>
+        <th className="p-2 border">Name</th>
+        <th className="p-2 border">Roll No</th>
+        <th className="p-2 border">Join Date</th>
+        <th className="p-2 border">Teacher Fee</th>
+      </tr>
+    </thead>
+    <tbody>
+      {monthlyStudents.map((s) => (
+        <tr key={s.id} className="border-b">
+          <td className="p-2">{s.name}</td>
+          <td className="p-2">{s.roll_no || "—"}</td>
+          <td className="p-2">{s.join_date ? new Date(s.join_date).toLocaleDateString() : "—"}</td>
+          <td className="p-2">Rs {s.teacher_fee || 0}</td>
+        </tr>
+      ))}
+
+      {monthlyStudents.length === 0 && (
+        <tr>
+          <td colSpan={4} className="text-center p-4 text-gray-500">
+            No students for this month.
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
+
+      <div className="flex gap-4 items-center mb-3">
+  <select
+    className="border p-2"
+    value={filterMonth}
+    onChange={(e) => setFilterMonth(Number(e.target.value))}
+  >
+    {MONTHS.map((m, i) => (
+      <option key={i} value={i + 1}>{m}</option>
+    ))}
+  </select>
+
+  <input
+    type="number"
+    className="border p-2 w-32"
+    value={filterYear}
+    onChange={(e) => setFilterYear(Number(e.target.value))}
+  />
+</div>
+
 
       {/* ADD SALARY */}
       <SalaryAddForm

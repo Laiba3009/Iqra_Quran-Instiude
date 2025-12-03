@@ -104,9 +104,9 @@ export default function TeacherViewAttendance() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 mt-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 mt-20">
         <div>
-          <h1 className="text-2xl font-bold text-green-800">📊 My Attendance</h1>
+          <h1 className="text-2xl text-center font-bold text-green-800">📊 My Attendance</h1>
           <p className="text-sm text-gray-500 mt-1">
             {teacher ? teacher.name : "Loading..."}
           </p>

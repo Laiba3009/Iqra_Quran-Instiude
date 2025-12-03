@@ -227,32 +227,66 @@ export default function StudentDashboard() {
         <NoticeComponent userRole="student" />
 
         {/* Today’s Classes */}
-        <Card className="shadow-xl border border-green-200 w-[500px] text-center h-[310px] bg-white">
-          <h1 className="text-3xl font-bold text-center text-green-800 mb-6">📅 Today’s Classes</h1>
-          <CardContent>
-            {todaysClasses.length === 0 ? (
-              <p className="text-center text-gray-600">No classes scheduled for today.</p>
-            ) : (
-              <div className="grid grid-cols-1  gap-6">
-                {todaysClasses.map((cls) => (
-                  <Card key={cls.id} className="shadow-md border-green-200">
-                    <CardContent className="p-4 space-y-3">
-                      <h2 className="text-xl font-semibold text-green-700">{cls.day}{cls.teacher_name}</h2>
-                      <p className="text-gray-700"><b>Time:</b> {cls.time}</p>
-                      <p className="text-gray-700"><b>Subject:</b> {cls.subject}</p>
-                      <Button
-                        className="bg-green-600 hover:bg-green-700 text-white w-full"
-                        onClick={() => handleJoinClass(cls)}
-                      >
-                        Join Zoom Class
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+       {/* Today’s Classes */}
+<Card className="shadow-xl border border-green-200 w-[500px] text-center h-[360px] bg-white">
+  <h1 className="text-3xl font-bold text-center text-green-800 mb-6">
+    📅 Today’s Classes
+  </h1>
+
+  <CardContent>
+    {todaysClasses.length === 0 ? (
+      <p className="text-center text-gray-600">No classes scheduled for today.</p>
+    ) : (
+      <div className="grid grid-cols-1 gap-6">
+        {todaysClasses.map((cls) => (
+          <Card key={cls.id} className="shadow-md border-green-200">
+            <CardContent className="p-4 space-y-3">
+              <h2 className="text-xl font-semibold text-green-700">
+                {cls.day} — {cls.teacher_name}
+              </h2>
+
+              <p className="text-gray-700">
+                <b>Time:</b> {cls.time}
+              </p>
+
+              <p className="text-gray-700">
+                <b>Subject:</b> {cls.subject}
+              </p>
+
+              {/* Buttons Row */}
+              <div className="flex gap-3">
+                {/* Zoom Button */}
+                <Button
+                  className="bg-green-600 hover:bg-green-700 text-white w-1/2 py-2"
+                  disabled={!cls.zoom_link}
+                  onClick={() => handleJoinClass(cls)}
+                >
+                  Zoom
+                </Button>
+
+                {/* Google Meet Button */}
+                <a
+                  href={cls.google_meet_link || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`w-1/2 py-2 text-center rounded-md text-white font-medium
+                    ${
+                      cls.google_meet_link
+                        ? "bg-pink-500 hover:bg-pink-600"
+                        : "bg-gray-400 cursor-not-allowed"
+                    }
+                  `}
+                >
+                  Google Meet
+                </a>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )}
+  </CardContent>
+</Card>
 
         {/* Cancel Request */}
         <Card className="shadow-md border border-red-200 bg-red-50">

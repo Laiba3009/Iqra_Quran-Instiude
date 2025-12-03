@@ -22,6 +22,7 @@ export default function AddStudent() {
     student_total_fee: "",
     fee_status: "unpaid",
     join_date: "",
+  
     class_days: [] as { day: string; subject: string; time: string }[],
   });
 
@@ -140,15 +141,14 @@ function cleanTime(t: string) {
       alert("Please fill all required fields.");
       return;
     }
+const selectedTeachers = teacherList.filter((t) => t.selected);
+const totalTeacherFee = selectedTeachers.reduce((sum, t) => sum + (t.amount || 0), 0);
+const academyFee = Number(form.student_total_fee || 0) - totalTeacherFee;
+const totalFee = Number(form.student_total_fee || 0); // 👈 user input total fee
 
-    const selectedTeachers = teacherList.filter((t) => t.selected);
-    const totalTeacherFee = selectedTeachers.reduce((sum, t) => sum + (t.amount || 0), 0);
-    const totalFee = Number(form.academy_fee || 0) + totalTeacherFee;
-
-    // Convert each class_day.time to UTC
-   const class_days_utc = form.class_days.map((d) => ({
+const class_days_utc = form.class_days.map((d) => ({
   ...d,
-  time: d.time,   // ← Correct (Do not clean/format again)
+  time: d.time,
 }));
 
     const payload = {
@@ -157,40 +157,48 @@ function cleanTime(t: string) {
       contact: form.contact,
       email: form.email,
       syllabus: form.syllabus,
-      academy_fee: Number(form.academy_fee),
       student_total_fee: totalFee,
       fee_status: form.fee_status,
       join_date: form.join_date || null,
       class_days: class_days_utc,
-    timezone: form.timezone || "Pakistan (PKT)",  // 🟢 add this
+    timezone: form.timezone || "Pakistan (PKT)",
+      academy_fee: academyFee,     // ⭐ auto calculated
+
 
     };
 
-    if (editing) {
-      await supabase.from("students").update(payload).eq("id", form.id);
-      await supabase.from("student_teachers").delete().eq("student_id", form.id);
-      if (selectedTeachers.length > 0) {
-        const map = selectedTeachers.map((t) => ({
-          student_id: form.id,
-          teacher_id: t.id,
-          teacher_fee: t.amount || 0,
-        }));
-        await supabase.from("student_teachers").insert(map);
-      }
-      toast({ title: "✅ Student updated successfully" });
-    } else {
-      const { data: inserted, error } = await supabase.from("students").insert([payload]).select().single();
-      if (error) return alert(error.message);
-      if (selectedTeachers.length > 0) {
-        const map = selectedTeachers.map((t) => ({
-          student_id: inserted.id,
-          teacher_id: t.id,
-          teacher_fee: t.amount || 0,
-        }));
-        await supabase.from("student_teachers").insert(map);
-      }
-      toast({ title: "✅ Student added successfully" });
-    }
+   if (editing) {
+  await supabase.from("students").update(payload).eq("id", form.id);
+  await supabase.from("student_teachers").delete().eq("student_id", form.id);
+
+  // ← Yahan insert teacher mapping karni hai
+  if (selectedTeachers.length > 0) {
+    const map = selectedTeachers.map((t) => ({
+      student_id: form.id,
+      teacher_id: t.id,
+      teacher_fee: t.amount || 0,
+    }));
+    await supabase.from("student_teachers").insert(map);
+  }
+
+  toast({ title: "✅ Student updated successfully" });
+} else {
+  const { data: inserted, error } = await supabase.from("students").insert([payload]).select().single();
+  if (error) return alert(error.message);
+
+  // ← Yahan bhi insert teacher mapping karni hai
+  if (selectedTeachers.length > 0) {
+    const map = selectedTeachers.map((t) => ({
+      student_id: inserted.id,
+      teacher_id: t.id,
+      teacher_fee: t.amount || 0,
+    }));
+    await supabase.from("student_teachers").insert(map);
+  }
+
+  toast({ title: "✅ Student added successfully" });
+}
+
 
     setForm({
       id: "",
@@ -332,6 +340,16 @@ function cleanTime(t: string) {
       doc.save("students_list.pdf");
     };
   };
+  function isNewStudent(joinDate: string) {
+  if (!joinDate) return false;
+
+  const join = new Date(joinDate);
+  const now = new Date();
+
+  const diffDays = (now.getTime() - join.getTime()) / (1000 * 60 * 60 * 24);
+  return diffDays <= 30; // last 30 days
+}
+
 
   return (
     <div className="bg-blue-100 min-h-screen px-4 md:px-8 space-y-8 pb-10">
@@ -388,12 +406,14 @@ function cleanTime(t: string) {
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
-          <input
-            className="border p-2 rounded-lg text-sm"
-            placeholder="Academy Fee"
-            value={form.academy_fee}
-            onChange={(e) => setForm({ ...form, academy_fee: e.target.value })}
-          />
+ <input
+  className="border p-2 rounded-lg text-sm"
+  placeholder="Total Fee"
+  value={form.student_total_fee}
+  onChange={(e) => setForm({ ...form, student_total_fee: e.target.value })}
+/>
+
+
           <input
             type="date"
             className="border p-2 rounded-lg text-sm"
@@ -463,25 +483,27 @@ function cleanTime(t: string) {
 
         {/* Assign Teachers */}
         <h3 className="font-semibold mb-2 text-gray-700">Assign Teachers & Fees</h3>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {teacherList.map((t) => (
-            <div key={t.id} className={`border rounded-lg p-2 ${t.selected ? "bg-green-50 border-green-500" : ""}`}>
-              <label className="flex items-center gap-1">
-                <input type="checkbox" checked={!!t.selected} onChange={() => toggleTeacher(t.id)} />
-                {t.name}
-              </label>
-              {t.selected && (
-                <input
-                  type="number"
-                  placeholder="Fee"
-                  className="border p-1 rounded w-16 mt-1 text-sm"
-                  value={t.amount || ""}
-                  onChange={(e) => handleTeacherFeeChange(t.id, e.target.value)}
-                />
-              )}
-            </div>
-          ))}
+      <div className="flex flex-wrap gap-2 mb-4">
+  {teacherList.map((t) => (
+    <div key={t.id} className={`border rounded-lg p-2 ${t.selected ? "bg-green-50 border-green-500" : ""}`}>
+      <label className="flex flex-col gap-1">
+        <div className="flex items-center gap-1">
+          <input type="checkbox" checked={!!t.selected} onChange={() => toggleTeacher(t.id)} />
+          {t.name}
         </div>
+        {t.selected && (
+          <input
+            type="number"
+            placeholder="Fee"
+            className="border p-1 rounded w-16 mt-1 text-sm"
+            value={t.amount || ""}
+            onChange={(e) => handleTeacherFeeChange(t.id, e.target.value)}
+          />
+        )}
+      </label>
+    </div>
+  ))}
+</div>
 
         <Button onClick={save} className="bg-green-600 text-white hover:bg-green-700 w-full">
           {editing ? "Update Student" : "Save Student"}
@@ -531,7 +553,14 @@ function cleanTime(t: string) {
           <tbody>
             {filteredRows.map((r) => (
               <tr key={r.id} className="border-t hover:bg-gray-50">
-                <td className="p-3">{r.name}</td>
+<td className="p-3 flex items-center gap-2">
+  {r.name}
+  {isNewStudent(r.join_date) && (
+    <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full">
+      NEW
+    </span>
+  )}
+</td>
                 <td className="p-3">{r.roll_no}</td>
                 
                <td className="p-3">
