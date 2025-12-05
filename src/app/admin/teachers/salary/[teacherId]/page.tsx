@@ -258,75 +258,84 @@ const deleteSecurity = async (id: number) => {
       )}
 
       {/* SECURITY FEE MODAL */}
-      {securityModal && (
-        <div className="fixed inset-0 bg-black/50 flex justify-center items-center">
-          <div className="bg-white p-6 rounded w-full max-w-lg">
-            <h2 className="text-lg font-bold mb-4">Add Security Fee</h2>
+     {/* SECURITY FEE MODAL */}
+{securityModal && (
+  <div className="fixed inset-0 bg-black/50 flex justify-center items-center">
+    <div className="bg-white p-6 rounded w-full max-w-lg">
+      <h2 className="text-lg font-bold mb-4">Add Security Fee</h2>
 
-            <label className="block mb-1">Month</label>
-            <select
-              className="border p-2 w-full mb-3"
-              value={securityMonth}
-              onChange={(e) => setSecurityMonth(Number(e.target.value))}
-            >
-              {MONTHS.map((m, i) => (
-                <option key={i} value={i + 1}>
-                  {m}
-                </option>
-              ))}
-            </select>
+      <label className="block mb-1">Month</label>
+      <select
+        className="border p-2 w-full mb-3"
+        value={securityMonth}
+        onChange={(e) => setSecurityMonth(Number(e.target.value))}
+      >
+        {MONTHS.map((m, i) => (
+          <option key={i} value={i + 1}>
+            {m}
+          </option>
+        ))}
+      </select>
 
-            <label className="block mb-1">Year</label>
-            <input
-              type="number"
-              value={securityYear}
-              onChange={(e) => setSecurityYear(Number(e.target.value))}
-              className="border p-2 w-full mb-3"
-            />
+      <label className="block mb-1">Year</label>
+      <input
+        type="number"
+        value={securityYear}
+        onChange={(e) => setSecurityYear(Number(e.target.value))}
+        className="border p-2 w-full mb-3"
+      />
 
-            <label className="block mb-1">Amount</label>
-            <input
-              type="number"
-              value={securityAmount}
-              onChange={(e) => setSecurityAmount(e.target.value)}
-              className="border p-2 w-full mb-4"
-            />
+      <label className="block mb-1">Amount</label>
+      <input
+        type="number"
+        value={securityAmount}
+        onChange={(e) => setSecurityAmount(e.target.value)}
+        className="border p-2 w-full mb-4"
+      />
 
-            <button
-              className="bg-green-600 w-full text-white py-2 rounded"
-              onClick={saveSecurityFee}
-            >
-              Save Security Fee
-            </button>
-
-            {/* LIST */}
-            <h3 className="mt-5 font-semibold">Security Records</h3>
-            <ul className="mt-2 max-h-40 overflow-y-auto">
-  {security.map((s) => (
-    <li key={s.id} className="border p-2 mb-1 rounded flex justify-between items-center">
-      <span>
-        {MONTHS[s.month - 1]} {s.year} — Rs {s.amount}
-      </span>
+      {/* 🔵 TOTAL SECURITY SHOW HERE */}
+      <div className="bg-gray-100 p-2 rounded mb-3 text-sm font-semibold">
+        Total Security After Adding: Rs{" "}
+        {security.reduce((sum, s) => sum + Number(s.amount), 0) +
+          Number(securityAmount || 0)}
+      </div>
 
       <button
-        className="text-red-600 font-bold"
-        onClick={() => deleteSecurity(s.id)}
+        className="bg-green-600 w-full text-white py-2 rounded"
+        onClick={saveSecurityFee}
       >
-        ❌
+        Save Security Fee
       </button>
-       </li>
-      ))}
-    </ul>
+
+      {/* LIST */}
+      <h3 className="mt-5 font-semibold">Security Records</h3>
+      <ul className="mt-2 max-h-40 overflow-y-auto">
+        {security.map((s) => (
+          <li key={s.id} className="border p-2 mb-1 rounded flex justify-between items-center">
+            <span>
+              {MONTHS[s.month - 1]} {s.year} — Rs {s.amount}
+            </span>
 
             <button
-              className="w-full mt-4 bg-red-500 text-white p-2 rounded"
-              onClick={() => setSecurityModal(false)}
+              className="text-red-600 font-bold"
+              onClick={() => deleteSecurity(s.id)}
             >
-              Close
+              ❌
             </button>
-          </div>
-        </div>
-      )}
+          </li>
+        ))}
+      </ul>
+
+      <button
+        className="w-full mt-4 bg-red-500 text-white p-2 rounded"
+        onClick={() => setSecurityModal(false)}
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
+
 
       {/* STUDENTS TABLE */}
      <div className="bg-white rounded shadow p-4">
