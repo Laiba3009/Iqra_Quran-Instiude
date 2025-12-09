@@ -36,99 +36,105 @@ export default function PDFGenerator({ student, reports, complaints, month, logo
   const generatePDF = () => {
     const doc = new jsPDF("p", "pt");
 
-    // -------- LOGO --------
+    // ======= TOP DATE (PDF Download Date) =======
+    const today = new Date().toLocaleDateString();
+
+    // ======= UNIQUE TEACHER NAME LIST =======
+    const teacherSet = new Set<string>();
+    teacherSet.add(student.teacher_name);
+
+    reports.forEach((r) => teacherSet.add(r.teacher_name));
+    complaints.forEach((c) => teacherSet.add(c.teacher_name));
+
+    const teacherList = Array.from(teacherSet).join(", ");
+
+    // ======= LOGO =======
     if (logoUrl) {
       try {
         doc.addImage(logoUrl, "JPG", 25, 20, 50, 50);
       } catch (e) {
-        console.warn("Logo failed", e);
+        console.warn("Logo load error", e);
       }
     }
 
-    // -------- HEADING --------
+    // ======= MAIN TITLE =======
     doc.setFont("Helvetica", "bold");
     doc.setFontSize(26);
     doc.text("Iqra Online Institute", 90, 50);
 
-    // -------- STUDENT INFO BOX --------
+    // ======= TOP INFO BOX =======
     doc.setFillColor(235, 235, 235);
-    doc.rect(20, 90, 560, 70, "F");
+    doc.rect(20, 90, 560, 90, "F");
 
-    doc.setFont("Helvetica", "bold");
     doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text("Student Information", 30, 110);
+    doc.text("Progress Report", 30, 110);
 
     doc.setFont("Helvetica", "normal");
     doc.setFontSize(12);
-    doc.text(`Name: ${student.name}`, 30, 135);
-    doc.text(`Roll No: ${student.roll_no || "—"}`, 30, 155);
-    doc.text(`Teacher: ${student.teacher_name}`, 250, 135);
-    doc.text(`Month: ${month || "All"}`, 250, 155);
+    doc.text(`Date: ${today}`, 30, 135);   // ★ ONLY this date now
 
-    let y = 190;
+    doc.text(`Teachers: ${teacherList}`, 30, 155); // ★ ALL teachers here
+    doc.text(`Month: ${month || "All"}`, 350, 155);
 
-    // -------- LIGHT PASTEL COLORS --------
+    doc.text(`Student Name: ${student.name}`, 350, 135);
+
+    let y = 210;
+
+    // ======= SOFT COLORS =======
     const pastelColors = [
-      [255, 240, 245], // light rose pink
-      [230, 240, 255], // soft sky blue
-      [232, 250, 235], // mint green
-      [255, 250, 230], // creamy yellow
+      [255, 240, 245],
+      [230, 240, 255],
+      [232, 250, 235],
+      [255, 250, 230],
     ];
 
-    // -------- WEEKLY REPORT SECTION --------
+    // ---------------------------------------------------
+    //                WEEKLY REPORT (WITHOUT DATE/TEACHER)
+    // ---------------------------------------------------
     reports.forEach((r, idx) => {
       const color = pastelColors[idx % pastelColors.length];
 
-      // WEEK TITLE — Stylish
-     // WEEK TITLE — Stylish Dark Blue
-doc.setFont("Helvetica", "bold");
-doc.setFontSize(16);
-doc.setTextColor(0, 45, 98);        // 🔵 Dark Navy Blue Title
-
-doc.text(`WEEK ${idx + 1}`, 20, y);
-doc.line(20, y + 3, 120, y + 3);    // underline width increased (optional)
-
-
+      // WEEK TITLE
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(0, 45, 98);
+      doc.text(`WEEK ${idx + 1}`, 20, y);
+      doc.line(20, y + 3, 120, y + 3);
       y += 15;
 
-      // Big box
+      // Box
       doc.setFillColor(color[0], color[1], color[2]);
       doc.rect(20, y, 560, 90, "F");
 
+      // Text Only (No date, no teacher)
       doc.setFont("Helvetica", "normal");
       doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
 
-      doc.text(`Date: ${new Date(r.created_at).toLocaleDateString()}`, 30, y + 25);
-      doc.text(`Teacher: ${r.teacher_name}`, 30, y + 40);
-
-      const wrappedText = doc.splitTextToSize(r.report_text, 520);
-      doc.text(wrappedText, 30, y + 60);
+      const wrapped = doc.splitTextToSize(r.report_text, 520);
+      doc.text(wrapped, 30, y + 35);
 
       y += 110;
     });
 
-    // -------- NOTES SECTION --------
+    // ---------------------------------------------------
+    //                COMPLAINTS / NOTICE
+    // ---------------------------------------------------
     complaints.forEach((c) => {
       doc.setFont("Helvetica", "bold");
       doc.setFontSize(16);
-doc.setTextColor(0, 45, 98);        // 🔵 Dark Navy Blue Title
+      doc.setTextColor(0, 45, 98);
       doc.text("NOTICE", 20, y);
       doc.line(20, y + 3, 85, y + 3);
       y += 15;
 
-      // Light red box
       doc.setFillColor(255, 235, 238);
       doc.rect(20, y, 560, 90, "F");
 
       doc.setFont("Helvetica", "normal");
       doc.setFontSize(12);
-      doc.text(`Date: ${new Date(c.created_at).toLocaleDateString()}`, 30, y + 25);
-      doc.text(`Teacher: ${c.teacher_name}`, 30, y + 40);
 
       const wrapped = doc.splitTextToSize(c.complaint_text, 520);
-      doc.text(wrapped, 30, y + 60);
+      doc.text(wrapped, 30, y + 35);
 
       y += 110;
     });

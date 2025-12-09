@@ -111,12 +111,16 @@ export default function AdminProgressPage() {
   const filteredReports = selectedMonth
     ? reports.filter(r => new Date(r.created_at).toLocaleString("default", { month: "long" }) === selectedMonth)
     : reports;
-
-  const filteredComplaints = selectedMonth
+    
+const filteredComplaints = selectedMonth
     ? complaints.filter(c => new Date(c.created_at).toLocaleString("default", { month: "long" }) === selectedMonth)
     : complaints;
 
-  const months = Array.from(new Set(reports.map(r => new Date(r.created_at).toLocaleString("default", { month: "long" }))));
+const months = Array.from(new Set([
+  ...reports.map(r => new Date(r.created_at).toLocaleString("default", { month: "long" })),
+  ...complaints.map(c => new Date(c.created_at).toLocaleString("default", { month: "long" }))
+]));
+
 
   return (
     <div className="max-w-6xl mx-auto mt-12 p-6 bg-white rounded-xl shadow">

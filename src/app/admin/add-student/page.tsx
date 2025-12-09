@@ -99,6 +99,7 @@ export default function AddStudent() {
   }
 };
 
+
   // ================= Toggle Functions =================
   const toggleSyllabus = (name: string) => {
     setForm((prev) => ({
@@ -151,6 +152,7 @@ function cleanTime(t: string) {
 
   return `${h}:${m} ${period}`;
 }
+
 
 
   // ================= Save Student =================

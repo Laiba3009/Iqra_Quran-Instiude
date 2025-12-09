@@ -3,18 +3,19 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
 export default function BannerSlider() {
+
   const images = [
-    'https://images.unsplash.com/photo-1501769214405-5e86c6d0a2c1?w=1600&q=80&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?w=1600&q=80&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1482192505345-5655af888cc4?w=1600&q=80&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=1600&q=80&auto=format&fit=crop',
+    "/images/banner-1.png",
+    "/images/banner-2.png",
+    "/images/banner-3.png",
+    "/images/banner-4.png",
   ];
 
   const texts = [
-    'Welcome to our site — Aapka swagat hai.',
-    'Quality services | Fast delivery | Trusted support',
-    'Custom designs — Banner, Logo, Social Posts',
-    'Contact: +91 98765 43210 (replace with yours)',
+    'Learn Quran Online with Expert Teachers',
+    'Interactive Classes for Kids and Adults',
+    'Tajweed, Quran Recitation & Memorization',
+    'Flexible Timings | Join from Anywhere',
   ];
 
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -22,7 +23,7 @@ export default function BannerSlider() {
   const [textIndex, setTextIndex] = useState(0);
   const [isTyping, setIsTyping] = useState(true);
 
-  // Auto slide logic
+  // Auto slide
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % images.length);
@@ -30,7 +31,7 @@ export default function BannerSlider() {
     return () => clearInterval(interval);
   }, [images.length]);
 
-  // Typewriter logic
+  // Typewriter
   useEffect(() => {
     const current = texts[textIndex];
     let timeout: NodeJS.Timeout;
@@ -61,7 +62,8 @@ export default function BannerSlider() {
 
   return (
     <div className="w-full mt-6 flex flex-col md:flex-row rounded-none overflow-hidden bg-[#0f1724]">
-      {/* Left: Image carousel */}
+
+      {/* Left: Slider */}
       <div className="relative w-full md:w-1/2 h-64 md:h-[500px]">
         {images.map((img, i) => (
           <motion.img
@@ -90,13 +92,16 @@ export default function BannerSlider() {
 
       {/* Right: Typewriter */}
       <div className="flex flex-col justify-center items-start p-6 md:p-8 w-full md:w-1/2 bg-[#0b1220]">
-        <h1 className="text-3xl font-semibold mb-2 text-white">IQRA Online Quran Institude</h1>
-        <p className="text-white/70 mb-4 text-base text-white">Chhota sa subheading ya description. Typewriter niche auto-rotate karega.</p>
+        <h1 className="text-3xl font-semibold mb-2 text-white">IQRA Online Quran Institute</h1>
+        <p className="text-white/70 mb-4 text-base">
+          Learn Quran Online from the comfort of your home. Classes available for all ages.
+        </p>
         <div className="font-mono text-white text-lg min-h-[32px]">
           {currentText}
           <span className="animate-pulse">|</span>
         </div>
       </div>
+
     </div>
   );
 }

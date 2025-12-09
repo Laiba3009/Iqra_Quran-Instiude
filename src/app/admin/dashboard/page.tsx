@@ -171,6 +171,7 @@ export default function AdminDashboard() {
           <CardContent><p className="text-2xl font-bold">{disabledStudentsCount}</p></CardContent>
         </Card>
       </div>
+      <StudentSearchBar />
 
       {/* Buttons */}
       <div className="flex flex-wrap gap-3 justify-center mt-6">
@@ -188,7 +189,6 @@ export default function AdminDashboard() {
       </section>
 
       {/* Student Search */}
-      <StudentSearchBar />
     </RoleBasedLayout>
   );
 }
