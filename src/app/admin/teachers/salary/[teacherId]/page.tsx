@@ -3,6 +3,15 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import SalaryAddForm from "@/components/SalaryAddForm";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+declare module "jspdf" {
+  interface jsPDF {
+    lastAutoTable: { finalY: number };
+  }
+}
+
 
 // 🔵 Months for dropdown
 const MONTHS = [
@@ -12,6 +21,7 @@ const MONTHS = [
 
 export default function TeacherSalaryPage() {
   const { teacherId } = useParams();
+const [pdfModal, setPdfModal] = useState(false);
 
   const [teacher, setTeacher] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
@@ -30,18 +40,118 @@ const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
 const [filterYear, setFilterYear] = useState(new Date().getFullYear());
 
 
+
+// 🔵 New Student check (last 30 days)
+const isNewStudent = (joinDate?: string) => {
+  if (!joinDate) return false;
+  const diffDays =
+    (new Date().getTime() - new Date(joinDate).getTime()) / (1000 * 60 * 60 * 24);
+  return diffDays < 30;
+};
+
 const monthStart = new Date(filterYear, filterMonth - 1, 1);
 const monthEnd = new Date(filterYear, filterMonth, 0);
 
-const monthlyStudents = students.filter((s) => {
-  const join = new Date(s.join_date);
-  const left = s.assign_end ? new Date(s.assign_end) : null;
+const monthlyStudents = students
+  .filter((s) => {
+    const join = new Date(s.join_date);
+    const left = s.assign_end ? new Date(s.assign_end) : null;
+    return join <= monthEnd && (!left || left >= monthStart);
+  })
+  .map((s) => {
+    const isNew = isNewStudent(s.join_date);
+    return { 
+      ...s, 
+      isNew,
+      displayFee: isNew ? 0 : s.teacher_fee || 0 
+    };
+  });
 
-  return (
-    join <= monthEnd && 
-    (!left || left >= monthStart)
+
+
+const generatePDF = () => {
+  const doc = new jsPDF();
+
+  doc.setFontSize(16);
+  doc.text(`${teacher.name} Salary Report`, 10, 10);
+
+  doc.setFontSize(12);
+  doc.text(`Month: ${MONTHS[filterMonth - 1]} ${filterYear}`, 10, 18);
+
+  // --------------------------
+  // STUDENTS TABLE
+  // --------------------------
+  const studentRows = monthlyStudents.map((s) => [
+  s.name + (s.isNew ? " (NEW)" : ""),
+  s.roll_no || "—",
+  s.displayFee,
+]);
+
+  
+
+  autoTable(doc, {
+    head: [["Name", "Roll No", "Teacher Fee"]],
+    body: studentRows,
+    startY: 25,
+  });
+
+const totalStudentFee = monthlyStudents.reduce(
+  (t, s) => t + Number(s.displayFee || 0),
+  0
+);
+
+  let y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 40;
+  doc.text(`Total Student Fee: Rs ${totalStudentFee}`, 10, y);
+
+  // --------------------------
+  // MONTHLY SALARY RECORD
+  // --------------------------
+  const salary = records.find(
+    (r) => r.month == filterMonth && r.year == filterYear
   );
-});
+
+  if (salary) {
+    y += 10;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Base Salary", "Bonus", "Advance", "Leave Salary", "Net Total"]],
+      body: [
+        [
+          salary.base_salary,
+          salary.bonus,
+          salary.advance,
+          salary.leave_salary ?? 0,
+          salary.base_salary +
+            salary.bonus -
+            salary.advance -
+            (salary.leave_salary ?? 0),
+        ],
+      ],
+    });
+  }
+
+  // --------------------------
+  // SECURITY FEES (OPTIONAL)
+  // --------------------------
+  y = doc.lastAutoTable.finalY + 10;
+
+  const monthSecurity = security.filter(
+    (s) => s.month == filterMonth && s.year == filterYear
+  );
+
+  if (monthSecurity.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [["Security Amount"]],
+      body: monthSecurity.map((s) => [s.amount]),
+    });
+  }
+
+  // SAVE PDF
+  doc.save(`${teacher.name}-salary-${filterMonth}-${filterYear}.pdf`);
+};
+
 
 // -------- FETCH TEACHER --------
 const fetchTeacher = async () => {
@@ -149,10 +259,12 @@ const deleteSecurity = async (id: number) => {
     (s) => !s.join_date || new Date(s.join_date) <= today
   );
 
-  const totalStudentFee = validStudents.reduce(
-    (a, b) => a + Number(b.teacher_fee || 0),
-    0
-  );
+
+  const totalStudentFee = monthlyStudents.reduce(
+  (t, s) => t + Number(s.displayFee || 0),
+  0
+);
+
 
   const totalSalaryPaid = records.reduce(
     (s, r) => s + (r.base_salary + r.bonus - r.advance),
@@ -342,30 +454,76 @@ const deleteSecurity = async (id: number) => {
   <h2 className="font-semibold mb-3 text-lg">Assigned Students</h2>
   <p>Total Fee: Rs {totalStudentFee}</p>
 
-  {/* ===== Month Filter ===== */}
-  <div className="flex gap-4 items-center mb-3">
-    <label className="font-medium">Select Month:</label>
-    <select
-      className="border p-2"
-      value={filterMonth}
-      onChange={(e) => setFilterMonth(Number(e.target.value))}
-    >
-      {MONTHS.map((m, i) => (
-        <option key={i} value={i + 1}>{m}</option>
-      ))}
-    </select>
+{pdfModal && (
+  <div className="fixed inset-0 bg-black/50 flex justify-center items-center">
+    <div className="bg-white p-6 rounded w-full max-w-lg">
+      <h2 className="text-lg font-bold mb-4">Download Salary PDF</h2>
 
-    <label className="font-medium">Year:</label>
-    <input
-      type="number"
-      className="border p-2 w-32"
-      value={filterYear}
-      onChange={(e) => setFilterYear(Number(e.target.value))}
-    />
+      <p className="font-semibold mb-2">
+        Month: {MONTHS[filterMonth - 1]} {filterYear}
+      </p>
+
+      <h3 className="font-semibold mt-3">Students</h3>
+      <ul className="max-h-40 overflow-y-auto border p-2 rounded">
+        {monthlyStudents.map((s) => (
+          <li key={s.id} className="border-b py-1">
+            {s.name} — Rs {s.teacher_fee}
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-3 font-semibold">
+        Total Fee: Rs{" "}
+        {monthlyStudents.reduce((t, s) => t + Number(s.teacher_fee), 0)}
+      </p>
+
+      {/* Salary */}
+      <h3 className="font-semibold mt-4">Salary</h3>
+
+      {records.find(
+        (r) => r.month == filterMonth && r.year == filterYear
+      ) ? (
+        (() => {
+          const r = records.find(
+            (x) => x.month == filterMonth && x.year == filterYear
+          );
+          return (
+            <div className="border p-3 rounded mt-2">
+              <p>Base: Rs {r.base_salary}</p>
+              <p>Bonus: Rs {r.bonus}</p>
+              <p>Advance: Rs {r.advance}</p>
+              <p className="font-bold">
+                Total Salary: Rs{" "}
+                {r.base_salary + r.bonus - r.advance}
+              </p>
+            </div>
+          );
+        })()
+      ) : (
+        <p>No Salary Record Found</p>
+      )}
+
+      <button
+        className="w-full bg-purple-600 text-white py-2 mt-4 rounded"
+        onClick={generatePDF}
+      >
+        Download PDF
+      </button>
+
+      <button
+        className="w-full bg-red-500 text-white py-2 mt-2 rounded"
+        onClick={() => setPdfModal(false)}
+      >
+        Close
+      </button>
+    </div>
   </div>
+)}
+
 
   {/* ===== Students Table ===== */}
   <table className="w-full mt-3">
+    
     <thead className="bg-gray-100">
       <tr>
         <th className="p-2 border">Name</th>
@@ -380,7 +538,8 @@ const deleteSecurity = async (id: number) => {
           <td className="p-2">{s.name}</td>
           <td className="p-2">{s.roll_no || "—"}</td>
           <td className="p-2">{s.join_date ? new Date(s.join_date).toLocaleDateString() : "—"}</td>
-          <td className="p-2">Rs {s.teacher_fee || 0}</td>
+          <td className="p-2">Rs {s.displayFee}</td>
+ 
         </tr>
       ))}
 
@@ -396,6 +555,12 @@ const deleteSecurity = async (id: number) => {
 </div>
 
       <div className="flex gap-4 items-center mb-3">
+        <button
+  className="bg-purple-600 text-white px-4 py-2 rounded mb-3"
+  onClick={() => setPdfModal(true)}
+>
+  Download Salary PDF
+</button>
   <select
     className="border p-2"
     value={filterMonth}

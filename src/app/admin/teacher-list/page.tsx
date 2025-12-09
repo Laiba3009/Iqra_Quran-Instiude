@@ -22,7 +22,8 @@ type StudentLink = {
   roll_no?: string;
   teacher_fee?: number;
   teacher_id?: string;
-  join_date?: string; // 👈 new field
+  join_date?: string;
+  status?: "active" | "disabled"; // 👈 add status
 };
 
 export default function TeacherList() {
@@ -53,7 +54,7 @@ export default function TeacherList() {
 
       const { data: stLinks, error: stErr } = await supabase
         .from("student_teachers")
-        .select("teacher_id, teacher_fee, students(id, name, roll_no, join_date)")
+        .select("teacher_id, teacher_fee, students(id, name, roll_no, join_date, status)")
         .order("id", { ascending: true });
 
       if (stErr) throw stErr;
@@ -65,7 +66,8 @@ export default function TeacherList() {
           roll_no: s.students?.roll_no,
           teacher_fee: s.teacher_fee,
           teacher_id: s.teacher_id,
-          join_date: s.students?.join_date, // ✅
+          join_date: s.students?.join_date,
+          status: s.students?.status || "active", // default active
         })) ?? [];
 
       setTeachers(tData ?? []);
@@ -87,42 +89,39 @@ export default function TeacherList() {
     return ["all", ...Array.from(setS)];
   }, [teachers]);
 
-  // 👇 Fee calculation with join_date check
+  const isNewStudent = (joinDate?: string) => {
+    if (!joinDate) return false;
+    const diffDays = (new Date().getTime() - new Date(joinDate).getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays < 30;
+  };
+
+  // Only active students
   const getAssignedForTeacher = (teacherId: string) => {
-    const assigned = studentLinks.filter((s) => s.teacher_id === teacherId);
-    const today = new Date();
-
+    const assigned = studentLinks.filter(
+      (s) => s.teacher_id === teacherId && s.status === "active"
+    );
     const totalFee = assigned.reduce((sum, s) => {
-      const joinDate = s.join_date ? new Date(s.join_date) : null;
-      if (joinDate && joinDate > today) return sum; // future students → fee = 0
-      return sum + Number(s.teacher_fee || 0);
+      return sum + (isNewStudent(s.join_date) ? 0 : Number(s.teacher_fee || 0));
     }, 0);
-
     return { assigned, totalFee };
   };
 
   const visibleTeachers = useMemo(() => {
     const q = search.trim().toLowerCase();
-
     return (teachers ?? []).filter((t) => {
       if (filterSyllabus !== "all") {
         const has = Array.isArray(t.syllabus) && t.syllabus.includes(filterSyllabus);
         if (!has) return false;
       }
-
       if (filterSalary !== "all") {
         if ((t.salary_status ?? "unpaid") !== filterSalary) return false;
       }
-
       if (!q) return true;
-
       if ((t.name ?? "").toLowerCase().includes(q)) return true;
-
       const hasStudentRoll = studentLinks.some(
-        (s) => s.teacher_id === t.id && String(s.roll_no || "").toLowerCase().includes(q)
+        (s) => s.teacher_id === t.id && s.status === "active" && String(s.roll_no || "").toLowerCase().includes(q)
       );
       if (hasStudentRoll) return true;
-
       return false;
     });
   }, [teachers, studentLinks, search, filterSyllabus, filterSalary]);
@@ -131,7 +130,6 @@ export default function TeacherList() {
     setModalTeacherId(teacherId);
     setModalOpen(true);
   };
-
   const closeModal = () => {
     setModalOpen(false);
     setModalTeacherId(null);
@@ -176,7 +174,7 @@ export default function TeacherList() {
         i + 1,
         s.name || "—",
         s.roll_no || "—",
-        `Rs ${s.teacher_fee || 0}`,
+        `Rs ${isNewStudent(s.join_date) ? 0 : s.teacher_fee || 0}`,
       ]);
 
       autoTable(doc, {
@@ -335,38 +333,28 @@ export default function TeacherList() {
             <div className="p-4 max-h-[60vh] overflow-auto">
               {getAssignedForTeacher(modalTeacherId).assigned.length > 0 ? (
                 <ul className="space-y-2">
-                  {getAssignedForTeacher(modalTeacherId).assigned.map((s) => {
-                    const isFuture =
-                      s.join_date && new Date(s.join_date) > new Date();
-                    return (
-                      <li
-                        key={s.id}
-                        className="p-3 border rounded-md flex justify-between items-center"
-                      >
-                        <div>
-                          <div className="font-medium">
-                            {s.name}{" "}
-                            {isFuture && (
-                              <span className="text-xs text-blue-600">(New)</span>
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Roll: {s.roll_no || "—"}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            Join Date:{" "}
-                            {s.join_date
-                              ? new Date(s.join_date).toLocaleDateString()
-                              : "—"}
-                          </div>
-                        </div>
+                  {getAssignedForTeacher(modalTeacherId).assigned.map((s) => (
+                    <li
+                      key={s.id}
+                      className="p-3 border rounded-md flex justify-between items-center"
+                    >
+                      <div>
                         <div className="font-medium">
-                          Rs{" "}
-                          {isFuture ? 0 : s.teacher_fee || 0}
+                          {s.name}{" "}
+                          {isNewStudent(s.join_date) && (
+                            <span className="text-xs text-blue-600">(NEW)</span>
+                          )}
                         </div>
-                      </li>
-                    );
-                  })}
+                        <div className="text-sm text-gray-500">Roll: {s.roll_no || "—"}</div>
+                        <div className="text-xs text-gray-400">
+                          Join Date: {s.join_date ? new Date(s.join_date).toLocaleDateString() : "—"}
+                        </div>
+                      </div>
+                      <div className="font-medium">
+                        Rs {isNewStudent(s.join_date) ? 0 : s.teacher_fee || 0}
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               ) : (
                 <p className="text-gray-500">No assigned students.</p>

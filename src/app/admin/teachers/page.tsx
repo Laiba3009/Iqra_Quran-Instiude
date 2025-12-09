@@ -66,14 +66,18 @@ export default function TeacherList() {
     }
   };
 
+  // ✅ New student check (last 30 days)
+  const isNewStudent = (joinDate?: string) => {
+    if (!joinDate) return false;
+    const diffDays = (new Date().getTime() - new Date(joinDate).getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays < 30;
+  };
+
   const getAssignedForTeacher = (teacherId: string) => {
     const assigned = studentLinks.filter((s) => s.teacher_id === teacherId);
-    const today = new Date();
 
     const totalFee = assigned.reduce((sum, s) => {
-      const joinDate = s.join_date ? new Date(s.join_date) : null;
-      if (joinDate && joinDate > today) return sum;
-      return sum + Number(s.teacher_fee || 0);
+      return sum + (isNewStudent(s.join_date) ? 0 : Number(s.teacher_fee || 0));
     }, 0);
 
     return { assigned, totalFee };
@@ -94,7 +98,7 @@ export default function TeacherList() {
   return (
     <div className="max-w-7xl mx-auto mt-8 p-6 space-y-6">
       <BackButton href="/admin/dashboard" label="Back to Dashboard" />
-      <h1 className="text-3xl font-bold text-green-800">Teacher List</h1>
+      <h1 className="text-3xl font-bold text-green-800">Teacher Salary Management</h1>
 
       {loading ? (
         <p>Loading...</p>
@@ -117,14 +121,13 @@ export default function TeacherList() {
                   <td className="p-2">{t.syllabus?.join(", ") || "—"}</td>
                   <td className="p-2">Rs {totalFee}</td>
                   <td className="p-2">
-                   <Button
-  size="sm"
-  variant="outline"
-  onClick={() => window.location.href = `/admin/teachers/salary/${t.id}`}
->
-  View Salary Record
-</Button>
-
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.location.href = `/admin/teachers/salary/${t.id}`}
+                    >
+                      View Salary Record
+                    </Button>
                   </td>
                 </tr>
               );
@@ -157,23 +160,25 @@ export default function TeacherList() {
             <div className="p-4 max-h-[60vh] overflow-auto">
               {getAssignedForTeacher(modalTeacherId).assigned.length > 0 ? (
                 <ul className="space-y-2">
-                  {getAssignedForTeacher(modalTeacherId).assigned.map((s) => {
-                    const isFuture = s.join_date && new Date(s.join_date) > new Date();
-                    return (
-                      <li key={s.id} className="p-3 border rounded-md flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">
-                            {s.name} {isFuture && <span className="text-xs text-blue-600">(New)</span>}
-                          </div>
-                          <div className="text-sm text-gray-500">Roll: {s.roll_no || "—"}</div>
-                          <div className="text-xs text-gray-400">
-                            Join Date: {s.join_date ? new Date(s.join_date).toLocaleDateString() : "—"}
-                          </div>
+                  {getAssignedForTeacher(modalTeacherId).assigned.map((s) => (
+                    <li key={s.id} className="p-3 border rounded-md flex justify-between items-center">
+                      <div>
+                        <div className="font-medium">
+                          {s.name}{" "}
+                          {isNewStudent(s.join_date) && (
+                            <span className="text-xs text-blue-600">(NEW)</span>
+                          )}
                         </div>
-                        <div className="font-medium">Rs {isFuture ? 0 : s.teacher_fee || 0}</div>
-                      </li>
-                    );
-                  })}
+                        <div className="text-sm text-gray-500">Roll: {s.roll_no || "—"}</div>
+                        <div className="text-xs text-gray-400">
+                          Join Date: {s.join_date ? new Date(s.join_date).toLocaleDateString() : "—"}
+                        </div>
+                      </div>
+                      <div className="font-medium">
+                        Rs {isNewStudent(s.join_date) ? 0 : s.teacher_fee || 0}
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               ) : (
                 <p className="text-gray-500">No assigned students.</p>

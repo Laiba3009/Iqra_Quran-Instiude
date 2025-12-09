@@ -81,6 +81,24 @@ export default function AddStudent() {
     if (!error && data) setTeacherList(data);
   };
 
+  const handleToggleStatus = async (studentId: string, currentStatus: string) => {
+  try {
+    const newStatus = currentStatus === "active" ? "disabled" : "active";
+
+    const { error } = await supabase
+      .from("students")
+      .update({ status: newStatus })
+      .eq("id", studentId);
+
+    if (error) throw error;
+
+    alert(`Student is now ${newStatus}!`);
+    await loadRows(); // refresh the table
+  } catch (err: any) {
+    alert(err.message);
+  }
+};
+
   // ================= Toggle Functions =================
   const toggleSyllabus = (name: string) => {
     setForm((prev) => ({
@@ -583,7 +601,39 @@ const class_days_utc = form.class_days.map((d) => ({
                 <td className="p-3 flex gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={() => editStudent(r)}>Edit</Button>
                   <Button size="sm" variant="outline" onClick={() => toggleFee(r.id, r.fee_status)}>Toggle Fee</Button>
-                  <Button size="sm" variant="destructive" onClick={() => del(r.id)}>Delete</Button>
+                  <div className="flex gap-2">
+
+  <div className="flex gap-2">
+
+  {/* DELETE BUTTON */}
+  <Button
+    size="sm"
+    variant="destructive"
+    onClick={() => del(r.id)}   // ✅ CORRECT
+  >
+    Delete
+  </Button>
+
+  {/* DISABLE BUTTON */}
+  <Button
+  size="sm"
+  variant="outline" // ✅ only valid variant
+  className={r.status === "active" 
+    ? "bg-yellow-500 text-white hover:bg-yellow-600" 
+    : "bg-green-500 text-white hover:bg-green-600"}
+  onClick={() => handleToggleStatus(r.id, r.status)}
+>
+  {r.status === "active" ? "Disable" : "Enable"}
+</Button>
+
+ 
+
+
+</div>
+
+
+</div>
+
                 </td>
               </tr>
             ))}

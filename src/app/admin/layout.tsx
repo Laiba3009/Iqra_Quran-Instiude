@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
-import Footer from "@/components/Footer";
+
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
 
@@ -28,7 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <main className="pt-18">
           {children}
         </main>
-          <Footer />
+          
       </div>
     </div>
   );

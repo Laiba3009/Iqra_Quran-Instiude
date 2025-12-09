@@ -1,6 +1,6 @@
 import "./globals.css";
 import { Toaster } from "@/components/ui/use-toast";
-
+import Footer from "@/components/Footer";
 export const metadata = {
   title: "Iqra Online Quran Institute",
   description: "Best School System",
@@ -20,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Optional Navbar/Header */}
           {/* <Navbar /> */}
           <main className="min-h-screen">{children}</main>
+          <Footer />
         </Toaster>
       </body>
     </html>
