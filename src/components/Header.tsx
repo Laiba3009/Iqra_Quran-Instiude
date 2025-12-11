@@ -14,7 +14,7 @@ export default function Header({ toggleSidebar, role }: HeaderProps) {
     <header className="fixed top-0 left-0 w-full bg-white shadow z-50 flex items-center justify-between px-6 py-3">
       {/* Left Side - Logo + Name */}
       <div className="flex items-center gap-2">
-        <Image src="/images/logo.png" alt="Logo" width={40} height={40} />
+        <Image src="/images/logo1.jpg" alt="Logo" width={40} height={40} />
         <span className="font-extrabold text-[#001F3F] text-lg sm:text-xl">
           IQRA Quran Institute
         </span>
@@ -39,6 +39,16 @@ export default function Header({ toggleSidebar, role }: HeaderProps) {
             >
               Admin Signin
             </Link>
+            
+          )}
+            {(!role || role === "guest") && (
+            <Link
+              href="/regist_form"
+              className="text-[#001F3F] font-medium hover:text-blue-600"
+            >
+              Registration
+            </Link>
+            
           )}
         </nav>
 

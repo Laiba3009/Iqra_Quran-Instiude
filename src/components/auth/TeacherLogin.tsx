@@ -23,7 +23,10 @@ export default function TeacherSigninPage() {
     setErrorMsg("");
 
     // Step 1: Check fixed credentials
-    if (email.trim() !== FIXED_TEACHER_EMAIL || password.trim() !== FIXED_TEACHER_PASSWORD) {
+    if (
+      email.trim() !== FIXED_TEACHER_EMAIL ||
+      password.trim() !== FIXED_TEACHER_PASSWORD
+    ) {
       setErrorMsg("Invalid email or password");
       return;
     }
@@ -46,15 +49,22 @@ export default function TeacherSigninPage() {
       return;
     }
 
-    // Step 3: Save cookies + localStorage for sidebar
+    // ------------------------------
+    //   ✅ STEP 3 — SAVE IDs
+    // ------------------------------
     document.cookie = `portal_role=teacher; path=/; max-age=86400;`;
     document.cookie = `teacher_roll=${rollNo}; path=/; max-age=86400;`;
-    localStorage.setItem("userRole", "teacher"); // ✅ Add this
 
-    
-// ✅ Add this line to save roll number
-localStorage.setItem("teacher_roll_no", rollNo); 
-localStorage.setItem("userRole", "teacher");
+    // Save Role
+    localStorage.setItem("userRole", "teacher");
+
+    // 🟢 SAVE TEACHER UUID (MOST IMPORTANT)
+    localStorage.setItem("teacher_id", teacher.id);
+    document.cookie = `teacher_id=${teacher.id}; path=/; max-age=86400;`;
+
+    // Save Roll No
+    localStorage.setItem("teacher_roll_no", rollNo);
+
     // Step 4: Redirect
     router.push("/teacher/dashboard");
   };
@@ -87,7 +97,9 @@ localStorage.setItem("userRole", "teacher");
           className="w-full p-3 mb-4 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
 
-        <label className="block text-gray-700 mb-2 font-medium">Roll Number</label>
+        <label className="block text-gray-700 mb-2 font-medium">
+          Roll Number
+        </label>
         <input
           type="text"
           value={rollNo}

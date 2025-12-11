@@ -30,6 +30,14 @@ interface Complaint {
   teacher_name: string;
 }
 
+interface EditableReport extends Report {
+  type: "report";
+}
+
+interface EditableComplaint extends Complaint {
+  type: "note";
+}
+
 export default function AdminProgressPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
@@ -40,6 +48,9 @@ export default function AdminProgressPage() {
   const [openModal, setOpenModal] = useState<boolean>(false);
   const [search, setSearch] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
+
+  const [editingItem, setEditingItem] = useState<EditableReport | EditableComplaint | null>(null);
+  const [editText, setEditText] = useState("");
 
   useEffect(() => { loadStudents(); }, []);
   useEffect(() => {
@@ -111,16 +122,15 @@ export default function AdminProgressPage() {
   const filteredReports = selectedMonth
     ? reports.filter(r => new Date(r.created_at).toLocaleString("default", { month: "long" }) === selectedMonth)
     : reports;
-    
-const filteredComplaints = selectedMonth
+
+  const filteredComplaints = selectedMonth
     ? complaints.filter(c => new Date(c.created_at).toLocaleString("default", { month: "long" }) === selectedMonth)
     : complaints;
 
-const months = Array.from(new Set([
-  ...reports.map(r => new Date(r.created_at).toLocaleString("default", { month: "long" })),
-  ...complaints.map(c => new Date(c.created_at).toLocaleString("default", { month: "long" }))
-]));
-
+  const months = Array.from(new Set([
+    ...reports.map(r => new Date(r.created_at).toLocaleString("default", { month: "long" })),
+    ...complaints.map(c => new Date(c.created_at).toLocaleString("default", { month: "long" }))
+  ]));
 
   return (
     <div className="max-w-6xl mx-auto mt-12 p-6 bg-white rounded-xl shadow">
@@ -225,27 +235,24 @@ const months = Array.from(new Set([
               <div className="flex flex-col gap-4 w-full md:w-1/2">
                 <h2 className="font-bold text-xl text-center">📅 Weekly Reports</h2>
                 {filteredReports.length > 0 ? filteredReports.map((r, idx) => (
-                  <div
-                    key={r.id}
-                    className="p-4 rounded-xl border shadow-md break-words"
-                    style={{ backgroundColor: ["#E3F2FD", "#FFF3CD", "#E8F5E9", "#F3E5F5"][idx % 4] }}
-                  >
+                  <div key={r.id} className="p-4 rounded-xl border shadow-md break-words" style={{ backgroundColor: ["#E3F2FD", "#FFF3CD", "#E8F5E9", "#F3E5F5"][idx % 4] }}>
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <p className="font-semibold">{new Date(r.created_at).toLocaleDateString()}</p>
                         <p className="text-sm font-medium">{r.teacher_name}</p>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="h-9 w-9 flex items-center justify-center shrink-0 ml-4"
-                        onClick={async () => {
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="destructive" className="h-9 w-9 flex items-center justify-center shrink-0" onClick={async () => {
                           const { error } = await supabase.from("student_progress").delete().eq("id", r.id);
                           if (!error) setReports(prev => prev.filter(rep => rep.id !== r.id));
-                        }}
-                      >
-                        <Trash2 size={18} />
-                      </Button>
+                        }}>
+                          <Trash2 size={18} />
+                        </Button>
+                        <Button size="sm" className="h-9 px-3 bg-blue-600 text-white hover:bg-blue-700" onClick={() => {
+                          setEditingItem({ ...r, type: "report" });
+                          setEditText(r.report_text);
+                        }}>Edit</Button>
+                      </div>
                     </div>
                     <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap">{r.report_text}</p>
                   </div>
@@ -256,27 +263,24 @@ const months = Array.from(new Set([
               <div className="flex flex-col gap-4 w-full md:w-1/2">
                 <h2 className="font-bold text-xl text-center">📝 Notice</h2>
                 {filteredComplaints.length > 0 ? filteredComplaints.map((c) => (
-                  <div
-                    key={c.id}
-                    className="p-4 rounded-xl border shadow-md break-words"
-                    style={{ backgroundColor: "#FDE7E7" }}
-                  >
+                  <div key={c.id} className="p-4 rounded-xl border shadow-md break-words" style={{ backgroundColor: "#FDE7E7" }}>
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <p className="font-semibold">{new Date(c.created_at).toLocaleDateString()}</p>
                         <p className="text-sm font-medium">{c.teacher_name}</p>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="h-9 w-9 flex items-center justify-center shrink-0 ml-4"
-                        onClick={async () => {
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="destructive" className="h-9 w-9 flex items-center justify-center shrink-0" onClick={async () => {
                           const { error } = await supabase.from("student_complaints").delete().eq("id", c.id);
                           if (!error) setComplaints(prev => prev.filter(comp => comp.id !== c.id));
-                        }}
-                      >
-                        <Trash2 size={18} />
-                      </Button>
+                        }}>
+                          <Trash2 size={18} />
+                        </Button>
+                        <Button size="sm" className="h-9 px-3 bg-blue-600 text-white hover:bg-blue-700" onClick={() => {
+                          setEditingItem({ ...c, type: "note" });
+                          setEditText(c.complaint_text);
+                        }}>Edit</Button>
+                      </div>
                     </div>
                     <p className="mt-1 text-[15px] leading-relaxed whitespace-pre-wrap">{c.complaint_text}</p>
                   </div>
@@ -287,6 +291,40 @@ const months = Array.from(new Set([
           </div>
         </div>
       </Dialog>
+
+      {/* EDIT MODAL */}
+      {editingItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
+            <h2 className="text-xl font-bold mb-4">Edit {editingItem.type === "note" ? "Notice" : "Report"}</h2>
+            <textarea
+              className="w-full border rounded p-4 h-56 resize-y whitespace-pre-wrap break-words"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+            />
+            <div className="mt-4 flex justify-end gap-3">
+              <button className="px-5 py-2 rounded bg-gray-300 hover:bg-gray-400" onClick={() => setEditingItem(null)}>Cancel</button>
+              <button className="px-5 py-2 rounded bg-green-600 text-white hover:bg-green-700" onClick={async () => {
+                if (!editingItem) return;
+                const table = editingItem.type === "note" ? "student_complaints" : "student_progress";
+                const field = editingItem.type === "note" ? "complaint_text" : "report_text";
+                const { error } = await supabase.from(table).update({ [field]: editText }).eq("id", editingItem.id);
+                if (error) {
+                  alert("Update failed: " + error.message);
+                  return;
+                }
+                // update local state
+                if (editingItem.type === "note") {
+                  setComplaints(prev => prev.map(c => c.id === editingItem.id ? { ...c, complaint_text: editText } : c));
+                } else {
+                  setReports(prev => prev.map(r => r.id === editingItem.id ? { ...r, report_text: editText } : r));
+                }
+                setEditingItem(null);
+              }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

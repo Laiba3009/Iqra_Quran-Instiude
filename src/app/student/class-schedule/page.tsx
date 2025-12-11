@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import moment from "moment-timezone";
 
 interface ClassInfo {
   id: string;
@@ -15,44 +16,13 @@ interface ClassInfo {
   google_meet_link: string;
 }
 
-// ----------------------
-// TIMEZONE OFFSETS
-// ----------------------
-const tzOffsets: Record<string, number> = {
-  "Pakistan (PKT)": 5,
-  "Turkey (TRT)": 3,
-  "United Kingdom (GMT)": 0,
-  "USA - New York (EST)": -5,
-  "China (CST)": 8,
-  "Japan (JST)": 9,
-  "Australia (AEST)": 10,
-  "India (IST)": 5.5,
-  "Singapore (SGT)": 8,
-  "New Zealand (NZST)": 12,
-  "Germany (CET)": 1,
-  "Belgium (CET)": 1,
-  "Gulf (UAE/Oman)": 4,
-};
-
-// ----------------------
-// UTC → LOCAL (12-HR)
-// ----------------------
+// -------------------------------------------
+// 🌎 AUTO TIMEZONE CONVERTER (NO OFFSET LIST)
+// -------------------------------------------
 function utcToLocal(utcTime: string, timezone: string) {
   if (!utcTime || !timezone) return "";
 
-  const [h, m] = utcTime.split(":").map(Number);
-  const offset = tzOffsets[timezone] ?? 0;
-
-  let local = h + offset;
-  if (local >= 24) local -= 24;
-  if (local < 0) local += 24;
-
-  const period = local >= 12 ? "PM" : "AM";
-  const hour12 = (local % 12) || 12;
-
-  return `${hour12.toString().padStart(2, "0")}:${m
-    .toString()
-    .padStart(2, "0")} ${period}`;
+  return moment.utc(utcTime, "HH:mm").tz(timezone).format("hh:mm A");
 }
 
 export default function ClassSchedulePage() {
@@ -96,13 +66,11 @@ export default function ClassSchedulePage() {
         { name: string; zoom_link: string; google_meet_link: string }
       > = {};
 
-      // 🟢 FIXED — no more TS errors
       teacherMap?.forEach((t: any) => {
-        const teacher = t.teachers || {};
         teacherInfoMap[t.teacher_id] = {
-          name: teacher.name || "",
-          zoom_link: teacher.zoom_link || "",
-          google_meet_link: teacher.google_meet_link || "",
+          name: t.teachers?.name || "",
+          zoom_link: t.teachers?.zoom_link || "",
+          google_meet_link: t.teachers?.google_meet_link || "",
         };
       });
 
@@ -118,7 +86,7 @@ export default function ClassSchedulePage() {
           return {
             id: `${cd.day}-${idx}`,
             day: cd.day,
-            time: utcToLocal(cd.time, student.timezone),
+            time: utcToLocal(cd.time, student.timezone), // ← AUTO TIMEZONE APPLIED
             subject: cd.subject || "TBD",
             teacher_name: teacher.name,
             zoom_link: teacher.zoom_link,
@@ -193,9 +161,7 @@ export default function ClassSchedulePage() {
                   <b>Subject:</b> {cls.subject}
                 </p>
 
-                {/* BUTTONS SIDE BY SIDE */}
                 <div className="flex gap-2">
-                  {/* Zoom Button */}
                   <Button
                     className="bg-green-600 hover:bg-green-700 text-white w-1/2 py-2"
                     disabled={!cls.zoom_link}
@@ -204,7 +170,6 @@ export default function ClassSchedulePage() {
                     Zoom
                   </Button>
 
-                  {/* Google Meet Button */}
                   <a
                     href={cls.google_meet_link || "#"}
                     target="_blank"

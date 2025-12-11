@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import TimeWithTimeZone from "@/components/TimeWithTimezone";
+import moment from "moment-timezone";
 
 export default function AddStudent() {
   const [form, setForm] = useState({
@@ -36,6 +37,8 @@ export default function AddStudent() {
 
   const syllabusList = ["Quran", "Islamic Studies", "Tafseer", "Urdu", "English"];
   const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+    const allTimezones = moment.tz.names();
 
   useEffect(() => {
     loadRows();
@@ -257,8 +260,7 @@ const class_days_utc = form.class_days.map((d) => ({
       id: student.id,
       name: student.name,
       roll_no: student.roll_no,
-      timezone: "",   // ← add this
-
+      timezone: student.timezone || "",
       contact: student.contact,
       email: student.email,
       syllabus: student.syllabus ?? [],
@@ -381,25 +383,26 @@ const class_days_utc = form.class_days.map((d) => ({
         <h1 className="text-2xl font-bold text-green-800">{editing ? "Edit Student" : "Add Student"}</h1>
 
         <div className="grid md:grid-cols-2 gap-3">
-          <select
+        {/* Timezone Dropdown */}
+<select
   className="border p-2 rounded-lg text-sm"
   value={form.timezone}
   onChange={(e) => setForm({ ...form, timezone: e.target.value })}
 >
-  <option value="">Select Country</option>
-  <option value="Pakistan (PKT)">Pakistan</option>
-  <option value="Turkey (TRT)">Turkey</option>
-  <option value="United Kingdom (GMT)">United Kingdom</option>
-  <option value="USA - New York (EST)">USA (New York)</option>
-  <option value="China (CST)">China</option>
-  <option value="Japan (JST)">Japan</option>
-  <option value="Australia (AEST)">Australia</option>
-  <option value="India (IST)">India</option>
-  <option value="Singapore (SGT)">Singapore</option>
-  <option value="New Zealand (NZST)">New Zealand</option>
-  <option value="Germany (CET)">Germany</option>
-  <option value="Belgium (CET)">Belgium</option>
-  <option value="Gulf (UAE/Oman)">Gulf</option>
+  <option value="">Select Timezone</option>
+  {allTimezones.map((tz) => {
+    const offsetMinutes = moment.tz(tz).utcOffset();
+    const sign = offsetMinutes >= 0 ? "+" : "-";
+
+    const hours = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(2, "0");
+    const mins = String(Math.abs(offsetMinutes) % 60).padStart(2, "0");
+
+    return (
+      <option key={tz} value={tz}>
+        {`${tz} (UTC${sign}${hours}:${mins})`}
+      </option>
+    );
+  })}
 </select>
 
           <input
@@ -485,11 +488,11 @@ const class_days_utc = form.class_days.map((d) => ({
                     />
                     {/* Time Picker with Timezone */}
  
-<TimeWithTimeZone
-  value={selected.time}
-  timezone="Pakistan (PKT)"    // Form hamesha Pakistan
-  onChange={(utcTime) => handleDayChange(day, "time", utcTime)}
-/>
+                    <TimeWithTimeZone
+                      value={selected.time}
+                      timezone={form.timezone || "Asia/Karachi"}
+                      onChange={(utcTime) => handleDayChange(day, "time", utcTime)}
+                    />
 
 
 

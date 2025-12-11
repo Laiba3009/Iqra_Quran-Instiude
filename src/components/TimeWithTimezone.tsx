@@ -1,54 +1,55 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import moment from "moment-timezone";
 
 type Props = {
-  value?: string;       // UTC time HH:MM
+  value?: string;               // UTC time HH:MM
+  timezone?: string;            // e.g., "Asia/Karachi"
   onChange?: (utcTime: string) => void;
 };
 
-const PAKISTAN_OFFSET = 5; // Form hamesha Pakistan time me show
-
-export default function TimeWithTimezone({ value, onChange = () => {} }: Props) {
+export default function TimeWithTimezone({
+  value,
+  timezone = "Asia/Karachi",
+  onChange = () => {},
+}: Props) {
   const [hour, setHour] = useState("01");
   const [minute, setMinute] = useState("00");
   const [period, setPeriod] = useState("AM");
   const isUserInput = useRef(false);
 
-  // Convert UTC → Pakistan local time
+  // UTC → Selected Timezone
   useEffect(() => {
     if (!value || isUserInput.current) return;
 
     const [utcH, utcM] = value.split(":").map(Number);
 
-    let local = utcH + PAKISTAN_OFFSET;
-    if (local >= 24) local -= 24;
-    if (local < 0) local += 24;
+    // UTC time → moment object → local timezone
+    const local = moment.tz({ hour: utcH, minute: utcM }, "UTC").tz(timezone);
 
-    const newPeriod = local >= 12 ? "PM" : "AM";
-    const h12 = local % 12 || 12;
+    const h12 = local.format("hh"); // 12-hour format
+    const min = local.format("mm");
+    const p = local.format("A");
 
-    setHour(String(h12).padStart(2, "0"));
-    setMinute(String(utcM).padStart(2, "0"));
-    setPeriod(newPeriod);
-  }, [value]);
+    setHour(h12);
+    setMinute(min);
+    setPeriod(p);
+  }, [value, timezone]);
 
-  // Convert Pakistan local → UTC when user changes
+  // Selected Timezone → UTC
   useEffect(() => {
     if (!isUserInput.current) return;
 
-    let h = Number(hour);
-    let m = Number(minute);
+    const h = Number(hour);
+    const m = Number(minute);
 
-    let local24 = period === "PM" ? (h % 12) + 12 : h % 12;
+    // Local time in selected timezone
+    const localTime = moment.tz(`${h}:${m} ${period}`, "hh:mm A", timezone);
+    const utcTime = localTime.clone().tz("UTC").format("HH:mm");
 
-    let utc = local24 - PAKISTAN_OFFSET;
-    if (utc < 0) utc += 24;
-    if (utc >= 24) utc -= 24;
-
-    const utcTime = `${String(utc).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
     onChange(utcTime);
-  }, [hour, minute, period, onChange]);
+  }, [hour, minute, period, timezone, onChange]);
 
   const handleChange = (setter: any) => (e: any) => {
     isUserInput.current = true;

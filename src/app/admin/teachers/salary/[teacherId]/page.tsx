@@ -53,6 +53,7 @@ const monthStart = new Date(filterYear, filterMonth - 1, 1);
 const monthEnd = new Date(filterYear, filterMonth, 0);
 
 const monthlyStudents = students
+  .filter((s) => s.status && s.status.toLowerCase() === "active") // ⬅ FIXED
   .filter((s) => {
     const join = new Date(s.join_date);
     const left = s.assign_end ? new Date(s.assign_end) : null;
@@ -66,6 +67,7 @@ const monthlyStudents = students
       displayFee: isNew ? 0 : s.teacher_fee || 0 
     };
   });
+
 
 
 
@@ -189,22 +191,24 @@ const deleteSecurity = async (id: number) => {
 
 
   // -------- FETCH STUDENTS --------
-  const fetchStudents = async () => {
-    const { data } = await supabase
-      .from("student_teachers")
-      .select("teacher_fee, students(id, name, roll_no, join_date)")
-      .eq("teacher_id", teacherId);
+ const fetchStudents = async () => {
+  const { data } = await supabase
+    .from("student_teachers")
+    .select("teacher_fee, students(id, name, roll_no, join_date, status)")
+    .eq("teacher_id", teacherId);
 
-    const formatted = (data || []).map((s: any) => ({
-      id: s.students?.id,
-      name: s.students?.name,
-      roll_no: s.students?.roll_no,
-      join_date: s.students?.join_date,
-      teacher_fee: s.teacher_fee,
-    }));
+  const formatted = (data || []).map((s: any) => ({
+    id: s.students?.id,
+    name: s.students?.name,
+    roll_no: s.students?.roll_no,
+    join_date: s.students?.join_date,
+    status: s.students?.status,  // <-- ADDED
+    teacher_fee: s.teacher_fee,
+  }));
 
-    setStudents(formatted);
-  };
+  setStudents(formatted);
+};
+
 
   // -------- FETCH MONTHLY SALARY RECORDS --------
   const fetchRecords = async () => {
@@ -369,7 +373,6 @@ const deleteSecurity = async (id: number) => {
         </div>
       )}
 
-      {/* SECURITY FEE MODAL */}
      {/* SECURITY FEE MODAL */}
 {securityModal && (
   <div className="fixed inset-0 bg-black/50 flex justify-center items-center">
@@ -536,6 +539,7 @@ const deleteSecurity = async (id: number) => {
       {monthlyStudents.map((s) => (
         <tr key={s.id} className="border-b">
           <td className="p-2">{s.name}</td>
+          
           <td className="p-2">{s.roll_no || "—"}</td>
           <td className="p-2">{s.join_date ? new Date(s.join_date).toLocaleDateString() : "—"}</td>
           <td className="p-2">Rs {s.displayFee}</td>
@@ -582,10 +586,14 @@ const deleteSecurity = async (id: number) => {
 
       {/* ADD SALARY */}
       <SalaryAddForm
-        teacherId={teacherId}
-        baseSalary={totalStudentFee}
-        onSaved={fetchRecords}
-      />
+  teacherId={teacherId}
+  baseSalary={monthlyStudents.reduce(
+    (t, s) => t + Number(s.displayFee || 0),
+    0
+  )}
+  onSaved={fetchRecords}
+/>
+
 
       {/* SALARY RECORDS */}
       <div className="bg-white rounded shadow p-4">

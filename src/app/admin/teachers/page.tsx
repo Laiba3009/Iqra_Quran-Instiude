@@ -44,7 +44,7 @@ export default function TeacherList() {
 
       const { data: stLinks } = await supabase
         .from("student_teachers")
-        .select("teacher_id, teacher_fee, students(id, name, roll_no, join_date)")
+.select("teacher_id, teacher_fee, students(id, name, roll_no, join_date, status)")
         .order("id", { ascending: true });
 
       const normalized: StudentLink[] = stLinks?.map((s: any) => ({
@@ -54,6 +54,8 @@ export default function TeacherList() {
         teacher_fee: s.teacher_fee,
         teacher_id: s.teacher_id,
         join_date: s.students?.join_date,
+        status: s.students?.status,   // ⬅ ADD THIS
+
       })) ?? [];
 
       setTeachers(tData ?? []);
@@ -74,11 +76,16 @@ export default function TeacherList() {
   };
 
   const getAssignedForTeacher = (teacherId: string) => {
-    const assigned = studentLinks.filter((s) => s.teacher_id === teacherId);
+    
+const assigned = studentLinks.filter((s) =>
+  s.teacher_id === teacherId && (s.status === "active")
+);
 
-    const totalFee = assigned.reduce((sum, s) => {
-      return sum + (isNewStudent(s.join_date) ? 0 : Number(s.teacher_fee || 0));
-    }, 0);
+const totalFee = assigned.reduce((sum, s) => {
+  return sum + (isNewStudent(s.join_date) ? 0 : Number(s.teacher_fee || 0));
+}, 0);
+
+    
 
     return { assigned, totalFee };
   };
