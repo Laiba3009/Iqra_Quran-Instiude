@@ -5,9 +5,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import BackButton from "@/components/ui/BackButton";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { useToast } from "@/components/ui/use-toast";
+import { downloadAttendancePDF } from "@/components/attendancePdf";
 
 type Attendance = {
   id: number;
@@ -16,24 +15,27 @@ type Attendance = {
   teacher_name: string;
   subject: string;
   joined_at: string;
+  status?: string;
 };
 
 type Student = {
-  id: number;
+  id: string;
   name: string;
   roll_no: string;
 };
 
 type Teacher = {
-  id: number;
+  id: string | number;
   name: string;
-  subjects?: string[];
+  subject?: string;
+  google_meet_link?: string;
 };
 
 export default function AttendancePage() {
   const [records, setRecords] = useState<Attendance[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [modalStudentRoll, setModalStudentRoll] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [studentSearch, setStudentSearch] = useState<string>("");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
@@ -46,7 +48,7 @@ export default function AttendancePage() {
 
   const { toast } = useToast();
 
-  // 🔹 Fetch Students
+  // 🔹 Fetch data
   useEffect(() => {
     fetchStudents();
     fetchTeachers();
@@ -58,22 +60,22 @@ export default function AttendancePage() {
     if (!error && data) setStudents(data);
   };
 
- const fetchTeachers = async () => {
-  const { data, error } = await supabase
-    .from("teachers")
-    .select("id, name, syllabus"); // syllabus fetch kar rahe hain
-  if (!error && data) {
-    // Rename syllabus -> subject for UI
-    const formatted = data.map((t) => ({
-      id: t.id,
-      name: t.name,
-      subject: t.syllabus, // UI me 'subject' use karenge
-    }));
-    setTeachers(formatted);
-  }
-};
+  const fetchTeachers = async () => {
+    const { data, error } = await supabase
+      .from("teachers")
+      .select("id, name, syllabus, google_meet_link");
 
-  // 🔹 Fetch Attendance
+    if (!error && data) {
+      const formatted = data.map((t) => ({
+        id: t.id,
+        name: t.name,
+        subject: t.syllabus,
+        google_meet_link: t.google_meet_link,
+      }));
+      setTeachers(formatted);
+    }
+  };
+
   const fetchAttendance = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -84,7 +86,7 @@ export default function AttendancePage() {
     setLoading(false);
   };
 
-  // 🔹 Add Attendance
+  // 🔹 Manual Attendance
   const addAttendance = async () => {
     if (!selectedStudent || !selectedTeacher || !selectedSubject) {
       toast({
@@ -99,101 +101,95 @@ export default function AttendancePage() {
 
     if (!student || !teacher) return;
 
-    const { error } = await supabase.from("attendance").insert([
+    await supabase.from("attendance").insert([
       {
         student_name: student.name,
         student_roll: student.roll_no,
         teacher_name: teacher.name,
         subject: selectedSubject,
         joined_at: new Date().toISOString(),
+        status: "Present",
       },
     ]);
 
-    if (!error) {
-      setSelectedStudent("");
-      setStudentSearch("");
-      setSelectedTeacher("");
-      setSelectedSubject("");
-      fetchAttendance();
+    setSelectedStudent("");
+    setStudentSearch("");
+    setSelectedTeacher("");
+    setSelectedSubject("");
+    fetchAttendance();
+  };
+
+  // 🔹 Google Meet Auto Attendance
+  const markAttendanceByGoogleMeet = async (teacherId: string | number) => {
+    if (!selectedStudent || !teacherId) {
+      toast({
+        title: "Missing Info ❌",
+        description: "Select student first",
+      });
+      return;
     }
+
+    const student = students.find((s) => s.id.toString() === selectedStudent);
+    const teacher = teachers.find((t) => t.id.toString() === teacherId.toString());
+
+    if (!student || !teacher || !teacher.google_meet_link) return;
+
+    await supabase.from("attendance").insert([
+      {
+        student_name: student.name,
+        student_roll: student.roll_no,
+        teacher_name: teacher.name,
+        subject: teacher.subject,
+        joined_at: new Date().toISOString(),
+        status: "Present",
+      },
+    ]);
+
+    window.open(teacher.google_meet_link, "_blank");
+
+    toast({
+      title: "Attendance Marked ✅",
+      description: "Present marked via Google Meet",
+    });
+
+    fetchAttendance();
   };
 
   // 🔹 Delete Attendance
   const deleteRecord = async (id: number) => {
     if (!confirm("Are you sure you want to delete this record?")) return;
-    const { error } = await supabase.from("attendance").delete().eq("id", id);
-    if (!error) fetchAttendance();
+    await supabase.from("attendance").delete().eq("id", id);
+    fetchAttendance();
   };
 
   const clearAll = async () => {
     if (!confirm("Are you sure you want to delete all attendance?")) return;
-    const { error } = await supabase.from("attendance").delete().neq("id", 0);
-    if (!error) fetchAttendance();
+    await supabase.from("attendance").delete().neq("id", 0);
+    fetchAttendance();
   };
 
-  // 🔹 Filter Students
+  // 🔹 Filtered Students
   const filteredStudents = students.filter(
     (s) =>
       s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
       s.roll_no.toLowerCase().includes(studentSearch.toLowerCase())
   );
 
-  // 🔹 Modal PDF Download
-  const downloadModalPDF = (data: Attendance[], studentName: string) => {
-    if (data.length === 0) {
-      toast({
-        title: "No Data ⚠️",
-        description: "No attendance records to download.",
-      });
-      return;
-    }
+  // 🔹 Modal & Month filter
+  const openStudentModal = (studentName: string, studentRoll: string) => {
+  setModalStudentName(studentName);
+  setModalStudentRoll(studentRoll);
+  setModalRecords(records.filter((r) => r.student_name === studentName));
+  setMonthFilter("");
+  setModalOpen(true);
+};
 
-    const doc = new jsPDF();
-
-    // Logo (base64) aur institute name
-    const logo = "/images/logo1.jpg"; // yaha apna logo base64 paste kare
-    if (logo) doc.addImage(logo, "PNG", 14, 10, 20, 20);
-    doc.setFontSize(18);
-    doc.text("Iqra Online Institute", 40, 20);
-    doc.setFontSize(14);
-    doc.text(`Attendance Report - ${studentName}`, 14, 35);
-    doc.setFontSize(11);
-    doc.text(`Generated On: ${new Date().toLocaleString()}`, 14, 42);
-
-    const tableData = data.map((rec, i) => [
-      i + 1,
-      rec.teacher_name,
-      rec.subject,
-      new Date(rec.joined_at).toLocaleString(),
-    ]);
-
-    autoTable(doc, {
-      head: [["#", "Teacher", "Subject", "Join Time"]],
-      body: tableData,
-      startY: 50,
-      styles: { fontSize: 10, cellPadding: 3 },
-      headStyles: { fillColor: [22, 160, 133] },
-    });
-
-    doc.save(`Attendance_${studentName}_${new Date().toISOString().split("T")[0]}.pdf`);
-  };
-
-  // 🔹 Open Modal
-  const openStudentModal = (studentName: string) => {
-    setModalStudentName(studentName);
-    setModalRecords(records.filter((r) => r.student_name === studentName));
-    setMonthFilter("");
-    setModalOpen(true);
-  };
-
-  // 🔹 Filtered modal records
   const filteredModalRecords = modalRecords.filter((rec) => {
     if (!monthFilter) return true;
     const recMonth = new Date(rec.joined_at).toISOString().slice(0, 7); // yyyy-mm
     return recMonth === monthFilter;
   });
 
-  // 🔹 Unique students for main table
   const uniqueStudents = Array.from(new Set(records.map((r) => r.student_name))).map(
     (name) => records.find((r) => r.student_name === name)!
   );
@@ -273,6 +269,9 @@ export default function AttendancePage() {
               </Button>
             </div>
           </div>
+
+          {/* Google Meet Buttons */}
+        
         </CardContent>
       </Card>
 
@@ -319,7 +318,7 @@ export default function AttendancePage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openStudentModal(rec.student_name)}
+onClick={() => openStudentModal(rec.student_name, rec.student_roll)}
                         >
                           View Attendance
                         </Button>
@@ -350,12 +349,20 @@ export default function AttendancePage() {
                   className="border rounded-lg p-1"
                 />
               </div>
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => downloadModalPDF(filteredModalRecords, modalStudentName)}
-              >
-                📄 Download PDF
-              </Button>
+    <Button
+  className="bg-blue-600 hover:bg-blue-700 text-white"
+  onClick={() =>
+    downloadAttendancePDF(
+      filteredModalRecords,
+      modalStudentName,
+      modalStudentRoll
+    )
+  }
+>
+  📄 Download PDF
+</Button>
+
+
             </div>
             <div className="overflow-x-auto max-h-80">
               <table className="w-full border-collapse text-sm">

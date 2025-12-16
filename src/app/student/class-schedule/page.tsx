@@ -17,11 +17,10 @@ interface ClassInfo {
 }
 
 // -------------------------------------------
-// 🌎 AUTO TIMEZONE CONVERTER (NO OFFSET LIST)
+// 🌎 AUTO TIMEZONE CONVERTER
 // -------------------------------------------
 function utcToLocal(utcTime: string, timezone: string) {
   if (!utcTime || !timezone) return "";
-
   return moment.utc(utcTime, "HH:mm").tz(timezone).format("hh:mm A");
 }
 
@@ -74,7 +73,7 @@ export default function ClassSchedulePage() {
         };
       });
 
-      // BUILD WEEKLY CLASSES
+      // Build weekly classes
       const weeklyClasses: ClassInfo[] = (student.class_days || []).map(
         (cd: any, idx: number) => {
           const teacherIds = Object.keys(teacherInfoMap);
@@ -86,7 +85,7 @@ export default function ClassSchedulePage() {
           return {
             id: `${cd.day}-${idx}`,
             day: cd.day,
-            time: utcToLocal(cd.time, student.timezone), // ← AUTO TIMEZONE APPLIED
+            time: utcToLocal(cd.time, student.timezone),
             subject: cd.subject || "TBD",
             teacher_name: teacher.name,
             zoom_link: teacher.zoom_link,
@@ -103,7 +102,8 @@ export default function ClassSchedulePage() {
     }
   };
 
-  const handleJoinClass = async (cls: ClassInfo) => {
+  // 🔹 Auto attendance + join link
+  const handleJoinClass = async (cls: ClassInfo, platform: "zoom" | "google") => {
     try {
       const rollNo = getCookie("student_roll");
       if (!rollNo) return;
@@ -116,6 +116,7 @@ export default function ClassSchedulePage() {
 
       if (!student) return;
 
+      // Insert attendance
       await supabase.from("attendance").insert([
         {
           student_name: student.name,
@@ -126,7 +127,9 @@ export default function ClassSchedulePage() {
         },
       ]);
 
-      if (cls.zoom_link) window.open(cls.zoom_link, "_blank");
+      // Open link
+      const link = platform === "zoom" ? cls.zoom_link : cls.google_meet_link;
+      if (link) window.open(link, "_blank");
     } catch (err) {
       console.error("Error joining class:", err);
     }
@@ -148,42 +151,31 @@ export default function ClassSchedulePage() {
           {classes.map((cls) => (
             <Card key={cls.id} className="shadow-md border-green-200">
               <CardContent className="p-4 space-y-3">
-                <h2 className="text-xl font-semibold text-green-700">
-                  {cls.day}
-                </h2>
-                <p className="text-gray-700">
-                  <b>Time:</b> {cls.time}
-                </p>
-                <p className="text-gray-700">
-                  <b>Teacher:</b> {cls.teacher_name}
-                </p>
-                <p className="text-gray-700">
-                  <b>Subject:</b> {cls.subject}
-                </p>
+                <h2 className="text-xl font-semibold text-green-700">{cls.day}</h2>
+                <p className="text-gray-700"><b>Time:</b> {cls.time}</p>
+                <p className="text-gray-700"><b>Teacher:</b> {cls.teacher_name}</p>
+                <p className="text-gray-700"><b>Subject:</b> {cls.subject}</p>
 
                 <div className="flex gap-2">
                   <Button
                     className="bg-green-600 hover:bg-green-700 text-white w-1/2 py-2"
                     disabled={!cls.zoom_link}
-                    onClick={() => handleJoinClass(cls)}
+                    onClick={() => handleJoinClass(cls, "zoom")}
                   >
                     Zoom
                   </Button>
 
-                  <a
-                    href={cls.google_meet_link || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`w-1/2 py-2 text-center rounded-md text-white font-medium
-                      ${
-                        cls.google_meet_link
-                          ? "bg-pink-500 hover:bg-pink-600"
-                          : "bg-gray-400 cursor-not-allowed"
-                      }
-                    `}
+                  <Button
+                    className={`w-1/2 py-2 text-white font-medium rounded-md ${
+                      cls.google_meet_link
+                        ? "bg-pink-500 hover:bg-pink-600"
+                        : "bg-gray-400 cursor-not-allowed"
+                    }`}
+                    disabled={!cls.google_meet_link}
+                    onClick={() => handleJoinClass(cls, "google")}
                   >
                     Google Meet
-                  </a>
+                  </Button>
                 </div>
               </CardContent>
             </Card>

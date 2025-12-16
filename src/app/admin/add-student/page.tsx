@@ -125,23 +125,29 @@ export default function AddStudent() {
     );
   };
 
-  const toggleClassDay = (day: string) => {
-    setForm((prev) => {
-      const exists = prev.class_days.find((d) => d.day === day);
-      if (exists) {
-        return { ...prev, class_days: prev.class_days.filter((d) => d.day !== day) };
-      } else {
-        return { ...prev, class_days: [...prev.class_days, { day, subject: "", time: "" }] };
-      }
-    });
-  };
+  const addClassDay = (day: string) => {
+  setForm(prev => ({
+    ...prev,
+    class_days: [...prev.class_days, { day, subject: "", time: "" }],
+  }));
+};
 
-  const handleDayChange = (day: string, field: "subject" | "time", value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      class_days: prev.class_days.map((d) => (d.day === day ? { ...d, [field]: value } : d)),
-    }));
-  };
+const handleClassChange = (day: string, index: number, field: "subject" | "time", value: string) => {
+  setForm(prev => ({
+    ...prev,
+    class_days: prev.class_days.map((d, i) => 
+      d.day === day && i === index ? { ...d, [field]: value } : d
+    )
+  }));
+};
+
+const removeClass = (day: string, index: number) => {
+  setForm(prev => ({
+    ...prev,
+    class_days: prev.class_days.filter((d, i) => !(d.day === day && i === index))
+  }));
+};
+
   // 🟢 Time ko clean 12-hour AM/PM me convert karega
 function cleanTime(t: string) {
   if (!t) return "";
@@ -467,41 +473,38 @@ const class_days_utc = form.class_days.map((d) => ({
         {/* Class Days & Time */}
         <h3 className="font-semibold mb-2 text-gray-700">Select Class Days & Time</h3>
         <div className="flex flex-wrap gap-2 mb-4">
-          {weekDays.map((day) => {
-            const selected = form.class_days.find((d) => d.day === day);
-            return (
-              <div key={day} className={`border rounded-lg px-2 py-1 ${selected ? "bg-green-50 border-green-500" : ""}`}>
-                <label className="flex items-center gap-1">
-                  <input type="checkbox" checked={!!selected} onChange={() => toggleClassDay(day)} />
-                  {day}
-                </label>
+         {weekDays.map(day => {
+  const dayClasses = form.class_days.filter(d => d.day === day);
 
-                {selected && (
-                  <div className="flex gap-2 items-center mt-2">
-                    {/* Subject */}
-                    <input
-                      type="text"
-                      placeholder="Subject"
-                      className="border p-1 rounded w-28 text-sm"
-                      value={selected.subject}
-                      onChange={(e) => handleDayChange(day, "subject", e.target.value)}
-                    />
-                    {/* Time Picker with Timezone */}
- 
-                    <TimeWithTimeZone
-                      value={selected.time}
-                      timezone={form.timezone || "Asia/Karachi"}
-                      onChange={(utcTime) => handleDayChange(day, "time", utcTime)}
-                    />
+  return (
+    <div key={day} className="border rounded-lg px-2 py-1">
+      <label className="flex items-center gap-1">
+        {day}
+      </label>
 
+      {dayClasses.map((cls, idx) => (
+        <div key={idx} className="flex gap-2 items-center mt-2">
+          <input
+            type="text"
+            placeholder="Subject"
+            className="border p-1 rounded w-28 text-sm"
+            value={cls.subject}
+            onChange={(e) => handleClassChange(day, idx, "subject", e.target.value)}
+          />
+          <TimeWithTimeZone
+            value={cls.time}
+            timezone={form.timezone || "Asia/Karachi"}
+            onChange={(utcTime) => handleClassChange(day, idx, "time", utcTime)}
+          />
+          <Button size="sm" variant="destructive" onClick={() => removeClass(day, idx)}>Remove</Button>
+        </div>
+      ))}
 
+      <Button size="sm" onClick={() => addClassDay(day)}>Add Class</Button>
+    </div>
+  );
+})}
 
-                   
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
 
         {/* Assign Teachers */}
