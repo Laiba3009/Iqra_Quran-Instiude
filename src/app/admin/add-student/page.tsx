@@ -9,6 +9,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import TimeWithTimeZone from "@/components/TimeWithTimezone";
 import moment from "moment-timezone";
+import ScheduleModal from "@/components/ScheduleModal";
 
 export default function AddStudent() {
   const [form, setForm] = useState({
@@ -132,21 +133,28 @@ export default function AddStudent() {
   }));
 };
 
-const handleClassChange = (day: string, index: number, field: "subject" | "time", value: string) => {
+const handleClassChange = (
+  day: string,
+  realIndex: number,
+  field: "subject" | "time",
+  value: string
+) => {
   setForm(prev => ({
     ...prev,
-    class_days: prev.class_days.map((d, i) => 
-      d.day === day && i === index ? { ...d, [field]: value } : d
-    )
+    class_days: prev.class_days.map((d, i) =>
+      i === realIndex ? { ...d, [field]: value || "" } : d
+    ),
   }));
 };
 
-const removeClass = (day: string, index: number) => {
+const removeClass = (realIndex: number) => {
   setForm(prev => ({
     ...prev,
-    class_days: prev.class_days.filter((d, i) => !(d.day === day && i === index))
+    class_days: prev.class_days.filter((_, i) => i !== realIndex),
   }));
 };
+
+
 
   // 🟢 Time ko clean 12-hour AM/PM me convert karega
 function cleanTime(t: string) {
@@ -162,91 +170,103 @@ function cleanTime(t: string) {
   return `${h}:${m} ${period}`;
 }
 
-
-
   // ================= Save Student =================
   const save = async () => {
-    if (!form.name || !form.roll_no || !form.academy_fee) {
-      alert("Please fill all required fields.");
-      return;
-    }
-const selectedTeachers = teacherList.filter((t) => t.selected);
-const totalTeacherFee = selectedTeachers.reduce((sum, t) => sum + (t.amount || 0), 0);
-const academyFee = Number(form.student_total_fee || 0) - totalTeacherFee;
-const totalFee = Number(form.student_total_fee || 0); // 👈 user input total fee
+  // Check if any added class has empty subject
+  const invalidSubjects = form.class_days.filter(d => d.subject.trim() === "");
+  if (invalidSubjects.length > 0) {
+    alert("Please enter subject for all class days");
+    return;
+  }
 
-const class_days_utc = form.class_days.map((d) => ({
-  ...d,
-  time: d.time,
-}));
+  // Check if user added at least one class
+  if (form.class_days.length === 0) {
+    alert("Please add at least one class");
+    return;
+  }
 
-    const payload = {
-      name: form.name,
-      roll_no: form.roll_no,
-      contact: form.contact,
-      email: form.email,
-      syllabus: form.syllabus,
-      student_total_fee: totalFee,
-      fee_status: form.fee_status,
-      join_date: form.join_date || null,
-      class_days: class_days_utc,
+  // Check if any added class has empty time
+  const invalidTimes = form.class_days.filter(d => d.subject && (!d.time || d.time.trim() === ""));
+  if (invalidTimes.length > 0) {
+    alert("Please select time for all added classes");
+    return;
+  }
+
+  // Proceed with teacher selection and fees calculation
+  const selectedTeachers = teacherList.filter(t => t.selected);
+  const totalTeacherFee = selectedTeachers.reduce((sum, t) => sum + (t.amount || 0), 0);
+  const academyFee = Number(form.student_total_fee || 0) - totalTeacherFee;
+  const totalFee = Number(form.student_total_fee || 0);
+
+  const class_days_utc = form.class_days.map(d => ({
+    ...d,
+    time: d.time,
+  }));
+
+  const payload = {
+    name: form.name,
+    roll_no: form.roll_no,
+    contact: form.contact,
+    email: form.email,
+    syllabus: form.syllabus,
+    student_total_fee: totalFee,
+    fee_status: form.fee_status,
+    join_date: form.join_date || null,
+    class_days: class_days_utc,
     timezone: form.timezone || "Pakistan (PKT)",
-      academy_fee: academyFee,     // ⭐ auto calculated
-
-
-    };
-
-   if (editing) {
-  await supabase.from("students").update(payload).eq("id", form.id);
-  await supabase.from("student_teachers").delete().eq("student_id", form.id);
-
-  // ← Yahan insert teacher mapping karni hai
-  if (selectedTeachers.length > 0) {
-    const map = selectedTeachers.map((t) => ({
-      student_id: form.id,
-      teacher_id: t.id,
-      teacher_fee: t.amount || 0,
-    }));
-    await supabase.from("student_teachers").insert(map);
-  }
-
-  toast({ title: "✅ Student updated successfully" });
-} else {
-  const { data: inserted, error } = await supabase.from("students").insert([payload]).select().single();
-  if (error) return alert(error.message);
-
-  // ← Yahan bhi insert teacher mapping karni hai
-  if (selectedTeachers.length > 0) {
-    const map = selectedTeachers.map((t) => ({
-      student_id: inserted.id,
-      teacher_id: t.id,
-      teacher_fee: t.amount || 0,
-    }));
-    await supabase.from("student_teachers").insert(map);
-  }
-
-  toast({ title: "✅ Student added successfully" });
-}
-
-
-    setForm({
-      id: "",
-      name: "",
-      roll_no: "",
-     timezone: "",   // ← add this
-      contact: "",
-      email: "",
-      syllabus: [],
-      academy_fee: "",
-      student_total_fee: "",
-      fee_status: "unpaid",
-      join_date: "",
-      class_days: [],
-    });
-    setTeacherList((t) => t.map((x) => ({ ...x, selected: false, amount: 0 })));
-    setEditing(false);
-    await loadRows();
+    academy_fee: academyFee,
   };
+
+  if (editing) {
+    await supabase.from("students").update(payload).eq("id", form.id);
+    await supabase.from("student_teachers").delete().eq("student_id", form.id);
+
+    if (selectedTeachers.length > 0) {
+      const map = selectedTeachers.map(t => ({
+        student_id: form.id,
+        teacher_id: t.id,
+        teacher_fee: t.amount || 0,
+      }));
+      await supabase.from("student_teachers").insert(map);
+    }
+
+    toast({ title: "✅ Student updated successfully" });
+  } else {
+    const { data: inserted, error } = await supabase.from("students").insert([payload]).select().single();
+    if (error) return alert(error.message);
+
+    if (selectedTeachers.length > 0) {
+      const map = selectedTeachers.map(t => ({
+        student_id: inserted.id,
+        teacher_id: t.id,
+        teacher_fee: t.amount || 0,
+      }));
+      await supabase.from("student_teachers").insert(map);
+    }
+
+    toast({ title: "✅ Student added successfully" });
+  }
+
+  // Reset form
+  setForm({
+    id: "",
+    name: "",
+    roll_no: "",
+    timezone: "",
+    contact: "",
+    email: "",
+    syllabus: [],
+    academy_fee: "",
+    student_total_fee: "",
+    fee_status: "unpaid",
+    join_date: "",
+    class_days: [],
+  });
+  setTeacherList(prev => prev.map(x => ({ ...x, selected: false, amount: 0 })));
+  setEditing(false);
+  await loadRows();
+};
+
 
   // ================= Edit Student =================
   const editStudent = async (student: any) => {
@@ -481,22 +501,40 @@ const class_days_utc = form.class_days.map((d) => ({
       <label className="flex items-center gap-1">
         {day}
       </label>
+      {form.class_days
+  .map((cls, i) => ({ ...cls, realIndex: i }))
+  .filter(cls => cls.day === day)
+  .map(cls => (
+    <div key={cls.realIndex} className="flex gap-2 mt-2">
+      
+<input
+  type="text"
+  required
+  placeholder="Subject (e.g. Quran, English)"
+  className="border p-1 rounded w-28 text-sm"
+  value={cls.subject || ""}
+  onChange={(e) =>
+    handleClassChange(day, cls.realIndex, "subject", e.target.value)
+  }
+/>
 
-      {dayClasses.map((cls, idx) => (
-        <div key={idx} className="flex gap-2 items-center mt-2">
-          <input
-            type="text"
-            placeholder="Subject"
-            className="border p-1 rounded w-28 text-sm"
-            value={cls.subject}
-            onChange={(e) => handleClassChange(day, idx, "subject", e.target.value)}
-          />
-          <TimeWithTimeZone
-            value={cls.time}
-            timezone={form.timezone || "Asia/Karachi"}
-            onChange={(utcTime) => handleClassChange(day, idx, "time", utcTime)}
-          />
-          <Button size="sm" variant="destructive" onClick={() => removeClass(day, idx)}>Remove</Button>
+<TimeWithTimeZone
+  value={cls.time}
+  timezone="Asia/Karachi"
+  onChange={(time) =>
+    handleClassChange(day, cls.realIndex, "time", time || "")
+  }
+/>
+
+
+<Button
+  size="sm"
+  variant="destructive"
+  onClick={() => removeClass(cls.realIndex)}
+>
+  Remove
+</Button>
+
         </div>
       ))}
 
@@ -587,17 +625,18 @@ const class_days_utc = form.class_days.map((d) => ({
     </span>
   )}
 </td>
-                <td className="p-3">{r.roll_no}</td>
-                
-               <td className="p-3">
-  {Array.isArray(r.class_days)
-    ? r.class_days
-        .map((d: any) => `${d.day} (${d.subject} - ${formatTime12Hour(d.time)})`)
-        .join(", ")
-    : "—"}
+  <td className="p-3">{r.roll_no}</td>
+<td className="p-3">
+  {Array.isArray(r.class_days) && r.class_days.length > 0 ? (
+    <ScheduleModal
+      studentName={r.name}
+      timezone={r.timezone || "Asia/Karachi"}
+      classDays={r.class_days}
+    />
+  ) : (
+    "—"
+  )}
 </td>
-
-              
                 <td className="p-3 text-purple-600 font-medium">{r.teacherNames.join(", ") || "—"}</td>
                 <td className="p-3 text-purple-700 font-semibold">Rs {r.teacherFee}</td>
                 <td className="p-3 text-blue-700 font-semibold">Rs {r.academy_fee}</td>

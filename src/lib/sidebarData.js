@@ -23,6 +23,8 @@ export const sidebars = {
     { name: "View Attendance", link: "/teacher/view-attendance", icon: CheckCircle },
         { name: "Bank Details", link: "/teacher/bank-details", icon: Users },
       { name: "Rules & Regulation", link: "/teacher/rules", icon: Book },
+            { name: "Student Cancel Class", link: "/teacher/cancel-class", icon: Book },
+
     { name: "Logout", link: "#", icon: X, logout: true },
   ],
   student: [

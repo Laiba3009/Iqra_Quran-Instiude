@@ -1,4 +1,5 @@
 "use client";
+import ScheduleModal from "@/components/ScheduleModal";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -24,6 +25,8 @@ interface Student {
   syllabus: string[] | null;
   class_time: string | null;
   join_date?: string | null;
+  class_days?: string[] | null;
+  timezone?: string | null;
 }
 
 export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
@@ -74,7 +77,7 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
   const loadStudents = async () => {
     const { data, error } = await supabase
       .from("student_teachers")
-      .select("students(id, name, roll_no, syllabus, class_time, join_date)")
+      .select("students(id, name, roll_no, syllabus, class_time, join_date, class_days, timezone)")
       .eq("teacher_id", teacherId);
 
     if (error) {
@@ -210,8 +213,7 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
               <th className="p-3 border-b">Name</th>
               <th className="p-3 border-b">Roll No</th>
               <th className="p-3 border-b">Joining Date</th>
-              <th className="p-3 border-b">Syllabus</th>
-              <th className="p-3 border-b">Class Time</th>
+              <th className="p-3 border-b text-center">Class Schedule</th>
               <th className="p-3 border-b text-center">Attendance</th>
               <th className="p-3 border-b text-center">Actions</th>
             </tr>
@@ -233,10 +235,18 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
                     ? new Date(s.join_date).toLocaleDateString()
                     : "—"}
                 </td>
-                <td className="p-3 text-sm">
-                  {s.syllabus?.length ? s.syllabus.join(", ") : "—"}
-                </td>
-                <td className="p-3">{s.class_time || "—"}</td>
+<td className="p-3 text-center">
+  {Array.isArray(s.class_days) && s.class_days.length > 0 ? (
+    <ScheduleModal
+      studentName={s.name}
+      timezone={s.timezone || "Asia/Karachi"}
+      classDays={s.class_days as any}
+    />
+  ) : (
+    <span className="text-gray-400 text-sm">No Schedule</span>
+  )}
+</td>
+
 
                 <td className="p-3 text-center">
                   <div className="flex justify-center gap-2">

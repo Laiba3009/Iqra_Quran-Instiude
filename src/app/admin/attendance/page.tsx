@@ -6,7 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import BackButton from "@/components/ui/BackButton";
 import { useToast } from "@/components/ui/use-toast";
-import { downloadAttendancePDF } from "@/components/attendancePdf";
+<<<<<<< HEAD
+=======
+import { downloadAttendancePDF } from "@/components/AttendancePdf";
+>>>>>>> dac99cfce534f1cba4ba147beee81d5dbc42230d
 
 type Attendance = {
   id: number;
