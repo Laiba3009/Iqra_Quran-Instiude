@@ -35,6 +35,7 @@ export default function AddStudent() {
   const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState("");
   const { toast } = useToast();
+const [activeSyllabus, setActiveSyllabus] = useState<string | null>(null);
 
   const syllabusList = ["Quran", "Islamic Studies", "Tafseer", "Urdu", "English"];
   const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -79,11 +80,13 @@ export default function AddStudent() {
 
     setRows(fullData);
   };
+const loadTeachers = async () => {
+  const { data, error } = await supabase
+    .from("teachers")
+    .select("id, name, email, syllabus");
 
-  const loadTeachers = async () => {
-    const { data, error } = await supabase.from("teachers").select("id, name, email");
-    if (!error && data) setTeacherList(data);
-  };
+  if (!error && data) setTeacherList(data);
+};
 
   const handleToggleStatus = async (studentId: string, currentStatus: string) => {
   try {
@@ -217,20 +220,21 @@ function cleanTime(t: string) {
     academy_fee: academyFee,
   };
 
-  if (editing) {
-    await supabase.from("students").update(payload).eq("id", form.id);
-    await supabase.from("student_teachers").delete().eq("student_id", form.id);
+if (editing) {
+  await supabase.from("students").update(payload).eq("id", form.id);
+  await supabase.from("student_teachers").delete().eq("student_id", form.id);
 
-    if (selectedTeachers.length > 0) {
-      const map = selectedTeachers.map(t => ({
-        student_id: form.id,
-        teacher_id: t.id,
-        teacher_fee: t.amount || 0,
-      }));
-      await supabase.from("student_teachers").insert(map);
-    }
+  if (selectedTeachers.length > 0) {
+    const map = selectedTeachers.map(t => ({
+      student_id: form.id,
+      teacher_id: t.id,
+      teacher_fee: t.amount || 0,
+    }));
 
-    toast({ title: "✅ Student updated successfully" });
+    await supabase.from("student_teachers").insert(map);
+  }
+
+  toast({ title: "✅ Student updated successfully" });
   } else {
     const { data: inserted, error } = await supabase.from("students").insert([payload]).select().single();
     if (error) return alert(error.message);
@@ -272,7 +276,7 @@ function cleanTime(t: string) {
   const editStudent = async (student: any) => {
     const { data: map } = await supabase
       .from("student_teachers")
-      .select("teacher_id, teacher_fee")
+.select("teacher_id, teacher_fee, subject")
       .eq("student_id", student.id);
 
    const localClassDays = (student.class_days || []).map((d) => ({
@@ -309,11 +313,21 @@ function cleanTime(t: string) {
   };
 
   // ================= Toggle Fee =================
-  const toggleFee = async (id: string, status: string) => {
-    const newStatus = status === "paid" ? "unpaid" : "paid";
-    await supabase.from("students").update({ fee_status: newStatus }).eq("id", id);
-    await loadRows();
-  };
+ const toggleFee = async (id: string) => {
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  await supabase
+    .from("students")
+    .update({
+      fee_status: "paid",
+      last_fee_paid_month: monthStart.toISOString().split("T")[0],
+    })
+    .eq("id", id);
+
+  await loadRows();
+};
+
 
   // ================= Delete Student =================
   const del = async (id: string) => {
@@ -341,10 +355,11 @@ function cleanTime(t: string) {
 
 
   const filteredRows = rows.filter(
-    (r) =>
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.roll_no.toLowerCase().includes(search.toLowerCase())
-  );
+  (r) =>
+    (r.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
+    (r.roll_no ?? "").toLowerCase().includes(search.toLowerCase())
+);
+
 
   // ================= PDF Download =================
   const downloadPDF = () => {
@@ -478,7 +493,10 @@ function cleanTime(t: string) {
             <button
               key={s}
               type="button"
-              onClick={() => toggleSyllabus(s)}
+onClick={() => {
+  toggleSyllabus(s);
+  setActiveSyllabus(prev => (prev === s ? null : s));
+}}
               className={`px-3 py-1 rounded-full border text-sm ${
                 form.syllabus.includes(s)
                   ? "bg-green-600 text-white border-green-600"
@@ -491,83 +509,114 @@ function cleanTime(t: string) {
         </div>
 
         {/* Class Days & Time */}
-        <h3 className="font-semibold mb-2 text-gray-700">Select Class Days & Time</h3>
-        <div className="flex flex-wrap gap-2 mb-4">
-         {weekDays.map(day => {
-  const dayClasses = form.class_days.filter(d => d.day === day);
+      {activeSyllabus && (
+  <>
+    <h3 className="font-semibold mb-2 text-gray-700">
+      Class Days & Time – {activeSyllabus}
+    </h3>
 
-  return (
-    <div key={day} className="border rounded-lg px-2 py-1">
-      <label className="flex items-center gap-1">
-        {day}
-      </label>
-      {form.class_days
-  .map((cls, i) => ({ ...cls, realIndex: i }))
-  .filter(cls => cls.day === day)
-  .map(cls => (
-    <div key={cls.realIndex} className="flex gap-2 mt-2">
-      
-<input
-  type="text"
-  required
-  placeholder="Subject (e.g. Quran, English)"
-  className="border p-1 rounded w-28 text-sm"
-  value={cls.subject || ""}
-  onChange={(e) =>
-    handleClassChange(day, cls.realIndex, "subject", e.target.value)
-  }
-/>
+    <div className="flex flex-wrap gap-2 mb-4">
+      {weekDays.map(day => {
+        const dayClasses = form.class_days
+          .map((cls, i) => ({ ...cls, realIndex: i }))
+          .filter(cls => cls.day === day && cls.subject === activeSyllabus);
 
-<TimeWithTimeZone
-  value={cls.time}
-  timezone="Asia/Karachi"
-  onChange={(time) =>
-    handleClassChange(day, cls.realIndex, "time", time || "")
-  }
-/>
+        return (
+          <div key={day} className="border rounded-lg px-2 py-1">
+            <div className="font-medium">{day}</div>
 
+            {dayClasses.map(cls => (
+              <div key={cls.realIndex} className="flex gap-2 mt-2">
+                <TimeWithTimeZone
+                  value={cls.time}
+                  timezone={form.timezone || "Asia/Karachi"}
+                  onChange={(time) =>
+                    handleClassChange(day, cls.realIndex, "time", time || "")
+                  }
+                />
 
-<Button
-  size="sm"
-  variant="destructive"
-  onClick={() => removeClass(cls.realIndex)}
->
-  Remove
-</Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => removeClass(cls.realIndex)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
 
-        </div>
-      ))}
-
-      <Button size="sm" onClick={() => addClassDay(day)}>Add Class</Button>
+            <Button
+              size="sm"
+              onClick={() =>
+                setForm(prev => ({
+                  ...prev,
+                  class_days: [
+                    ...prev.class_days,
+                    { day, subject: activeSyllabus, time: "" },
+                  ],
+                }))
+              }
+            >
+              Add Class
+            </Button>
+          </div>
+        );
+      })}
     </div>
-  );
-})}
+  </>
+)}
 
-        </div>
 
         {/* Assign Teachers */}
-        <h3 className="font-semibold mb-2 text-gray-700">Assign Teachers & Fees</h3>
-      <div className="flex flex-wrap gap-2 mb-4">
-  {teacherList.map((t) => (
-    <div key={t.id} className={`border rounded-lg p-2 ${t.selected ? "bg-green-50 border-green-500" : ""}`}>
-      <label className="flex flex-col gap-1">
-        <div className="flex items-center gap-1">
-          <input type="checkbox" checked={!!t.selected} onChange={() => toggleTeacher(t.id)} />
-          {t.name}
+      {activeSyllabus && (
+  <>
+    <h3 className="font-semibold mb-2 text-gray-700">
+      Teachers for {activeSyllabus}
+    </h3>
+
+    <div className="flex flex-wrap gap-2 mb-4">
+      {teacherList
+  .filter(
+    t =>
+      Array.isArray((t as any).syllabus) &&
+      (t as any).syllabus.includes(activeSyllabus)
+  )
+  .map(t => (
+
+        <div
+          key={t.id}
+          className={`border rounded-lg p-2 ${
+            t.selected ? "bg-green-50 border-green-500" : ""
+          }`}
+        >
+          <label className="flex flex-col gap-1">
+            <div className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={!!t.selected}
+                onChange={() => toggleTeacher(t.id)}
+              />
+              {t.name}
+            </div>
+
+            {t.selected && (
+              <input
+                type="number"
+                placeholder="Teacher Fee"
+                className="border p-1 rounded w-20 text-sm"
+                value={t.amount || ""}
+                onChange={(e) =>
+                  handleTeacherFeeChange(t.id, e.target.value)
+                }
+              />
+            )}
+          </label>
         </div>
-        {t.selected && (
-          <input
-            type="number"
-            placeholder="Fee"
-            className="border p-1 rounded w-16 mt-1 text-sm"
-            value={t.amount || ""}
-            onChange={(e) => handleTeacherFeeChange(t.id, e.target.value)}
-          />
-        )}
-      </label>
+      ))}
     </div>
-  ))}
-</div>
+  </>
+)}
+
 
         <Button onClick={save} className="bg-green-600 text-white hover:bg-green-700 w-full">
           {editing ? "Update Student" : "Save Student"}
@@ -698,4 +747,3 @@ function cleanTime(t: string) {
   </div>
 );
 }
-
