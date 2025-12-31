@@ -15,7 +15,7 @@ type Attendance = {
   teacher_name: string;
   subject: string;
   joined_at: string;
-  status?: string;
+  status: "Present" | "Absent";
 };
 
 type Student = {
@@ -195,165 +195,166 @@ export default function AttendancePage() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
-      <BackButton href="/admin/dashboard" label="Back to Dashboard" />
-      <h1 className="text-3xl font-bold text-center text-green-800 mb-6">
-        📝 Students Attendance
-      </h1>
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <BackButton href="/admin/dashboard" label="Back to Dashboard" />
+        <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">
+          📝 Students Attendance
+        </h1>
 
-      {/* Manual Attendance */}
-      <Card className="shadow-lg border border-green-200">
-        <CardHeader>
-          <CardTitle className="text-xl text-green-700 font-semibold">
-            Mark Attendance Manually
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Select Student</label>
-              <input
-                type="text"
-                placeholder="Search by name or roll no"
-                value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-                className="w-full border rounded-lg p-2 mb-2"
-              />
-              <select
-                className="w-full border rounded-lg p-2"
-                value={selectedStudent}
-                onChange={(e) => setSelectedStudent(e.target.value)}
-              >
-                <option value="">-- Select Student --</option>
-                {filteredStudents.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.roll_no})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Select Teacher</label>
-              <select
-                className="w-full border rounded-lg p-2"
-                value={selectedTeacher}
-                onChange={(e) => setSelectedTeacher(e.target.value)}
-              >
-                <option value="">-- Select Teacher --</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Select Subject</label>
-              <input
-                type="text"
-                placeholder="Enter subject"
-                value={selectedSubject}
-                onChange={(e) => setSelectedSubject(e.target.value)}
-                className="w-full border rounded-lg p-2"
-              />
-            </div>
-
-            <div className="flex items-end">
-              <Button
-                className="w-full bg-green-600 hover:bg-green-700 text-white"
-                onClick={addAttendance}
-              >
-                Add Attendance
-              </Button>
-            </div>
-          </div>
-
-          {/* Google Meet Buttons */}
-        
-        </CardContent>
-      </Card>
-
-      {/* Attendance Records */}
-      <Card className="shadow-lg border border-green-200">
-        <CardHeader className="flex justify-between items-center">
-          <CardTitle className="text-xl text-green-700 font-semibold">
-            Attendance Records
-          </CardTitle>
-          <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={clearAll}>
-            Clear All
-          </Button>
-        </CardHeader>
-
-        <CardContent>
-          {loading ? (
-            <p className="text-center text-gray-500">Loading...</p>
-          ) : records.length === 0 ? (
-            <p className="text-center text-gray-500 py-4">No attendance records found.</p>
-          ) : (
-            <div className="overflow-x-auto mt-4">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-green-100 text-green-900">
-                    <th className="p-3 text-left">Student Name</th>
-                    <th className="p-3 text-left">Roll No</th>
-                    <th className="p-3 text-left">Teacher</th>
-                    <th className="p-3 text-left">Subject</th>
-                    <th className="p-3 text-left">Join Time</th>
-                    <th className="p-3 text-left">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {uniqueStudents.map((rec) => (
-                    <tr key={rec.student_roll} className="border-t hover:bg-gray-50">
-                      <td className="p-3 font-medium">{rec.student_name}</td>
-                      <td className="p-3">{rec.student_roll}</td>
-                      <td className="p-3">{rec.teacher_name}</td>
-                      <td className="p-3">{rec.subject}</td>
-                      <td className="p-3 text-gray-500 whitespace-nowrap">
-                        {new Date(rec.joined_at).toLocaleString()}
-                      </td>
-                      <td className="p-3 space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-onClick={() => openStudentModal(rec.student_name, rec.student_roll)}
-                        >
-                          View Attendance
-                        </Button>
-                      </td>
-                    </tr>
+        {/* Manual Attendance */}
+        <Card className="bg-white shadow-md border border-gray-300 rounded-xl">
+          <CardHeader>
+            <CardTitle className="text-xl text-gray-800 font-semibold">
+              Mark Attendance Manually
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">Select Student</label>
+                <input
+                  type="text"
+                  placeholder="Search by name or roll no"
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  className="w-full border border-gray-300 bg-white text-gray-900 p-3 rounded-lg mb-3 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <select
+                  className="w-full border border-gray-300 bg-white text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={selectedStudent}
+                  onChange={(e) => setSelectedStudent(e.target.value)}
+                >
+                  <option value="">-- Select Student --</option>
+                  {filteredStudents.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.roll_no})
+                    </option>
                   ))}
-                </tbody>
-              </table>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">Select Teacher</label>
+                <select
+                  className="w-full border border-gray-300 bg-white text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={selectedTeacher}
+                  onChange={(e) => setSelectedTeacher(e.target.value)}
+                >
+                  <option value="">-- Select Teacher --</option>
+                  {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">Select Subject</label>
+                <input
+                  type="text"
+                  placeholder="Enter subject"
+                  value={selectedSubject}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  className="w-full border border-gray-300 bg-white text-gray-900 p-3 rounded-lg placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
+                  onClick={addAttendance}
+                >
+                  Add Attendance
+                </Button>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {/* Google Meet Buttons */}
+
+          </CardContent>
+        </Card>
+
+        {/* Attendance Records */}
+        <Card className="bg-white shadow-md border border-gray-300 rounded-xl">
+          <CardHeader className="flex justify-between items-center">
+            <CardTitle className="text-xl text-gray-800 font-semibold">
+              Attendance Records
+            </CardTitle>
+            <Button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg" onClick={clearAll}>
+              Clear All
+            </Button>
+          </CardHeader>
+
+          <CardContent>
+            {loading ? (
+              <p className="text-center text-gray-500 py-4">Loading...</p>
+            ) : records.length === 0 ? (
+              <p className="text-center text-gray-500 py-6">No attendance records found.</p>
+            ) : (
+              <div className="overflow-x-auto mt-4 rounded-lg">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-gray-100 text-left">
+                      <th className="p-4 text-gray-800 font-semibold">Student Name</th>
+                      <th className="p-4 text-gray-800 font-semibold">Roll No</th>
+                      <th className="p-4 text-gray-800 font-semibold">Teacher</th>
+                      <th className="p-4 text-gray-800 font-semibold">Subject</th>
+                      <th className="p-4 text-gray-800 font-semibold">Join Time</th>
+                      <th className="p-4 text-gray-800 font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {uniqueStudents.map((rec) => (
+                      <tr key={rec.student_roll} className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
+                        <td className="p-4 font-medium text-gray-800">{rec.student_name}</td>
+                        <td className="p-4 text-gray-700">{rec.student_roll}</td>
+                        <td className="p-4 text-gray-700">{rec.teacher_name}</td>
+                        <td className="p-4 text-gray-700">{rec.subject}</td>
+                        <td className="p-4 text-gray-600 whitespace-nowrap">
+                          {new Date(rec.joined_at).toLocaleString()}
+                        </td>
+                        <td className="p-4">
+                          <Button
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md"
+onClick={() => openStudentModal(rec.student_name, rec.student_roll)}
+                          >
+                            View Attendance
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-start pt-20 z-50">
-          <div className="bg-white rounded-lg max-w-3xl w-full p-6 relative">
-            <h2 className="text-xl font-bold mb-4">
+        <div className="fixed inset-0 bg-black/30 flex justify-center items-start pt-20 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full p-6 relative border border-gray-300">
+            <h2 className="text-xl font-bold mb-4 text-gray-800">
               {modalStudentName} - Attendance Records
             </h2>
             <div className="mb-4 flex justify-between items-center">
-              <div>
-                <label className="mr-2 font-medium">Filter by Month:</label>
+                <div>
+                <label className="mr-2 font-medium text-gray-700">Filter by Month:</label>
                 <input
                   type="month"
                   value={monthFilter}
                   onChange={(e) => setMonthFilter(e.target.value)}
-                  className="border rounded-lg p-1"
+                  className="border border-gray-300 bg-white text-gray-900 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
     <Button
-  className="bg-blue-600 hover:bg-blue-700 text-white"
+  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
   onClick={() =>
     downloadAttendancePDF(
-      filteredModalRecords,
+      filteredModalRecords as Attendance[],
       modalStudentName,
       modalStudentRoll
     )
@@ -364,27 +365,26 @@ onClick={() => openStudentModal(rec.student_name, rec.student_roll)}
 
 
             </div>
-            <div className="overflow-x-auto max-h-80">
+            <div className="overflow-x-auto max-h-80 rounded-lg">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-green-100 text-green-900">
-                    <th className="p-2 text-left">Teacher</th>
-                    <th className="p-2 text-left">Subject</th>
-                    <th className="p-2 text-left">Join Time</th>
-                    <th className="p-2 text-left">Action</th>
+                  <tr className="bg-gray-100 text-left">
+                    <th className="p-3 text-gray-800 font-semibold">Teacher</th>
+                    <th className="p-3 text-gray-800 font-semibold">Subject</th>
+                    <th className="p-3 text-gray-800 font-semibold">Join Time</th>
+                    <th className="p-3 text-gray-800 font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredModalRecords.map((rec) => (
-                    <tr key={rec.id} className="border-t hover:bg-gray-50">
-                      <td className="p-2">{rec.teacher_name}</td>
-                      <td className="p-2">{rec.subject}</td>
-                      <td className="p-2">{new Date(rec.joined_at).toLocaleString()}</td>
-                      <td className="p-2">
+                    <tr key={rec.id} className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
+                      <td className="p-3 text-gray-700">{rec.teacher_name}</td>
+                      <td className="p-3 text-gray-700">{rec.subject}</td>
+                      <td className="p-3 text-gray-600">{new Date(rec.joined_at).toLocaleString()}</td>
+                      <td className="p-3">
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="text-red-600 hover:bg-red-100"
+                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md"
                           onClick={() => deleteRecord(rec.id)}
                         >
                           Delete
@@ -394,7 +394,7 @@ onClick={() => openStudentModal(rec.student_name, rec.student_roll)}
                   ))}
                   {filteredModalRecords.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="p-2 text-center text-gray-500">
+                      <td colSpan={4} className="p-3 text-center text-gray-500">
                         No records found.
                       </td>
                     </tr>
@@ -403,7 +403,7 @@ onClick={() => openStudentModal(rec.student_name, rec.student_roll)}
               </table>
             </div>
             <Button
-              className="mt-4 bg-red-600 hover:bg-red-700 text-white"
+              className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
               onClick={() => setModalOpen(false)}
             >
               Close
@@ -411,6 +411,7 @@ onClick={() => openStudentModal(rec.student_name, rec.student_roll)}
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

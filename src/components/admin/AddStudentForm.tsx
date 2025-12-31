@@ -1,7 +1,12 @@
-// Updated AddStudentForm with teacher fee, academy fee, join_date, auto calculations
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+
+interface ClassDay {
+  day: string;
+  subject: string;
+  time: string; // HH:mm format
+}
 
 export default function AddStudentForm() {
   const [form, setForm] = useState({
@@ -10,20 +15,24 @@ export default function AddStudentForm() {
     contact: "",
     email: "",
     courses: [] as string[],
-    student_total_fee: "", // total fee user gives
+    student_total_fee: "", // user input
     teacher_fee: "", // selected teacher fee
     academy_fee: 0,
     join_date: new Date().toISOString().split("T")[0],
     fee_status: "unpaid",
-  
+    timezone: "Asia/Karachi",
+    class_days: [] as ClassDay[],
   });
 
   const [rows, setRows] = useState<any[]>([]);
   const [courses, setCourses] = useState<string[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
 
+  const weekDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+  const syllabusList = ["Quran","Islamic Studies","Tafseer","Urdu","English"];
+
   useEffect(() => {
-    load();
+    loadStudents();
     fetchCourses();
     fetchTeachers();
   }, []);
@@ -39,20 +48,17 @@ export default function AddStudentForm() {
     setTeachers(data || []);
   }
 
-  async function load() {
-    const { data } = await supabase
-      .from("students")
-      .select("*")
-      .order("created_at", { ascending: false });
+  async function loadStudents() {
+    const { data } = await supabase.from("students").select("*").order("created_at", { ascending: false });
     setRows(data || []);
   }
 
   function toggleCourse(name: string) {
-    setForm((prev) => ({
+    setForm(prev => ({
       ...prev,
       courses: prev.courses.includes(name)
-        ? prev.courses.filter((c) => c !== name)
-        : [...prev.courses, name],
+        ? prev.courses.filter(c => c !== name)
+        : [...prev.courses, name]
     }));
   }
 
@@ -60,32 +66,56 @@ export default function AddStudentForm() {
     const studentFee = Number(form.student_total_fee || 0);
     const teacherFee = Number(newTeacherFee || 0);
     const academyFee = studentFee - teacherFee;
-
-    setForm((prev) => ({
+    setForm(prev => ({
       ...prev,
       teacher_fee: newTeacherFee,
-      academy_fee: academyFee >= 0 ? academyFee : 0,
+      academy_fee: academyFee >= 0 ? academyFee : 0
+    }));
+  }
+
+  function addClassDay(day: string, subject: string) {
+    setForm(prev => ({
+      ...prev,
+      class_days: [...prev.class_days, { day, subject, time: "" }]
+    }));
+  }
+
+  function updateClassTime(index: number, value: string) {
+    setForm(prev => ({
+      ...prev,
+      class_days: prev.class_days.map((cls, i) => i === index ? { ...cls, time: value } : cls)
+    }));
+  }
+
+  function removeClass(index: number) {
+    setForm(prev => ({
+      ...prev,
+      class_days: prev.class_days.filter((_, i) => i !== index)
     }));
   }
 
   async function save() {
+    // 🔹 Basic validation
+    if (!form.name.trim()) return alert("Name is required");
+    if (!form.student_total_fee || Number(form.student_total_fee) <= 0) return alert("Total fee is required");
+    
+    // 🔹 Ensure class_days have subject & time
+    for (let cls of form.class_days) {
+      if (!cls.subject || !cls.time) return alert("Please fill subject and time for all classes");
+    }
+
     const payload = {
-      name: form.name,
-      roll_no: form.roll_no,
-      contact: form.contact,
-      email: form.email,
-      courses: form.courses,
+      ...form,
       student_total_fee: Number(form.student_total_fee),
       teacher_fee: Number(form.teacher_fee),
       academy_fee: Number(form.academy_fee),
-      total_fee: Number(form.student_total_fee),
-      join_date: form.join_date,
-      fee_status: form.fee_status,
+      join_date: form.join_date || null
     };
 
     const { error } = await supabase.from("students").insert([payload]);
     if (error) return alert(error.message);
 
+    alert("Student saved successfully");
     setForm({
       name: "",
       roll_no: "",
@@ -97,77 +127,73 @@ export default function AddStudentForm() {
       academy_fee: 0,
       join_date: new Date().toISOString().split("T")[0],
       fee_status: "unpaid",
+      timezone: "Asia/Karachi",
+      class_days: []
     });
 
-    load();
+    loadStudents();
   }
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold">Add Student</h2>
 
-      <input placeholder="Name" className="border p-2 w-full" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      {/* Student Info */}
+      <input placeholder="Name" className="border p-2 w-full" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+      <input placeholder="Roll No" className="border p-2 w-full" value={form.roll_no} onChange={e => setForm({ ...form, roll_no: e.target.value })} />
+      <input placeholder="Contact" className="border p-2 w-full" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} />
+      <input placeholder="Email" className="border p-2 w-full" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
 
-      <input placeholder="Roll No" className="border p-2 w-full" value={form.roll_no} onChange={(e) => setForm({ ...form, roll_no: e.target.value })} />
-
-      <input placeholder="Contact" className="border p-2 w-full" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
-
-      <input placeholder="Email" className="border p-2 w-full" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-
-      {/* join date */}
+      {/* Join Date */}
       <label className="block font-semibold">Joining Date</label>
-      <input type="date" className="border p-2 w-full" value={form.join_date} onChange={(e) => setForm({ ...form, join_date: e.target.value })} />
+      <input type="date" className="border p-2 w-full" value={form.join_date} onChange={e => setForm({ ...form, join_date: e.target.value })} />
 
-      {/* student total fee */}
+      {/* Total Fee */}
       <label className="block font-semibold">Student Total Fee</label>
-      <input
-        type="number"
-        className="border p-2 w-full"
-        value={form.student_total_fee}
-        onChange={(e) => setForm({ ...form, student_total_fee: e.target.value })}
-      />
+      <input type="number" className="border p-2 w-full" value={form.student_total_fee} onChange={e => setForm({ ...form, student_total_fee: e.target.value })} />
 
-      {/* teacher dropdown */}
+      {/* Teacher Fee Dropdown */}
       <label className="block font-semibold">Select Teacher</label>
-      <select
-        className="border p-2 w-full"
-        value={form.teacher_fee}
-        onChange={(e) => updateFees(e.target.value)}
-      >
+      <select className="border p-2 w-full" value={form.teacher_fee} onChange={e => updateFees(e.target.value)}>
         <option value="">Select Teacher</option>
-        {teachers.map((t) => (
+        {teachers.map(t => (
           <option key={t.id} value={t.teacher_fee}>
             {t.name} — Fee: {t.teacher_fee}
           </option>
         ))}
       </select>
 
-      {/* academy fee auto */}
       <p className="font-bold">Academy Fee: {form.academy_fee}</p>
 
-      {/* courses */}
+      {/* Courses */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-        {courses.map((c) => (
-          <label
-            key={c}
-            className={`cursor-pointer border px-3 py-2 rounded ${form.courses.includes(c) ? "bg-green-100 border-green-600" : "hover:bg-gray-50"}`}
-          >
-            <input
-              type="checkbox"
-              className="hidden"
-              checked={form.courses.includes(c)}
-              onChange={() => toggleCourse(c)}
-            />
+        {courses.map(c => (
+          <label key={c} className={`cursor-pointer border px-3 py-2 rounded ${form.courses.includes(c) ? "bg-green-100 border-green-600" : "hover:bg-gray-50"}`}>
+            <input type="checkbox" className="hidden" checked={form.courses.includes(c)} onChange={() => toggleCourse(c)} />
             {c}
           </label>
         ))}
       </div>
 
-      <button onClick={save} className="bg-green-600 text-white px-4 py-2 rounded">
-        Save Student
-      </button>
+      {/* Class Days & Times */}
+      {syllabusList.map(subject => (
+        <div key={subject} className="border p-2 my-2">
+          <h4 className="font-semibold">{subject}</h4>
+          <button className="border px-2 py-1 my-1" onClick={() => addClassDay(weekDays[0], subject)}>Add {weekDays[0]} Class</button>
 
-      {/* list students */}
+          {form.class_days.filter(d => d.subject === subject).map((cls, idx) => (
+            <div key={idx} className="flex gap-2 my-1">
+              <span>{cls.day}</span>
+              <input type="time" value={cls.time} onChange={e => updateClassTime(idx, e.target.value)} />
+              <button className="bg-red-500 text-white px-2 rounded" onClick={() => removeClass(idx)}>Remove</button>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      <button onClick={save} className="bg-green-600 text-white px-4 py-2 rounded">Save Student</button>
+
+      {/* Students Table */}
       <div>
         <h3 className="font-semibold mt-6">Students</h3>
         <table className="w-full border">
@@ -181,7 +207,7 @@ export default function AddStudentForm() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {rows.map(r => (
               <tr key={r.id}>
                 <td className="p-2">{r.name}</td>
                 <td className="p-2">{r.email}</td>

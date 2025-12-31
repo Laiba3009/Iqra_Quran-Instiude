@@ -54,18 +54,18 @@ export default function StudentSearchBar() {
         placeholder="Search by student name or roll number..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="w-full mb-6 p-3 border-2 border-green-400 rounded-lg 
-          focus:ring-2 focus:ring-green-500 focus:border-green-500 
-          text-gray-800 placeholder-gray-400"
+        className="w-full mb-6 p-3 border border-gray-300 bg-white text-gray-900 rounded-lg
+          focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+          placeholder-gray-500"
       />
 
       {/* 🧩 Results */}
       {filtered.length > 0 ? (
         <div className="grid gap-4">
           {filtered.map((student) => (
-            <Card key={student.id} className="border-l-4 border-green-500">
+            <Card key={student.id} className="bg-white border border-gray-300 rounded-lg shadow-sm">
               <CardContent className="p-4">
-                <h3 className="font-semibold text-lg text-green-700">
+                <h3 className="font-semibold text-lg text-gray-800">
                   {student.name}
                 </h3>
                 <p className="text-sm text-gray-600">

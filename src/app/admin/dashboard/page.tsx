@@ -1,4 +1,5 @@
 "use client";
+import RoleBasedLayout from "@/components/RoleBasedLayout";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -8,7 +9,6 @@ import Link from "next/link";
 import SendNotice from "../send-notice/page";
 import StudentSearchBar from "@/components/admin/StudentSearchBar";
 import { Users, Wallet, DollarSign, GraduationCap, AlertTriangle, Banknote, CreditCard, UserX } from "lucide-react";
-import RoleBasedLayout from "@/components/RoleBasedLayout";
 
 // ✅ TypeScript Interfaces
 interface Student {
@@ -108,134 +108,166 @@ export default function AdminDashboard() {
 
   return (
     <RoleBasedLayout role="admin">
-      <h1 className="text-3xl md:text-4xl font-bold text-center text-gray-800">📊 Admin Dashboard</h1>
+      <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      
 
-      <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4 mt-6">
-        {/* Total Students */}
-        <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
-          <CardHeader className="flex flex-col items-center">
-            <Users className="h-8 w-8 mb-1" />
-            <CardTitle>Total Students</CardTitle>
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold">{totalStudents}</p></CardContent>
-        </Card>
+          <h1 className="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-8">📊 Admin Dashboard</h1>
 
-        {/* Fees Paid */}
-        <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
-          <CardHeader className="flex flex-col items-center">
-            <Wallet className="h-8 w-8 mb-1" />
-            <CardTitle>Fees Paid</CardTitle>
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold">Rs {feesPaid}</p></CardContent>
-        </Card>
-
-        {/* Fees Pending */}
-        <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
-          <CardHeader className="flex flex-col items-center">
-            <AlertTriangle className="h-8 w-8 mb-1" />
-            <CardTitle>Fees Pending</CardTitle>
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold">Rs {feesPending}</p></CardContent>
-        </Card>
-
-        {/* Total Teachers */}
-        <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
-          <CardHeader className="flex flex-col items-center">
-            <GraduationCap className="h-8 w-8 mb-1" />
-            <CardTitle>Total Teachers</CardTitle>
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold">{totalTeachers}</p></CardContent>
-        </Card>
-
-        {/* Total Teacher Fee */}
-        <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
-          <CardHeader className="flex flex-col items-center">
-            <DollarSign className="h-8 w-8 mb-1" />
-            <CardTitle>Total Teacher Fee</CardTitle>
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold">Rs {teacherFeeTotal}</p></CardContent>
-        </Card>
-
-        {/* Academy Fee Total */}
-        <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
-          <CardHeader className="flex flex-col items-center">
-            <Banknote className="h-8 w-8 mb-1" />
-            <CardTitle>Academy Fee Total</CardTitle>
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold">Rs {academyFeeTotal}</p></CardContent>
-        </Card>
-
-        {/* Total Student Fee */}
-        <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
-          <CardHeader className="flex flex-col items-center">
-            <CreditCard className="h-8 w-8 mb-1" />
-            <CardTitle>Total Student Fee</CardTitle>
-          </CardHeader>
-          <CardContent><p className="text-2xl font-bold">Rs {studentFeeTotal}</p></CardContent>
-        </Card>
-
-        {/* New Students (clickable) */}
-        <div className="cursor-pointer" onClick={() => handleCardClick("new")}>
-          <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Total Students */}
+          <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg rounded-xl hover:scale-[1.02] transition-all duration-300 border border-blue-400">
             <CardHeader className="flex flex-col items-center">
-              <Users className="h-8 w-8 mb-1" />
-              <CardTitle>New Students (Last 30 Days)</CardTitle>
+              <Users className="h-10 w-10 mb-2" />
+              <CardTitle className="text-lg font-semibold">Total Students</CardTitle>
             </CardHeader>
-            <CardContent><p className="text-2xl font-bold">{newStudentsCount}</p></CardContent>
+            <CardContent><p className="text-4xl font-bold">{totalStudents}</p></CardContent>
           </Card>
-        </div>
 
-        {/* Disabled Students (clickable) */}
-        <div className="cursor-pointer" onClick={() => handleCardClick("disabled")}>
-          <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg rounded-xl hover:scale-105 transition">
+          {/* Fees Paid */}
+          <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg rounded-xl hover:scale-[1.02] transition-all duration-300 border border-emerald-400">
             <CardHeader className="flex flex-col items-center">
-              <UserX className="h-8 w-8 mb-1" />
-              <CardTitle>Disabled Students</CardTitle>
+              <Wallet className="h-10 w-10 mb-2" />
+              <CardTitle className="text-lg font-semibold">Fees Paid</CardTitle>
             </CardHeader>
-            <CardContent><p className="text-2xl font-bold">{disabledStudentsCount}</p></CardContent>
+            <CardContent><p className="text-4xl font-bold">Rs {feesPaid}</p></CardContent>
           </Card>
-        </div>
-      </div>
 
-      <StudentSearchBar />
+          {/* Fees Pending */}
+          <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-lg rounded-xl hover:scale-[1.02] transition-all duration-300 border border-amber-400">
+            <CardHeader className="flex flex-col items-center">
+              <AlertTriangle className="h-10 w-10 mb-2" />
+              <CardTitle className="text-lg font-semibold">Fees Pending</CardTitle>
+            </CardHeader>
+            <CardContent><p className="text-4xl font-bold">Rs {feesPending}</p></CardContent>
+          </Card>
 
-      {/* Buttons */}
-      <div className="flex flex-wrap gap-3 justify-center mt-6">
-        <Link href="/admin/progress-reports"><Button className="bg-teal-600 hover:bg-teal-700">Weekly Reports + Notice</Button></Link>
-        <Link href="/admin/add-student"><Button className="bg-blue-600 hover:bg-blue-700">+ Add Student</Button></Link>
-        <Link href="/admin/add-teacher"><Button className="bg-green-600 hover:bg-green-700">+ Add Teacher</Button></Link>
-        <Link href="/admin/attendance"><Button className="bg-pink-600 hover:bg-pink-700">View Attendance</Button></Link>
-        <Link href="/admin/teacher-list"><Button className="bg-purple-600 hover:bg-purple-700">Teacher List</Button></Link>
-        <Link href="/admin/teacher-attendance"><Button className="bg-pink-600 hover:bg-pink-700">Teacher Attendance</Button></Link>
-      </div>
+          {/* Total Teachers */}
+          <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg rounded-xl hover:scale-[1.02] transition-all duration-300 border border-indigo-400">
+            <CardHeader className="flex flex-col items-center">
+              <GraduationCap className="h-10 w-10 mb-2" />
+              <CardTitle className="text-lg font-semibold">Total Teachers</CardTitle>
+            </CardHeader>
+            <CardContent><p className="text-4xl font-bold">{totalTeachers}</p></CardContent>
+          </Card>
 
-      {/* Notice Board */}
-      <section className="mt-10">
-        <SendNotice userRole="admin" />
-      </section>
+          {/* Total Teacher Fee */}
+          <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg rounded-xl hover:scale-[1.02] transition-all duration-300 border border-purple-400">
+            <CardHeader className="flex flex-col items-center">
+              <DollarSign className="h-10 w-10 mb-2" />
+              <CardTitle className="text-lg font-semibold">Total Teacher Fee</CardTitle>
+            </CardHeader>
+            <CardContent><p className="text-4xl font-bold">Rs {teacherFeeTotal}</p></CardContent>
+          </Card>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-3xl h-[70vh] p-6 overflow-y-auto relative">
-            <button
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
-              onClick={() => setShowModal(false)}
-            >
-              &times;
-            </button>
-            <h2 className="text-2xl font-bold mb-4 text-center">{modalTitle}</h2>
-            <ul className="space-y-2">
-              {modalStudents.map((s) => (
-                <li key={s.id} className="p-3 border rounded shadow-sm flex justify-between">
-                  <span>{s.name} ({s.roll_no})</span>
-                  <span>{s.status || "Active"}</span>
-                </li>
-              ))}
-            </ul>
+          {/* Academy Fee Total */}
+          <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-br from-cyan-500 to-cyan-600 text-white shadow-lg rounded-xl hover:scale-[1.02] transition-all duration-300 border border-cyan-400">
+            <CardHeader className="flex flex-col items-center">
+              <Banknote className="h-10 w-10 mb-2" />
+              <CardTitle className="text-lg font-semibold">Academy Fee Total</CardTitle>
+            </CardHeader>
+            <CardContent><p className="text-4xl font-bold">Rs {academyFeeTotal}</p></CardContent>
+          </Card>
+
+          {/* Total Student Fee */}
+          <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg rounded-xl hover:scale-[1.02] transition-all duration-300 border border-teal-400">
+            <CardHeader className="flex flex-col items-center">
+              <CreditCard className="h-10 w-10 mb-2" />
+              <CardTitle className="text-lg font-semibold">Total Student Fee</CardTitle>
+            </CardHeader>
+            <CardContent><p className="text-4xl font-bold">Rs {studentFeeTotal}</p></CardContent>
+          </Card>
+
+          {/* New Students (clickable) */}
+          <div className="cursor-pointer" onClick={() => handleCardClick("new")}>
+            <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg rounded-xl hover:scale-[1.02] transition-all duration-300 border border-green-400">
+              <CardHeader className="flex flex-col items-center">
+                <Users className="h-10 w-10 mb-2" />
+                <CardTitle className="text-lg font-semibold">New Students (Last 30 Days)</CardTitle>
+              </CardHeader>
+              <CardContent><p className="text-4xl font-bold">{newStudentsCount}</p></CardContent>
+            </Card>
+          </div>
+
+          {/* Disabled Students (clickable) */}
+          <div className="cursor-pointer" onClick={() => handleCardClick("disabled")}>
+            <Card className="flex flex-col items-center justify-center text-center w-full h-40 bg-gradient-to-br from-slate-500 to-slate-600 text-white shadow-lg rounded-xl hover:scale-[1.02] transition-all duration-300 border border-slate-400">
+              <CardHeader className="flex flex-col items-center">
+                <UserX className="h-10 w-10 mb-2" />
+                <CardTitle className="text-lg font-semibold">Disabled Students</CardTitle>
+              </CardHeader>
+              <CardContent><p className="text-4xl font-bold">{disabledStudentsCount}</p></CardContent>
+            </Card>
           </div>
         </div>
-      )}
+
+        <div className="mt-8 max-w-4xl mx-auto bg-white rounded-xl p-6 border border-gray-300 shadow-md">
+          <StudentSearchBar />
+        </div>
+
+        {/* Buttons */}
+        <div className="flex flex-wrap justify-center gap-4 mt-8">
+          <Link href="/admin/progress-reports">
+            <Button className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+              Weekly Reports + Notice
+            </Button>
+          </Link>
+          <Link href="/admin/add-student">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+              + Add Student
+            </Button>
+          </Link>
+          <Link href="/admin/add-teacher">
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+              + Add Teacher
+            </Button>
+          </Link>
+          <Link href="/admin/attendance">
+            <Button className="bg-rose-600 hover:bg-rose-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+              View Attendance
+            </Button>
+          </Link>
+          <Link href="/admin/teacher-list">
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+              Teacher List
+            </Button>
+          </Link>
+          <Link href="/admin/teacher-attendance">
+            <Button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+              Teacher Attendance
+            </Button>
+          </Link>
+        </div>
+
+        {/* Notice Board */}
+        <section className="mt-10 max-w-4xl mx-auto">
+          <SendNotice />
+        </section>
+
+        {/* Modal */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl h-[70vh] p-6 overflow-y-auto relative border border-gray-300">
+              <button
+                className="absolute top-4 right-4 text-gray-600 hover:text-gray-900 text-2xl font-bold bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+                onClick={() => setShowModal(false)}
+              >
+                &times;
+              </button>
+              <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">{modalTitle}</h2>
+              <ul className="space-y-3">
+                {modalStudents.map((s) => (
+                  <li key={s.id} className="p-4 border rounded-lg flex justify-between bg-gray-50 border-gray-200 hover:bg-gray-100 transition-colors">
+                    <span className="text-gray-700">{s.name} ({s.roll_no})</span>
+                    <span className={`font-medium ${s.status === 'disabled' ? 'text-red-600' : 'text-green-600'}`}>
+                      {s.status || "Active"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+        </div>
     </RoleBasedLayout>
   );
 }

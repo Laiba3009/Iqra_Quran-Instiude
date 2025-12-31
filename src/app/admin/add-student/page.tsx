@@ -36,6 +36,8 @@ export default function AddStudent() {
   const [search, setSearch] = useState("");
   const { toast } = useToast();
 const [activeSyllabus, setActiveSyllabus] = useState<string | null>(null);
+const [tzOpen, setTzOpen] = useState(false);
+const [tzSearch, setTzSearch] = useState("");
 
   const syllabusList = ["Quran", "Islamic Studies", "Tafseer", "Urdu", "English"];
   const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -129,26 +131,38 @@ const loadTeachers = async () => {
     );
   };
 
-  const addClassDay = (day: string) => {
-  setForm(prev => ({
-    ...prev,
-    class_days: [...prev.class_days, { day, subject: "", time: "" }],
-  }));
-};
-
+// JSX ke return se pehle
 const handleClassChange = (
-  day: string,
-  realIndex: number,
+  index: number,
   field: "subject" | "time",
   value: string
 ) => {
   setForm(prev => ({
     ...prev,
     class_days: prev.class_days.map((d, i) =>
-      i === realIndex ? { ...d, [field]: value || "" } : d
+      i === index ? { ...d, [field]: value || "" } : d
     ),
   }));
 };
+
+function to24Hour(time12: string) {
+  if (!time12) return "";
+
+  return moment(time12, ["hh:mm A"]).format("HH:mm");
+}
+
+function formatTimeForUser(time: string, timezone: string) {
+  if (!time) return "—";
+
+  const pkTime = moment.tz(
+    moment().format("YYYY-MM-DD") + " " + time,
+    "YYYY-MM-DD HH:mm",
+    "Asia/Karachi"
+  );
+
+  return pkTime.tz(timezone).format("hh:mm A");
+}
+
 
 const removeClass = (realIndex: number) => {
   setForm(prev => ({
@@ -156,10 +170,7 @@ const removeClass = (realIndex: number) => {
     class_days: prev.class_days.filter((_, i) => i !== realIndex),
   }));
 };
-
-
-
-  // 🟢 Time ko clean 12-hour AM/PM me convert karega
+// 🟢 Time ko clean 12-hour AM/PM me convert karega
 function cleanTime(t: string) {
   if (!t) return "";
 
@@ -201,10 +212,10 @@ function cleanTime(t: string) {
   const academyFee = Number(form.student_total_fee || 0) - totalTeacherFee;
   const totalFee = Number(form.student_total_fee || 0);
 
-  const class_days_utc = form.class_days.map(d => ({
-    ...d,
-    time: d.time,
-  }));
+  const class_days_clean = form.class_days.map(d => ({
+  ...d,
+  time: d.time, // 👈 direct save "09:00"
+}));
 
   const payload = {
     name: form.name,
@@ -215,8 +226,8 @@ function cleanTime(t: string) {
     student_total_fee: totalFee,
     fee_status: form.fee_status,
     join_date: form.join_date || null,
-    class_days: class_days_utc,
-    timezone: form.timezone || "Pakistan (PKT)",
+   class_days: class_days_clean,
+    timezone: form.timezone || "Asia/Karachi",
     academy_fee: academyFee,
   };
 
@@ -270,7 +281,6 @@ if (editing) {
   setEditing(false);
   await loadRows();
 };
-
 
   // ================= Edit Student =================
   const editStudent = async (student: any) => {
@@ -337,20 +347,12 @@ if (editing) {
     await loadRows();
   };
 
-  // ================= Format 12-hour time =================
-  // Convert UTC HH:MM → 12-hour format
-  function formatTime12Hour(utcTime: string, tzOffset = 5) { // default Pakistan offset
-  if (!utcTime) return "—";
-  const [hh, mm] = utcTime.split(":").map(Number);
-  let local = hh + tzOffset;
-  if (local >= 24) local -= 24;
-  if (local < 0) local += 24;
-
-  const period = local >= 12 ? "PM" : "AM";
-  const h12 = local % 12 || 12;
-
-  return `${h12}:${String(mm).padStart(2, "0")} ${period}`;
+ function formatTimeWithTZ(time: string, timezone: string) {
+  if (!time) return "—";
+  const pkTime = moment.tz(time, "HH:mm", "Asia/Karachi"); // <- treat as PKT
+  return pkTime.clone().tz(timezone).format("hh:mm A");
 }
+
 
 
 
@@ -376,17 +378,18 @@ if (editing) {
       doc.text("Student Details Report", 35, 26);
       doc.setDrawColor(150);
       doc.line(10, 32, 200, 32);
+const tableData = filteredRows.map((r) => [
+  r.name,
+  r.roll_no,
+  Array.isArray(r.class_days)
+    ? r.class_days.map((d) => `${d.day} (${d.subject} - ${formatTimeWithTZ(d.time, r.timezone || "Asia/Karachi")})`).join(", ")
+    : "—",
+  r.teacherNames.join(", ") || "—",
+  `Rs ${r.student_total_fee || 0}`,
+  r.fee_status.toUpperCase(),
+]);
 
-      const tableData = filteredRows.map((r) => [
-        r.name,
-        r.roll_no,
-        Array.isArray(r.class_days)
-          ? r.class_days.map((d) => `${d.day} (${d.subject} - ${formatTime12Hour(d.time)})`).join(", ")
-          : "—",
-        r.teacherNames.join(", ") || "—",
-        `Rs ${r.student_total_fee || 0}`,
-        r.fee_status.toUpperCase(),
-      ]);
+
 
       autoTable(doc, {
         startY: 40,
@@ -424,27 +427,61 @@ if (editing) {
         <h1 className="text-2xl font-bold text-green-800">{editing ? "Edit Student" : "Add Student"}</h1>
 
         <div className="grid md:grid-cols-2 gap-3">
-        {/* Timezone Dropdown */}
-<select
-  className="border p-2 rounded-lg text-sm"
-  value={form.timezone}
-  onChange={(e) => setForm({ ...form, timezone: e.target.value })}
->
-  <option value="">Select Timezone</option>
-  {allTimezones.map((tz) => {
-    const offsetMinutes = moment.tz(tz).utcOffset();
-    const sign = offsetMinutes >= 0 ? "+" : "-";
+      {/* Timezone Dropdown (Searchable) */}
+<div className="relative">
+  {/* Selected value */}
+  <div
+    onClick={() => setTzOpen(!tzOpen)}
+    className="border p-2 rounded-lg text-sm cursor-pointer bg-white"
+  >
+    {form.timezone || "Select Timezone"}
+  </div>
 
-    const hours = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(2, "0");
-    const mins = String(Math.abs(offsetMinutes) % 60).padStart(2, "0");
+  {tzOpen && (
+    <div className="absolute z-50 bg-white border rounded-lg w-full mt-1 shadow-lg">
+      {/* Search input */}
+      <input
+        type="text"
+        placeholder="Search timezone..."
+        className="w-full border-b p-2 text-sm outline-none"
+        value={tzSearch}
+        onChange={(e) => setTzSearch(e.target.value)}
+      />
 
-    return (
-      <option key={tz} value={tz}>
-        {`${tz} (UTC${sign}${hours}:${mins})`}
-      </option>
-    );
-  })}
-</select>
+      {/* Options */}
+      <div className="max-h-60 overflow-y-auto">
+        {allTimezones
+          .filter(tz =>
+            tz.toLowerCase().includes(tzSearch.toLowerCase())
+          )
+          .map(tz => {
+            const offsetMinutes = moment.tz(tz).utcOffset();
+            const sign = offsetMinutes >= 0 ? "+" : "-";
+            const hours = String(
+              Math.floor(Math.abs(offsetMinutes) / 60)
+            ).padStart(2, "0");
+            const mins = String(
+              Math.abs(offsetMinutes) % 60
+            ).padStart(2, "0");
+
+            return (
+              <div
+                key={tz}
+                onClick={() => {
+                  setForm({ ...form, timezone: tz });
+                  setTzOpen(false);
+                  setTzSearch("");
+                }}
+                className="px-3 py-2 text-sm hover:bg-green-100 cursor-pointer"
+              >
+                {`${tz} (UTC${sign}${hours}:${mins})`}
+              </div>
+            );
+          })}
+      </div>
+    </div>
+  )}
+</div>
 
           <input
             className="border p-2 rounded-lg text-sm"
@@ -508,8 +545,7 @@ onClick={() => {
           ))}
         </div>
 
-        {/* Class Days & Time */}
-      {activeSyllabus && (
+ {activeSyllabus && (
   <>
     <h3 className="font-semibold mb-2 text-gray-700">
       Class Days & Time – {activeSyllabus}
@@ -527,13 +563,12 @@ onClick={() => {
 
             {dayClasses.map(cls => (
               <div key={cls.realIndex} className="flex gap-2 mt-2">
-                <TimeWithTimeZone
-                  value={cls.time}
-                  timezone={form.timezone || "Asia/Karachi"}
-                  onChange={(time) =>
-                    handleClassChange(day, cls.realIndex, "time", time || "")
-                  }
-                />
+  <TimeWithTimeZone
+  value={cls.time}
+  timezone={form.timezone || "Asia/Karachi"}
+  onChange={(time) => handleClassChange(cls.realIndex, "time", time || "")}
+/>
+
 
                 <Button
                   size="sm"
@@ -552,7 +587,7 @@ onClick={() => {
                   ...prev,
                   class_days: [
                     ...prev.class_days,
-                    { day, subject: activeSyllabus, time: "" },
+                    { day: day, subject: activeSyllabus, time: "" },
                   ],
                 }))
               }
@@ -565,6 +600,8 @@ onClick={() => {
     </div>
   </>
 )}
+
+
 
 
         {/* Assign Teachers */}
@@ -678,10 +715,11 @@ onClick={() => {
 <td className="p-3">
   {Array.isArray(r.class_days) && r.class_days.length > 0 ? (
     <ScheduleModal
-      studentName={r.name}
-      timezone={r.timezone || "Asia/Karachi"}
-      classDays={r.class_days}
-    />
+  studentName={r.name}
+  timezone={r.timezone || "Asia/Karachi"}
+  classDays={r.class_days}
+/>
+
   ) : (
     "—"
   )}
@@ -696,7 +734,7 @@ onClick={() => {
                 </td>
                 <td className="p-3 flex gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={() => editStudent(r)}>Edit</Button>
-                  <Button size="sm" variant="outline" onClick={() => toggleFee(r.id, r.fee_status)}>Toggle Fee</Button>
+                  <Button size="sm" variant="outline" onClick={() => toggleFee(r.id)}>Toggle Fee</Button>
                   <div className="flex gap-2">
 
   <div className="flex gap-2">

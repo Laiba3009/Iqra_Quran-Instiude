@@ -320,12 +320,7 @@ export default function TeacherDashboard() {
             )}
           </CardContent>
   </CardContent>
-</Card>
-
-        
-
-        {/* ATTENDANCE BUTTON */}
-       
+</Card>       
 
         {/* SYLLABUS */}
         <Card className="bg-gray-50 border shadow">

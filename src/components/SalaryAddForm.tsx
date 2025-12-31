@@ -10,6 +10,7 @@ export default function SalaryAddForm({ teacherId, baseSalary, onSaved }: any) {
   const [advance, setAdvance] = useState(0);
   const [remarks, setRemarks] = useState("");
   const [loading, setLoading] = useState(false);
+const [deductSalary, setDeductSalary] = useState("");
 
   const total = Number(baseSalary) + Number(bonus) - Number(advance);
 
@@ -29,6 +30,8 @@ export default function SalaryAddForm({ teacherId, baseSalary, onSaved }: any) {
       bonus: Number(bonus),
       advance: Number(advance),
       remarks: remarks,
+      deduct_salary: Number(deductSalary || 0),
+
     });
 
     setLoading(false);
@@ -49,13 +52,6 @@ export default function SalaryAddForm({ teacherId, baseSalary, onSaved }: any) {
   return (
     <div className="bg-white shadow rounded p-4 mt-6">
       <h2 className="text-lg font-semibold mb-3">Add Salary Record</h2>
-
-      {/* Base Salary Display */}
-      <div className="mb-4">
-        <p className="font-medium">
-          Base Salary (From Students): <span className="text-green-700">Rs {baseSalary}</span>
-        </p>
-      </div>
 
       {/* Month & Year */}
       <div className="flex gap-3 mb-4">
@@ -100,6 +96,14 @@ export default function SalaryAddForm({ teacherId, baseSalary, onSaved }: any) {
           className="border p-2 rounded w-full"
         />
       </div>
+      <label className="block mt-2">Deduct Salary</label>
+<input
+  type="number"
+  className="border p-2 w-full"
+  placeholder="Deduction amount"
+  value={deductSalary}
+  onChange={(e) => setDeductSalary(e.target.value)}
+/>
 
       {/* Remarks */}
       <div className="mb-4">

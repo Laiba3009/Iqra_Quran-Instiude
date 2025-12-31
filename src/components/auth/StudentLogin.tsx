@@ -53,62 +53,76 @@ export default function StudentSigninPage() {
   };
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-green-50 to-green-100">
+    <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-slate-800 to-slate-900 p-4">
       <form
         onSubmit={handleLogin}
-        className="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-md border border-green-200"
+        className="bg-white dark:bg-slate-800 shadow-2xl rounded-2xl p-8 w-full max-w-md border border-slate-300 dark:border-slate-700"
       >
-        <h1 className="text-3xl font-bold text-center text-green-700 mb-6">
+        {/* Back Button */}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="flex items-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+            Back
+          </button>
+        </div>
+
+        <h1 className="text-3xl font-bold text-center text-slate-800 dark:text-white mb-6">
           Student Login
         </h1>
 
-        <label className="block text-gray-700 font-medium mb-2">Email</label>
+        <label className="block text-slate-700 dark:text-slate-200 font-medium mb-2">Email</label>
         <input
           type="email"
           placeholder="Enter Email (student@quran.com)"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="block w-full mb-5 p-3 border-2 border-green-400 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-800 placeholder-gray-400"
+          className="block w-full mb-5 p-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700 placeholder-slate-500 dark:placeholder-slate-400"
           required
         />
 
-        <label className="block text-gray-700 font-medium mb-2">Roll Number</label>
+        <label className="block text-slate-700 dark:text-slate-200 font-medium mb-2">Roll Number</label>
         <input
           type="text"
           placeholder="Enter your Roll Number"
           value={rollNo}
           onChange={(e) => setRollNo(e.target.value)}
-          className="block w-full mb-5 p-3 border-2 border-green-400 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-800 placeholder-gray-400"
+          className="block w-full mb-5 p-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700 placeholder-slate-500 dark:placeholder-slate-400"
           required
         />
 
-        <label className="block text-gray-700 font-medium mb-2">Password</label>
+        <label className="block text-slate-700 dark:text-slate-200 font-medium mb-2">Password</label>
         <input
           type="password"
           placeholder="Enter Password (student123)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="block w-full mb-5 p-3 border-2 border-green-400 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-800 placeholder-gray-400"
+          className="block w-full mb-5 p-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700 placeholder-slate-500 dark:placeholder-slate-400"
           required
         />
 
         {errorMsg && (
-          <p className="text-red-600 bg-red-50 border border-red-200 p-2 rounded text-center mb-4">
+          <p className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-2 rounded text-center mb-4">
             {errorMsg}
           </p>
         )}
 
         <Button
           type="submit"
-          className="w-full bg-green-700 hover:bg-green-800 text-white py-3 rounded-lg text-lg font-semibold"
+          className="w-full bg-blue-700 hover:bg-blue-800 text-white py-3 rounded-lg text-lg font-semibold transition-all duration-300 shadow-md hover:shadow-lg"
         >
           Login
         </Button>
 
-        <p className="text-center text-sm text-gray-500 mt-4">
-          Default Email: <b>{FIXED_STUDENT_EMAIL}</b>
+        <p className="text-center text-sm text-slate-600 dark:text-slate-300 mt-4">
+          Default Email: <b className="text-slate-800 dark:text-slate-200">{FIXED_STUDENT_EMAIL}</b>
           <br />
-          Default Password: <b>{FIXED_STUDENT_PASSWORD}</b>
+          Default Password: <b className="text-slate-800 dark:text-slate-200">{FIXED_STUDENT_PASSWORD}</b>
         </p>
       </form>
     </div>

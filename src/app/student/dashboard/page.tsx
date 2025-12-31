@@ -169,36 +169,49 @@ export default function StudentDashboard() {
 
   return (
     <RoleBasedLayout role="student">
-      <div className="space-y-8 px-4 md:px-12 mt-8">
+      <div className="container mx-auto px-4 py-8 space-y-8">
+       
+
         <BannerSlider />
 
-         <h1 className="text-3xl md:text-4xl font-bold text-center text-green-800">
+        <h1 className="text-3xl md:text-4xl font-bold text-center text-slate-800 dark:text-white">
           Welcome, {student.name} (Roll No: {student.roll_no})
         </h1>
 
         {/* Fee Button */}
         <div className="flex justify-end">
           {!feeStatus && (
-            <Button onClick={() => setShowUpload(true)}>⬆ Upload Fee</Button>
+            <Button onClick={() => setShowUpload(true)} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+              ⬆ Upload Fee
+            </Button>
           )}
-          {feeStatus === "pending" && <Button disabled>⏳ Pending</Button>}
-          {feeStatus === "approved" && <Button disabled>✅ Paid</Button>}
+          {feeStatus === "pending" && (
+            <Button disabled className="bg-amber-600 text-white px-4 py-2 rounded-lg">
+              ⏳ Pending
+            </Button>
+          )}
+          {feeStatus === "approved" && (
+            <Button disabled className="bg-emerald-600 text-white px-4 py-2 rounded-lg">
+              ✅ Paid
+            </Button>
+          )}
         </div>
 
         {/* Upload Modal */}
         {showUpload && (
-          <div className="fixed inset-0 bg-black/60 flex justify-center items-center">
-            <div className="bg-white p-6 rounded space-y-4 w-96">
+          <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 backdrop-blur-sm">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl space-y-4 w-96 border border-slate-200 dark:border-slate-700 shadow-2xl">
               <input
                 type="file"
                 accept="image/*"
                 onChange={(e) => setFeeImage(e.target.files?.[0] || null)}
+                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
               />
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowUpload(false)}>
+                <Button variant="outline" onClick={() => setShowUpload(false)} className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200">
                   Cancel
                 </Button>
-                <Button onClick={uploadFeeProof} disabled={uploading}>
+                <Button onClick={uploadFeeProof} disabled={uploading} className="bg-blue-700 hover:bg-blue-800 text-white">
                   Upload
                 </Button>
               </div>
@@ -206,45 +219,41 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        <NoticeComponent userRole="student" />
-        <TodayClassesCard studentId={student.id} timezone={student.timezone} />
+        <div className="max-w-4xl mx-auto">
+          <NoticeComponent userRole="student" />
+        </div>
 
-        {/* ❌ Cancel Class */}
-        <Card>
-          <CardContent className="space-y-3">
-            <h2 className="font-bold">❌ Cancel Class</h2>
-            <Textarea
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="Reason..."
-            />
-            <Button onClick={submitCancel}>Submit</Button>
+        <div className="max-w-4xl mx-auto">
+          <TodayClassesCard studentId={student.id} timezone={student.timezone} />
+        </div>
+{/* Cancel Request */}
+        <Card className="shadow-md border border-red-200 bg-red-50">
+          <CardContent className="p-6 space-y-3">
+            <h2 className="text-xl font-bold text-red-700">Cancel Class Request</h2>
+            <Textarea placeholder="Write reason..." value={reason} onChange={(e) => setReason(e.target.value)} />
+            <Button onClick={handleCancelRequest} className="bg-red-600 hover:bg-red-700 text-white">Send Request</Button>
           </CardContent>
         </Card>
 
-        {/* 📝 Complaint */}
-        <Card>
-          <CardContent className="space-y-3">
-            <h2 className="font-bold">📝 Complaint</h2>
-            <Textarea
-              value={complaint}
-              onChange={(e) => setComplaint(e.target.value)}
-            />
-            <Button onClick={submitComplaint}>Submit</Button>
+        {/* Complaint Box */}
+        <Card className="shadow-md border border-yellow-200 bg-yellow-50">
+          <CardContent className="p-6 space-y-3">
+            <h2 className="text-xl font-bold text-yellow-700">Complaint Box</h2>
+            <Textarea placeholder="Write your complaint..." value={complaint} onChange={(e) => setComplaint(e.target.value)} />
+            <Button onClick={handleComplaintSubmit} className="bg-yellow-600 hover:bg-yellow-700 text-white">Submit Complaint</Button>
           </CardContent>
         </Card>
 
-        {/* 💡 Suggestion */}
-        <Card>
-          <CardContent className="space-y-3">
-            <h2 className="font-bold">💡 Suggestion</h2>
-            <Textarea
-              value={suggestion}
-              onChange={(e) => setSuggestion(e.target.value)}
-            />
-            <Button onClick={submitSuggestion}>Send</Button>
+        {/* Teacher Suggestion Box */}
+        <Card className="shadow-md border border-green-200 bg-green-50">
+          <CardContent className="p-6 space-y-3">
+            <h2 className="text-xl font-bold text-green-700">Teacher Suggestion</h2>
+            <Textarea placeholder="Write your suggestion..." value={suggestion} onChange={(e) => setSuggestion(e.target.value)} />
+            <Button onClick={handleSuggestionSubmit} className="bg-green-600 hover:bg-green-700 text-white">Send Suggestion</Button>
           </CardContent>
         </Card>
+
+       
       </div>
     </RoleBasedLayout>
   );

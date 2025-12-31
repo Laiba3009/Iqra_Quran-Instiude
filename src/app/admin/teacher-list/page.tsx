@@ -189,142 +189,143 @@ export default function TeacherList() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto mt-8 p-6 space-y-6">
-      <BackButton href="/admin/dashboard" label="Back to Dashboard" />
-      <h1 className="text-3xl font-bold text-green-800">Teacher List</h1>
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <BackButton href="/admin/dashboard" label="Back to Dashboard" />
+        <h1 className="text-3xl font-bold text-gray-800">Teacher List</h1>
 
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
-        <div className="flex gap-2 w-full md:w-auto">
-          <input
-            placeholder="Search teacher name or student roll..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border p-2 rounded w-full md:w-80"
-          />
-          <select
-            value={filterSalary}
-            onChange={(e) => setFilterSalary(e.target.value as any)}
-            className="border p-2 rounded"
-          >
-            <option value="all">All Status</option>
-            <option value="paid">Paid</option>
-            <option value="unpaid">Unpaid</option>
-          </select>
-          <select
-            value={filterSyllabus}
-            onChange={(e) => setFilterSyllabus(e.target.value)}
-            className="border p-2 rounded"
-          >
-            {syllabusOptions.map((s) => (
-              <option key={s} value={s}>
-                {s === "all" ? "All Subjects" : s}
-              </option>
-            ))}
-          </select>
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+          <div className="flex gap-2 w-full md:w-auto">
+            <input
+              placeholder="Search teacher name or student roll..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="border border-gray-300 bg-white text-gray-900 p-3 rounded-lg w-full md:w-80 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <select
+              value={filterSalary}
+              onChange={(e) => setFilterSalary(e.target.value as any)}
+              className="border border-gray-300 bg-white text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="paid">Paid</option>
+              <option value="unpaid">Unpaid</option>
+            </select>
+            <select
+              value={filterSyllabus}
+              onChange={(e) => setFilterSyllabus(e.target.value)}
+              className="border border-gray-300 bg-white text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {syllabusOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s === "all" ? "All Subjects" : s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                setSearch("");
+                setFilterSyllabus("all");
+                setFilterSalary("all");
+              }}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
+            >
+              Clear Filters
+            </Button>
+            <Button onClick={() => loadAll()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+              Refresh
+            </Button>
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button
-            onClick={() => {
-              setSearch("");
-              setFilterSyllabus("all");
-              setFilterSalary("all");
-            }}
-            className="bg-gray-200 text-black"
-          >
-            Clear Filters
-          </Button>
-          <Button onClick={() => loadAll()} className="bg-blue-600">
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded shadow overflow-x-auto">
-        {loading ? (
-          <div className="p-6">Loading...</div>
-        ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-green-100">
-                <th className="p-3">Name</th>
-                <th className="p-3">Syllabus</th>
-                <th className="p-3">Total Teacher Fee</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Assigned Students</th>
-                <th className="p-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleTeachers.map((t) => {
-                const { assigned, totalFee } = getAssignedForTeacher(t.id);
-                return (
-                  <tr key={t.id} className="border-t hover:bg-gray-50">
-                    <td className="p-3 font-medium">{t.name}</td>
-                    <td className="p-3">
-                      {Array.isArray(t.syllabus) ? t.syllabus.join(", ") : t.syllabus || "—"}
-                    </td>
-                    <td className="p-3 text-purple-600 font-semibold">Rs {totalFee}</td>
-                    <td
-                      className={`p-3 ${
-                        t.salary_status === "paid" ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {t.salary_status ?? "unpaid"}
-                    </td>
-                    <td className="p-3">
-                      <Button size="sm" variant="outline" onClick={() => openModalFor(t.id)}>
-                        View Assigned Students ({assigned.length})
-                      </Button>
-                    </td>
-                    <td className="p-3 flex gap-2 flex-wrap">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => toggleSalary(t.id, t.salary_status)}
+        {/* Table */}
+        <div className="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-300">
+          {loading ? (
+            <div className="p-6 text-center text-gray-500">Loading...</div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="p-4 text-gray-800 font-semibold">Name</th>
+                  <th className="p-4 text-gray-800 font-semibold">Syllabus</th>
+                  <th className="p-4 text-gray-800 font-semibold">Total Teacher Fee</th>
+                  <th className="p-4 text-gray-800 font-semibold">Status</th>
+                  <th className="p-4 text-gray-800 font-semibold">Assigned Students</th>
+                  <th className="p-4 text-gray-800 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleTeachers.map((t) => {
+                  const { assigned, totalFee } = getAssignedForTeacher(t.id);
+                  return (
+                    <tr key={t.id} className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
+                      <td className="p-4 font-medium text-gray-800">{t.name}</td>
+                      <td className="p-4 text-gray-700">
+                        {Array.isArray(t.syllabus) ? t.syllabus.join(", ") : t.syllabus || "—"}
+                      </td>
+                      <td className="p-4 text-gray-700 font-medium">Rs {totalFee}</td>
+                      <td
+                        className={`p-4 font-medium ${
+                          t.salary_status === "paid" ? "text-green-600" : "text-red-600"
+                        }`}
                       >
-                        {t.salary_status === "paid" ? "Mark Unpaid" : "Mark Paid"}
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => delTeacher(t.id)}>
-                        Delete
-                      </Button>
+                        {t.salary_status ?? "unpaid"}
+                      </td>
+                      <td className="p-4">
+                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md">
+                          View Assigned Students ({assigned.length})
+                        </Button>
+                      </td>
+                      <td className="p-4 flex gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-md"
+                          onClick={() => toggleSalary(t.id, t.salary_status)}
+                        >
+                          {t.salary_status === "paid" ? "Mark Unpaid" : "Mark Paid"}
+                        </Button>
+                        <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md" onClick={() => delTeacher(t.id)}>
+                          Delete
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {visibleTeachers.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-6 text-center text-gray-500">
+                      No teachers found.
                     </td>
                   </tr>
-                );
-              })}
-              {visibleTeachers.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="p-6 text-center text-gray-500">
-                    No teachers found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
 
       {/* Modal */}
       {modalOpen && modalTeacherId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white w-full max-w-2xl rounded-lg shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden border border-gray-300">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <div>
-                <h3 className="text-lg font-semibold">
+                <h3 className="text-lg font-semibold text-gray-800">
                   Assigned Students — {teachers.find((x) => x.id === modalTeacherId)?.name}
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-600">
                   {getAssignedForTeacher(modalTeacherId).assigned.length} students • Total Fee Rs{" "}
                   {getAssignedForTeacher(modalTeacherId).totalFee}
                 </p>
               </div>
               <div className="flex gap-2 items-center">
-                <Button onClick={() => downloadAssignedPDF(modalTeacherId)} className="bg-indigo-600">
+                <Button onClick={() => downloadAssignedPDF(modalTeacherId)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
                   Download PDF
                 </Button>
-                <Button onClick={closeModal} className="bg-gray-200 text-black">
+                <Button onClick={closeModal} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
                   Close
                 </Button>
               </div>
@@ -332,37 +333,39 @@ export default function TeacherList() {
 
             <div className="p-4 max-h-[60vh] overflow-auto">
               {getAssignedForTeacher(modalTeacherId).assigned.length > 0 ? (
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {getAssignedForTeacher(modalTeacherId).assigned.map((s) => (
                     <li
                       key={s.id}
-                      className="p-3 border rounded-md flex justify-between items-center"
+                      className="p-4 border rounded-lg flex justify-between items-center bg-gray-50 border-gray-200"
                     >
                       <div>
-                        <div className="font-medium">
+                        <div className="font-medium text-gray-800">
                           {s.name}{" "}
                           {isNewStudent(s.join_date) && (
                             <span className="text-xs text-blue-600">(NEW)</span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-500">Roll: {s.roll_no || "—"}</div>
-                        <div className="text-xs text-gray-400">
+                        <div className="text-sm text-gray-600">Roll: {s.roll_no || "—"}</div>
+                        <div className="text-xs text-gray-500">
                           Join Date: {s.join_date ? new Date(s.join_date).toLocaleDateString() : "—"}
                         </div>
                       </div>
-                      <div className="font-medium">
+                      <div className="font-medium text-gray-800">
                         Rs {isNewStudent(s.join_date) ? 0 : s.teacher_fee || 0}
                       </div>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-500">No assigned students.</p>
+                <p className="text-gray-600">No assigned students.</p>
               )}
             </div>
           </div>
         </div>
       )}
     </div>
+        </div>
+
   );
 }
