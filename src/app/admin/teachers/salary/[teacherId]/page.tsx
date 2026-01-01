@@ -180,6 +180,7 @@ const totalStudentFee = monthlyStudents.reduce(
   doc.save(`${teacher.name}-salary-${filterMonth}-${filterYear}.pdf`);
 };
 
+
 // -------- FETCH TEACHER --------
 const fetchTeacher = async () => {
   const { data } = await supabase
@@ -212,6 +213,24 @@ const deleteSecurity = async (id: number) => {
 
   alert("Deleted successfully!");
   fetchSecurityFee(); // list refresh
+};
+
+const deleteSalaryRecord = async (id: number) => {
+  const confirmDelete = confirm("Are you sure you want to delete this salary record?");
+  if (!confirmDelete) return;
+
+  const { error } = await supabase
+    .from("monthly_salary")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    alert("Error deleting salary record!");
+    return;
+  }
+
+  alert("Salary record deleted!");
+  fetchRecords(); // refresh list
 };
 
 
@@ -354,18 +373,19 @@ const deleteSecurity = async (id: number) => {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">{teacher.name} — Salary Dashboard</h1>
+    <h1 className="text-2xl font-bold mb-4">Teacher Salary Record</h1>
 
       {/* HEADER BUTTONS */}
       <div className="flex gap-4">
         <button
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+        className="bg-blue-800 text-white px-4 py-2 rounded"  // line ~141
           onClick={() => setAgreementModal(true)}
         >
           Upload Agreement
         </button>
 
         <button
-          className="bg-green-600 text-white px-4 py-2 rounded"
+       className="bg-green-600 text-white px-4 py-2 rounded"  // line ~146
           onClick={() => setSecurityModal(true)}
         >
           Add Security Fee
@@ -375,7 +395,9 @@ const deleteSecurity = async (id: number) => {
       {/* AGREEMENT MODAL */}
       {agreementModal && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center">
+
           <div className="bg-white p-6 rounded max-w-xl w-full">
+
             <h2 className="text-lg font-bold mb-4">Upload Agreement Image</h2>
 
             <input type="file" onChange={uploadAgreement} className="mb-4" />
@@ -389,7 +411,7 @@ const deleteSecurity = async (id: number) => {
             )}
 
             <button
-              className="w-full mt-4 bg-red-500 text-white p-2 rounded"
+            className="w-full mt-4 bg-red-500 text-white p-2 rounded"  // line ~162
               onClick={() => setAgreementModal(false)}
             >
               Close
@@ -422,7 +444,7 @@ const deleteSecurity = async (id: number) => {
         type="number"
         value={securityYear}
         onChange={(e) => setSecurityYear(Number(e.target.value))}
-        className="border p-2 w-full mb-3"
+       className="border p-2 w-full mb-3"
       />
 
       <label className="block mb-1">Amount</label>
@@ -430,18 +452,18 @@ const deleteSecurity = async (id: number) => {
         type="number"
         value={securityAmount}
         onChange={(e) => setSecurityAmount(e.target.value)}
-        className="border p-2 w-full mb-4"
+       className="border p-2 w-full mb-4"
       />
 
       {/* 🔵 TOTAL SECURITY SHOW HERE */}
-      <div className="bg-gray-100 p-2 rounded mb-3 text-sm font-semibold">
+    <div className="bg-gray-100 p-2 rounded mb-3 text-sm font-semibold">
         Total Security After Adding: Rs{" "}
         {security.reduce((sum, s) => sum + Number(s.amount), 0) +
           Number(securityAmount || 0)}
       </div>
 
       <button
-        className="bg-green-600 w-full text-white py-2 rounded"
+   className="bg-green-600 w-full text-white py-2 rounded"
         onClick={saveSecurityFee}
       >
         Save Security Fee
@@ -457,7 +479,7 @@ const deleteSecurity = async (id: number) => {
             </span>
 
             <button
-              className="text-red-600 font-bold"
+         className="w-full mt-4 bg-red-500 text-white p-2 rounded"
               onClick={() => deleteSecurity(s.id)}
             >
               ❌
@@ -467,7 +489,7 @@ const deleteSecurity = async (id: number) => {
       </ul>
 
       <button
-        className="w-full mt-4 bg-red-500 text-white p-2 rounded"
+  className="w-full mt-4 bg-red-500 text-white p-2 rounded"
         onClick={() => setSecurityModal(false)}
       >
         Close
@@ -480,6 +502,8 @@ const deleteSecurity = async (id: number) => {
       {/* STUDENTS TABLE */}
      <div className="bg-white rounded shadow p-4">
   <h2 className="font-semibold mb-3 text-lg">Assigned Students</h2>
+
+  
   <p>Total Fee: Rs {totalStudentFee}</p>
 
 {pdfModal && (
@@ -548,7 +572,6 @@ const deleteSecurity = async (id: number) => {
   </div>
 )}
 
-
   {/* ===== Students Table ===== */}
   <table className="w-full mt-3">
     
@@ -607,8 +630,6 @@ const deleteSecurity = async (id: number) => {
     onChange={(e) => setFilterYear(Number(e.target.value))}
   />
 </div>
-
-
       {/* ADD SALARY */}
       <SalaryAddForm
   teacherId={teacherId}
@@ -618,48 +639,72 @@ const deleteSecurity = async (id: number) => {
   )}
   onSaved={fetchRecords}
 />
-
-
       {/* SALARY RECORDS */}
       <div className="bg-white rounded shadow p-4">
         <h2 className="font-semibold mb-3 text-lg">Monthly Salary Records</h2>
         <p>Total Paid: Rs {totalSalaryPaid}</p>
+<table className="w-full mt-3">
+  <thead>     
+  <tr className="bg-gray-100">
+    <th className="p-2 border">Month/Year</th>
+    <th className="p-2 border">Base</th>
+    <th className="p-2 border">Bonus</th>
+    <th className="p-2 border">Advance</th>
+    <th className="p-2 border">Deduct</th>
+    <th className="p-2 border">Remarks</th>
+    <th className="p-2 border">Total</th>
+    <th className="p-2 border">Action</th>
+  </tr>
+</thead> 
+  <tbody>
+ {records.map((r) => (
+    <tr key={r.id} className="border-b">
+      <td className="p-2">
+        {r.month}/{r.year}
+      </td>
 
-        <table className="w-full mt-3">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="p-2 border">Month/Year</th>
-              <th className="p-2 border">Base</th>
-              <th className="p-2 border">Bonus</th>
-              <th className="p-2 border">Advance</th>
-              <th className="p-2 border">Total</th>
-            </tr>
-          </thead>
+      <td className="p-2">{r.base_salary}</td>
 
-          <tbody>
-            {records.map((r) => (
-              <tr key={r.id} className="border-b">
-                <td className="p-2">
-                  {r.month}/{r.year}
-                </td>
-                <td className="p-2">{r.base_salary}</td>
-                <td className="p-2 text-green-600">{r.bonus}</td>
-                <td className="p-2 text-red-600">{r.advance}</td>
-                <td className="p-2 font-semibold">
-                  {r.base_salary + r.bonus - r.advance}
-                </td>
-              </tr>
-            ))}
+      <td className="p-2 text-green-600">{r.bonus}</td>
 
-            {records.length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center p-4 text-gray-500">
-                  No salary records.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <td className="p-2 text-red-600">{r.advance}</td>
+
+      <td className="p-2 text-red-500">
+        {r.deduct_salary || 0}
+      </td>
+
+      <td className="p-2 text-gray-700">
+        {r.remarks || "—"}
+      </td>
+
+      <td className="p-2 font-semibold">
+        {r.base_salary +
+          r.bonus -
+          r.advance -
+          (r.deduct_salary || 0)}
+      </td>
+
+      {/* DELETE BUTTON */}
+      <td className="p-2 text-center">
+        <button
+          onClick={() => deleteSalaryRecord(r.id)}
+          className="text-red-600 font-bold hover:text-red-800"
+        >
+          ❌
+        </button>
+      </td>
+    </tr>
+  ))}  </tbody>
+</table>
+
+  {records.length === 0 && (
+    <tr>
+      <td colSpan={8} className="text-center p-4 text-gray-500">
+        No salary records.
+      </td>
+    </tr>
+  )}
+      
       </div>
     </div>
   );
