@@ -180,7 +180,6 @@ const totalStudentFee = monthlyStudents.reduce(
   doc.save(`${teacher.name}-salary-${filterMonth}-${filterYear}.pdf`);
 };
 
-
 // -------- FETCH TEACHER --------
 const fetchTeacher = async () => {
   const { data } = await supabase
@@ -213,24 +212,6 @@ const deleteSecurity = async (id: number) => {
 
   alert("Deleted successfully!");
   fetchSecurityFee(); // list refresh
-};
-
-const deleteSalaryRecord = async (id: number) => {
-  const confirmDelete = confirm("Are you sure you want to delete this salary record?");
-  if (!confirmDelete) return;
-
-  const { error } = await supabase
-    .from("monthly_salary")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    alert("Error deleting salary record!");
-    return;
-  }
-
-  alert("Salary record deleted!");
-  fetchRecords(); // refresh list
 };
 
 
@@ -373,19 +354,18 @@ const deleteSalaryRecord = async (id: number) => {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">{teacher.name} — Salary Dashboard</h1>
-    <h1 className="text-2xl font-bold mb-4">Teacher Salary Record</h1>
 
       {/* HEADER BUTTONS */}
       <div className="flex gap-4">
         <button
-        className="bg-blue-800 text-white px-4 py-2 rounded"  // line ~141
+          className="bg-blue-600 text-white px-4 py-2 rounded"
           onClick={() => setAgreementModal(true)}
         >
           Upload Agreement
         </button>
 
         <button
-       className="bg-green-600 text-white px-4 py-2 rounded"  // line ~146
+          className="bg-green-600 text-white px-4 py-2 rounded"
           onClick={() => setSecurityModal(true)}
         >
           Add Security Fee
@@ -395,9 +375,7 @@ const deleteSalaryRecord = async (id: number) => {
       {/* AGREEMENT MODAL */}
       {agreementModal && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center">
-
           <div className="bg-white p-6 rounded max-w-xl w-full">
-
             <h2 className="text-lg font-bold mb-4">Upload Agreement Image</h2>
 
             <input type="file" onChange={uploadAgreement} className="mb-4" />
@@ -411,7 +389,7 @@ const deleteSalaryRecord = async (id: number) => {
             )}
 
             <button
-            className="w-full mt-4 bg-red-500 text-white p-2 rounded"  // line ~162
+              className="w-full mt-4 bg-red-500 text-white p-2 rounded"
               onClick={() => setAgreementModal(false)}
             >
               Close
@@ -444,7 +422,7 @@ const deleteSalaryRecord = async (id: number) => {
         type="number"
         value={securityYear}
         onChange={(e) => setSecurityYear(Number(e.target.value))}
-       className="border p-2 w-full mb-3"
+        className="border p-2 w-full mb-3"
       />
 
       <label className="block mb-1">Amount</label>
@@ -452,18 +430,18 @@ const deleteSalaryRecord = async (id: number) => {
         type="number"
         value={securityAmount}
         onChange={(e) => setSecurityAmount(e.target.value)}
-       className="border p-2 w-full mb-4"
+        className="border p-2 w-full mb-4"
       />
 
       {/* 🔵 TOTAL SECURITY SHOW HERE */}
-    <div className="bg-gray-100 p-2 rounded mb-3 text-sm font-semibold">
+      <div className="bg-gray-100 p-2 rounded mb-3 text-sm font-semibold">
         Total Security After Adding: Rs{" "}
         {security.reduce((sum, s) => sum + Number(s.amount), 0) +
           Number(securityAmount || 0)}
       </div>
 
       <button
-   className="bg-green-600 w-full text-white py-2 rounded"
+        className="bg-green-600 w-full text-white py-2 rounded"
         onClick={saveSecurityFee}
       >
         Save Security Fee
@@ -479,7 +457,7 @@ const deleteSalaryRecord = async (id: number) => {
             </span>
 
             <button
-         className="w-full mt-4 bg-red-500 text-white p-2 rounded"
+              className="text-red-600 font-bold"
               onClick={() => deleteSecurity(s.id)}
             >
               ❌
@@ -489,7 +467,7 @@ const deleteSalaryRecord = async (id: number) => {
       </ul>
 
       <button
-  className="w-full mt-4 bg-red-500 text-white p-2 rounded"
+        className="w-full mt-4 bg-red-500 text-white p-2 rounded"
         onClick={() => setSecurityModal(false)}
       >
         Close
@@ -502,44 +480,71 @@ const deleteSalaryRecord = async (id: number) => {
       {/* STUDENTS TABLE */}
      <div className="bg-white rounded shadow p-4">
   <h2 className="font-semibold mb-3 text-lg">Assigned Students</h2>
-
-  
   <p>Total Fee: Rs {totalStudentFee}</p>
 
 {pdfModal && (
   <div className="fixed inset-0 bg-black/50 flex justify-center items-center">
+    <div className="bg-white p-6 rounded w-full max-w-lg">
+      <h2 className="text-lg font-bold mb-4">Download Salary PDF</h2>
 
-{/* FILTER + BUTTONS ROW */}
-<div className="flex flex-wrap gap-4 items-center mb-3">
+      <p className="font-semibold mb-2">
+        Month: {MONTHS[filterMonth - 1]} {filterYear}
+      </p>
 
-  {/* Download Salary PDF */}
-  <button
-    className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
-    onClick={() => setPdfModal(true)}
-  >
-    Download Salary PDF
-  </button>
+      <h3 className="font-semibold mt-3">Students</h3>
+      <ul className="max-h-40 overflow-y-auto border p-2 rounded">
+        {monthlyStudents.map((s) => (
+          <li key={s.id} className="border-b py-1">
+            {s.name} — Rs {s.teacher_fee}
+          </li>
+        ))}
+      </ul>
 
-  {/* Month Filter */}
-  <select
-    className="border p-2"
-    value={filterMonth}
-    onChange={(e) => setFilterMonth(Number(e.target.value))}
-  >
-    {MONTHS.map((m, i) => (
-      <option key={i} value={i + 1}>{m}</option>
-    ))}
-  </select>
+      <p className="mt-3 font-semibold">
+        Total Fee: Rs{" "}
+        {monthlyStudents.reduce((t, s) => t + Number(s.teacher_fee), 0)}
+      </p>
 
-  {/* Year Filter */}
-  <input
-    type="number"
-    className="border p-2 w-32"
-    value={filterYear}
-    onChange={(e) => setFilterYear(Number(e.target.value))}
-  />
-</div>
+      {/* Salary */}
+      <h3 className="font-semibold mt-4">Salary</h3>
 
+      {records.find(
+        (r) => r.month == filterMonth && r.year == filterYear
+      ) ? (
+        (() => {
+          const r = records.find(
+            (x) => x.month == filterMonth && x.year == filterYear
+          );
+          return (
+            <div className="border p-3 rounded mt-2">
+              <p>Base: Rs {r.base_salary}</p>
+              <p>Bonus: Rs {r.bonus}</p>
+              <p>Advance: Rs {r.advance}</p>
+              <p className="font-bold">
+                Total Salary: Rs{" "}
+                {r.base_salary + r.bonus - r.advance}
+              </p>
+            </div>
+          );
+        })()
+      ) : (
+        <p>No Salary Record Found</p>
+      )}
+
+      <button
+        className="w-full bg-purple-600 text-white py-2 mt-4 rounded"
+        onClick={generatePDF}
+      >
+        Download PDF
+      </button>
+
+      <button
+        className="w-full bg-red-500 text-white py-2 mt-2 rounded"
+        onClick={() => setPdfModal(false)}
+      >
+        Close
+      </button>
+    </div>
   </div>
 )}
 
@@ -602,6 +607,8 @@ const deleteSalaryRecord = async (id: number) => {
     onChange={(e) => setFilterYear(Number(e.target.value))}
   />
 </div>
+
+
       {/* ADD SALARY */}
       <SalaryAddForm
   teacherId={teacherId}
@@ -611,72 +618,48 @@ const deleteSalaryRecord = async (id: number) => {
   )}
   onSaved={fetchRecords}
 />
+
+
       {/* SALARY RECORDS */}
       <div className="bg-white rounded shadow p-4">
         <h2 className="font-semibold mb-3 text-lg">Monthly Salary Records</h2>
         <p>Total Paid: Rs {totalSalaryPaid}</p>
-<table className="w-full mt-3">
-  <thead>     
-  <tr className="bg-gray-100">
-    <th className="p-2 border">Month/Year</th>
-    <th className="p-2 border">Base</th>
-    <th className="p-2 border">Bonus</th>
-    <th className="p-2 border">Advance</th>
-    <th className="p-2 border">Deduct</th>
-    <th className="p-2 border">Remarks</th>
-    <th className="p-2 border">Total</th>
-    <th className="p-2 border">Action</th>
-  </tr>
-</thead> 
-  <tbody>
- {records.map((r) => (
-    <tr key={r.id} className="border-b">
-      <td className="p-2">
-        {r.month}/{r.year}
-      </td>
 
-      <td className="p-2">{r.base_salary}</td>
+        <table className="w-full mt-3">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="p-2 border">Month/Year</th>
+              <th className="p-2 border">Base</th>
+              <th className="p-2 border">Bonus</th>
+              <th className="p-2 border">Advance</th>
+              <th className="p-2 border">Total</th>
+            </tr>
+          </thead>
 
-      <td className="p-2 text-green-600">{r.bonus}</td>
+          <tbody>
+            {records.map((r) => (
+              <tr key={r.id} className="border-b">
+                <td className="p-2">
+                  {r.month}/{r.year}
+                </td>
+                <td className="p-2">{r.base_salary}</td>
+                <td className="p-2 text-green-600">{r.bonus}</td>
+                <td className="p-2 text-red-600">{r.advance}</td>
+                <td className="p-2 font-semibold">
+                  {r.base_salary + r.bonus - r.advance}
+                </td>
+              </tr>
+            ))}
 
-      <td className="p-2 text-red-600">{r.advance}</td>
-
-      <td className="p-2 text-red-500">
-        {r.deduct_salary || 0}
-      </td>
-
-      <td className="p-2 text-gray-700">
-        {r.remarks || "—"}
-      </td>
-
-      <td className="p-2 font-semibold">
-        {r.base_salary +
-          r.bonus -
-          r.advance -
-          (r.deduct_salary || 0)}
-      </td>
-
-      {/* DELETE BUTTON */}
-      <td className="p-2 text-center">
-        <button
-          onClick={() => deleteSalaryRecord(r.id)}
-          className="text-red-600 font-bold hover:text-red-800"
-        >
-          ❌
-        </button>
-      </td>
-    </tr>
-  ))}  </tbody>
-</table>
-
-  {records.length === 0 && (
-    <tr>
-      <td colSpan={8} className="text-center p-4 text-gray-500">
-        No salary records.
-      </td>
-    </tr>
-  )}
-      
+            {records.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center p-4 text-gray-500">
+                  No salary records.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
