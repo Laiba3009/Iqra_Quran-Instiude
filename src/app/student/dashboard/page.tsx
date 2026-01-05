@@ -22,6 +22,7 @@ function NoticeComponent({ userRole }: { userRole: "student" | "teacher" }) {
         .contains("visible_to", [userRole])
         .eq("deleted", false)
         .order("created_at", { ascending: false });
+
       if (data) setNotices(data);
     };
     loadNotices();
@@ -35,7 +36,6 @@ function NoticeComponent({ userRole }: { userRole: "student" | "teacher" }) {
       ) : (
         notices.map((n) => (
           <div key={n.id} className="bg-white p-3 rounded shadow mb-2">
-            
             <h3 className="font-semibold">{n.title}</h3>
             <p>{n.message}</p>
           </div>
@@ -94,7 +94,7 @@ export default function StudentDashboard() {
 
   /* 💰 Fee Upload */
   const uploadFeeProof = async () => {
-    if (!feeImage) return;
+    if (!feeImage || !student) return;
 
     setUploading(true);
     const month = new Date().toISOString().slice(0, 7);
@@ -170,34 +170,30 @@ export default function StudentDashboard() {
   return (
     <RoleBasedLayout role="student">
       <div className="container mx-auto px-4 py-8 space-y-8">
-       
-
         <BannerSlider />
 
-        <h1 className="text-3xl md:text-4xl font-bold text-center text-slate-800 dark:text-white">
+        <h1 className="text-3xl font-bold text-center">
           Welcome, {student.name} (Roll No: {student.roll_no})
         </h1>
-
         {/* Fee Button */}
-        <div className="flex justify-end">
-          {!feeStatus && (
-            <Button onClick={() => setShowUpload(true)} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
-              ⬆ Upload Fee
-            </Button>
-          )}
-          {feeStatus === "pending" && (
-            <Button disabled className="bg-amber-600 text-white px-4 py-2 rounded-lg">
-              ⏳ Pending
-            </Button>
-          )}
-          {feeStatus === "approved" && (
-            <Button disabled className="bg-emerald-600 text-white px-4 py-2 rounded-lg">
-              ✅ Paid
-            </Button>
-          )}
-        </div>
-
-        {/* Upload Modal */}
+                <div className="flex justify-end">
+                  {!feeStatus && (
+                    <Button onClick={() => setShowUpload(true)} className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+                      ⬆ Upload Fee
+                    </Button>
+                  )}
+                  {feeStatus === "pending" && (
+                    <Button disabled className="bg-amber-600 text-white px-4 py-2 rounded-lg">
+                      ⏳ Pending
+                    </Button>
+                  )}
+                  {feeStatus === "approved" && (
+                    <Button disabled className="bg-emerald-600 text-white px-4 py-2 rounded-lg">
+                      ✅ Paid
+                    </Button>
+                  )}
+                </div>
+   {/* Upload Modal */}
         {showUpload && (
           <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 backdrop-blur-sm">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl space-y-4 w-96 border border-slate-200 dark:border-slate-700 shadow-2xl">
@@ -218,7 +214,6 @@ export default function StudentDashboard() {
             </div>
           </div>
         )}
-
         <div className="max-w-4xl mx-auto">
           <NoticeComponent userRole="student" />
         </div>
@@ -226,34 +221,51 @@ export default function StudentDashboard() {
         <div className="max-w-4xl mx-auto">
           <TodayClassesCard studentId={student.id} timezone={student.timezone} />
         </div>
-{/* Cancel Request */}
-        <Card className="shadow-md border border-red-200 bg-red-50">
+
+        {/* Cancel Request */}
+        <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6 space-y-3">
             <h2 className="text-xl font-bold text-red-700">Cancel Class Request</h2>
-            <Textarea placeholder="Write reason..." value={reason} onChange={(e) => setReason(e.target.value)} />
-            <Button onClick={handleCancelRequest} className="bg-red-600 hover:bg-red-700 text-white">Send Request</Button>
+            <Textarea
+              placeholder="Write reason..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+            <Button onClick={submitCancel} className="bg-red-600 text-white">
+              Send Request
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Complaint Box */}
-        <Card className="shadow-md border border-yellow-200 bg-yellow-50">
+        {/* Complaint */}
+        <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="p-6 space-y-3">
             <h2 className="text-xl font-bold text-yellow-700">Complaint Box</h2>
-            <Textarea placeholder="Write your complaint..." value={complaint} onChange={(e) => setComplaint(e.target.value)} />
-            <Button onClick={handleComplaintSubmit} className="bg-yellow-600 hover:bg-yellow-700 text-white">Submit Complaint</Button>
+            <Textarea
+              placeholder="Write your complaint..."
+              value={complaint}
+              onChange={(e) => setComplaint(e.target.value)}
+            />
+            <Button onClick={submitComplaint} className="bg-yellow-600 text-white">
+              Submit Complaint
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Teacher Suggestion Box */}
-        <Card className="shadow-md border border-green-200 bg-green-50">
+        {/* Suggestion */}
+        <Card className="border-green-200 bg-green-50">
           <CardContent className="p-6 space-y-3">
             <h2 className="text-xl font-bold text-green-700">Teacher Suggestion</h2>
-            <Textarea placeholder="Write your suggestion..." value={suggestion} onChange={(e) => setSuggestion(e.target.value)} />
-            <Button onClick={handleSuggestionSubmit} className="bg-green-600 hover:bg-green-700 text-white">Send Suggestion</Button>
+            <Textarea
+              placeholder="Write your suggestion..."
+              value={suggestion}
+              onChange={(e) => setSuggestion(e.target.value)}
+            />
+            <Button onClick={submitSuggestion} className="bg-green-600 text-white">
+              Send Suggestion
+            </Button>
           </CardContent>
         </Card>
-
-       
       </div>
     </RoleBasedLayout>
   );

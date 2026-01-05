@@ -1,215 +1,212 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
-import { Button } from '@/components/ui/button';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { Button } from "@/components/ui/button";
 
-interface Attendance {
-  id: string;
-  student_name: string;
-  roll_no: string;
-  class_time: string;
-  teacher_name: string;
-  status: string;
-  date: string;
-}
+/* 🔹 helper: cookie se teacher roll no */
+const getTeacherRoll = () => {
+  if (typeof document === "undefined") return null;
+  return document.cookie
+    .split("; ")
+    .find(row => row.startsWith("teacher_roll="))
+    ?.split("=")[1];
+};
 
-export default function ViewAttendance() {
-  const [attendanceList, setAttendanceList] = useState<Attendance[]>([]);
-  const [uniqueStudents, setUniqueStudents] = useState<string[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
-  const [studentAttendance, setStudentAttendance] = useState<Attendance[]>([]);
-  const [month, setMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, '0'));
-  const [open, setOpen] = useState(false);
+export default function TeacherAttendance() {
+  const [teacher, setTeacher] = useState<any>(null);
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [students, setStudents] = useState<any[]>([]);
+  const [attendance, setAttendance] = useState<Record<string, string>>({});
+  const today = new Date().toISOString().split("T")[0];
 
+  /* 🔹 Load logged-in teacher */
   useEffect(() => {
-    loadAttendance();
-  }, [month]);
+    const loadTeacher = async () => {
+      const roll = getTeacherRoll();
+      if (!roll) return;
 
-  const loadAttendance = async () => {
-    const year = new Date().getFullYear();
-    const startDate = `${year}-${month}-01`;
-    const endDateObj = new Date(year, parseInt(month), 0);
-    const endDate = `${year}-${month}-${String(endDateObj.getDate()).padStart(2, '0')}`;
+      const { data, error } = await supabase
+        .from("teachers")
+        .select("id, name, syllabus")
+        .eq("roll_no", roll)
+        .single();
 
-    const { data, error } = await supabase
-      .from('tsattendance_view')
-      .select('*')
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .order('date', { ascending: false });
+      if (error) {
+        console.error("Teacher load error:", error);
+        return;
+      }
 
-    if (!error && data) {
-      setAttendanceList(data);
-      const unique = Array.from(new Set(data.map((d) => d.student_name)));
-      setUniqueStudents(unique);
+      setTeacher(data);
+      setSubjects(data.syllabus || []);
+    };
+
+    loadTeacher();
+  }, []);
+
+  /* 🔹 Load students linked to teacher after subject select */
+  useEffect(() => {
+    if (!selectedSubject || !teacher) return;
+
+    const loadStudents = async () => {
+      // ✅ teacher_id ke basis pe students fetch karo
+      const { data, error } = await supabase
+        .from("student_teachers")
+        .select(
+          `students (
+            id,
+            name,
+            roll_no,
+            syllabus
+          )`
+        )
+        .eq("teacher_id", teacher.id); // <- yaha fix kiya
+
+      if (error) {
+        console.error("Students load error:", error);
+        return;
+      }
+
+      if (!data) return;
+
+      // ✅ filter only selected subject students
+      const filtered = data
+        .map((d: any) => d.students)
+        .filter(
+          (s: any) =>
+            Array.isArray(s.syllabus) &&
+            s.syllabus.includes(selectedSubject)
+        );
+
+      setStudents(filtered);
+    };
+
+    loadStudents();
+  }, [selectedSubject, teacher]);
+
+  /* 🔹 Mark attendance */
+  const markAttendance = (studentId: string, status: "present" | "absent") => {
+    setAttendance(prev => ({
+      ...prev,
+      [studentId]: status,
+    }));
+  };
+
+  /* 🔹 Save attendance */
+  const saveAttendance = async () => {
+    if (!selectedSubject) {
+      alert("Select subject first");
+      return;
     }
+
+    const rows = Object.entries(attendance).map(
+      ([student_id, status]) => ({
+        student_id,
+        teacher_id: teacher.id,
+        subject: selectedSubject,
+        status,
+        date: today,
+      })
+    );
+
+    if (rows.length === 0) {
+      alert("No attendance marked");
+      return;
+    }
+
+    const { error } = await supabase.from("attendance").insert(rows);
+
+    if (error) {
+      console.error(error);
+      alert("Error saving attendance");
+      return;
+    }
+
+    alert("Attendance saved ✅");
+    setAttendance({});
   };
 
-  const handleView = (name: string) => {
-    setSelectedStudent(name);
-    const records = attendanceList.filter((a) => a.student_name === name);
-    setStudentAttendance(records);
-    setOpen(true);
-  };
-
-  const handleDownloadPDF = async () => {
-    if (!selectedStudent) return;
-    const doc = new jsPDF();
-
-    const logoPath = '/images/logo1.jpg';
-    const imgData = await fetch(logoPath)
-      .then(res => res.blob())
-      .then(blob => new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
-      }));
-
-    doc.addImage(imgData, 'JPEG', 15, 10, 25, 25);
-    doc.setFontSize(16);
-    doc.text('Iqra Online Quran Institute', 45, 25);
-
-    doc.setFontSize(12);
-    doc.text(`Attendance Report - ${selectedStudent}`, 15, 45);
-
-    const tableData = studentAttendance.map((a) => [
-      a.roll_no,
-      a.teacher_name,
-      a.class_time,
-      a.status,
-      a.date,
-    ]);
-
-    autoTable(doc, {
-      startY: 50,
-      head: [['Roll No', 'Teacher', 'Class Time', 'Status', 'Date']],
-      body: tableData,
-    });
-
-    doc.save(`${selectedStudent}_Attendance.pdf`);
-  };
+  if (!teacher) {
+    return <div className="p-6 text-center">Loading teacher...</div>;
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6 text-center">📋 Student Attendance Summary</h1>
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold text-center">
+        Attendance – {teacher.name}
+      </h1>
 
-      <div className="overflow-x-auto bg-white shadow rounded-lg border">
-        <table className="min-w-full border-collapse border border-gray-200">
-          <thead className="bg-blue-100 text-blue-800 text-center">
-            <tr>
-              <th className="p-3 border-b">Student Name</th>
-              <th className="p-3 border-b">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {uniqueStudents.length ? (
-              uniqueStudents.map(name => (
-                <tr key={name} className="hover:bg-gray-50 text-center">
-                  <td className="p-3 border-b">{name}</td>
-                  <td className="p-3 border-b">
+      {/* 🔹 Subject Select */}
+      <select
+        className="border p-2 rounded w-full"
+        value={selectedSubject}
+        onChange={(e) => setSelectedSubject(e.target.value)}
+      >
+        <option value="">Select Subject</option>
+        {subjects.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+
+      {/* 🔹 Students List */}
+      {students.length > 0 && (
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <table className="w-full border-collapse">
+            <thead className="bg-green-100">
+              <tr>
+                <th className="p-3 text-left">Roll No</th>
+                <th className="p-3 text-left">Student</th>
+                <th className="p-3 text-center">Attendance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((s) => (
+                <tr key={s.id} className="border-t">
+                  <td className="p-3">{s.roll_no}</td>
+                  <td className="p-3">{s.name}</td>
+                  <td className="p-3 flex justify-center gap-2">
                     <Button
                       size="sm"
-                      onClick={() => handleView(name)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className={
+                        attendance[s.id] === "present"
+                          ? "bg-green-600 text-white"
+                          : "bg-gray-200"
+                      }
+                      onClick={() => markAttendance(s.id, "present")}
                     >
-                      View Attendance
+                      Present
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      className={
+                        attendance[s.id] === "absent"
+                          ? "bg-red-600 text-white"
+                          : "bg-gray-200"
+                      }
+                      onClick={() => markAttendance(s.id, "absent")}
+                    >
+                      Absent
                     </Button>
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={2} className="p-4 text-gray-500 text-center">
-                  No attendance found for this month.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* 🔹 Custom Popup */}
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-lg flex flex-col">
-            {/* Header */}
-            <div className="flex justify-between items-center p-4 border-b">
-              <h2 className="text-lg font-bold">
-                Attendance for <strong>{selectedStudent}</strong>
-              </h2>
-
-              <div className="flex gap-3 items-center">
-                <select
-                  value={month}
-                  onChange={e => setMonth(e.target.value)}
-                  className="border p-2 rounded text-sm"
-                >
-                  {[...Array(12).keys()].map(i => {
-                    const m = String(i + 1).padStart(2, '0');
-                    return (
-                      <option key={m} value={m}>
-                        {new Date(0, i).toLocaleString('en', { month: 'long' })}
-                      </option>
-                    );
-                  })}
-                </select>
-
-                <Button
-                  onClick={handleDownloadPDF}
-                  className="bg-green-600 hover:bg-green-700 text-white text-sm"
-                >
-                  📄 Download PDF
-                </Button>
-
-                <Button
-                  onClick={() => setOpen(false)}
-                  className="bg-red-600 hover:bg-red-700 text-white text-sm"
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-
-            {/* Table */}
-            <div className="overflow-auto p-4 flex-1">
-              <table className="min-w-full border border-gray-200 text-sm">
-                <thead className="bg-green-100 text-green-800 text-center sticky top-0">
-                  <tr>
-                    <th className="p-2 border-b">Roll No</th>
-                    <th className="p-2 border-b">Teacher</th>
-                    <th className="p-2 border-b">Class Time</th>
-                    <th className="p-2 border-b">Status</th>
-                    <th className="p-2 border-b">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {studentAttendance.length ? (
-                    studentAttendance.map(a => (
-                      <tr key={a.id} className="hover:bg-gray-50 text-center">
-                        <td className="p-2 border-b">{a.roll_no}</td>
-                        <td className="p-2 border-b">{a.teacher_name}</td>
-                        <td className="p-2 border-b">{a.class_time}</td>
-                        <td className={`p-2 border-b font-medium ${a.status === 'present' ? 'text-green-600' : 'text-red-600'}`}>
-                          {a.status}
-                        </td>
-                        <td className="p-2 border-b">{a.date}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="text-center p-4 text-gray-500">
-                        No attendance found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
+      )}
+
+      {/* 🔹 Save Button */}
+      {students.length > 0 && (
+        <Button
+          onClick={saveAttendance}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          Save Attendance
+        </Button>
       )}
     </div>
   );

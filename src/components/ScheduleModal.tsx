@@ -99,8 +99,8 @@ export default function ScheduleModal({
                         </span>
 
                         <div className="text-right text-gray-700">
-                          <div><p>🌍 {formatPKTime(cls.time)}</p>
-              <p>🇵🇰 {formatTimeForUser(cls.time, timezone || "Asia/Karachi")}</p>
+                          <div><p>🇵🇰 {formatPKTime(cls.time)}</p>
+              <p>🌍{formatTimeForUser(cls.time, timezone || "Asia/Karachi")}</p>
 
                           </div>
                         </div>
