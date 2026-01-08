@@ -3,13 +3,41 @@
 @tailwind utilities;
 @import "@fortawesome/fontawesome-free/css/all.min.css";
 
-/* Body background and default text */
 
 
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
 
+/* Default headings bold */
+h1, h2, h3, h4, h5, h6 {
+  @apply font-bold;
+}
 
-/* Box sizing */
+/* ===== HEADER + PAGE GAP ===== */
+header {
+  @apply bg-blue-50 px-8 py-4 shadow;
+  position: sticky; /* top pe sticky header */
+  top: 0; /* top se chipka */
+  z-index: 50; /* content ke upar rahe */
+}
 
+/* Page content should start after header */
+.main-content {
+  margin-top: 1.5rem; /* header ke neeche thoda gap */
+}
+
+/* Footer spacing */
+footer {
+  @apply bg-blue-800 text-white p-4 text-center mt-12;
+}
+
+/* Optional: body min height */
+body, #__next {
+  min-height: 100vh;
+  @apply bg-gray-50;
+}
 
 /* Smooth scroll */
 html {

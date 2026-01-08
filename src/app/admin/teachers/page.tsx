@@ -23,25 +23,23 @@ interface StudentLink {
   status?: string;
 }
 
-
-
 export default function TeacherList() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [studentLinks, setStudentLinks] = useState<StudentLink[]>([]);
+  const [salaryMap, setSalaryMap] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTeacherId, setModalTeacherId] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadAll();
-  }, []);
-
   const [isMounted, setIsMounted] = useState(false);
 
-useEffect(() => {
-  setIsMounted(true);
-}, []);
+  /* -------------------- LOAD DATA -------------------- */
+  useEffect(() => {
+    setIsMounted(true);
+    loadAll();
+    loadSalaryStatus();
+  }, []);
+
   const loadAll = async () => {
     setLoading(true);
     try {
@@ -52,8 +50,9 @@ useEffect(() => {
 
       const { data: stLinks } = await supabase
         .from("student_teachers")
-        .select("teacher_id, teacher_fee, students(id, name, roll_no, join_date, status)")
-        .order("id", { ascending: true });
+        .select(
+          "teacher_id, teacher_fee, students(id, name, roll_no, join_date, status)"
+        );
 
       const normalized: StudentLink[] =
         stLinks?.map((s: any) => ({
@@ -69,20 +68,38 @@ useEffect(() => {
       setTeachers(tData ?? []);
       setStudentLinks(normalized);
     } catch (err: any) {
-      console.error("Load error", err);
-      alert(err.message || "Error loading data");
+      console.error(err);
+      alert("Failed to load teachers");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ New student check (last 30 days)
+  const loadSalaryStatus = async () => {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    const { data } = await supabase
+      .from("monthly_salary")
+      .select("teacher_id")
+      .eq("month", month)
+      .eq("year", year);
+
+    const map: Record<string, boolean> = {};
+    data?.forEach((r: any) => {
+      map[r.teacher_id] = true;
+    });
+
+    setSalaryMap(map);
+  };
+
+  /* -------------------- HELPERS -------------------- */
   const isNewStudent = (joinDate?: string) => {
     if (!joinDate) return false;
-    const diffDays =
-      (new Date().getTime() - new Date(joinDate).getTime()) /
-      (1000 * 60 * 60 * 24);
-    return diffDays < 30;
+    const diff =
+      (Date.now() - new Date(joinDate).getTime()) / (1000 * 60 * 60 * 24);
+    return diff < 30;
   };
 
   const getAssignedForTeacher = (teacherId: string) => {
@@ -101,21 +118,11 @@ useEffect(() => {
 
   const visibleTeachers = useMemo(() => teachers, [teachers]);
 
-  const openModalFor = (teacherId: string) => {
-    setModalTeacherId(teacherId);
-    setModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setModalTeacherId(null);
-  };
-
+  /* -------------------- UI -------------------- */
   return (
     <div className="max-w-7xl mx-auto mt-8 p-6 space-y-6">
       <BackButton href="/admin/dashboard" label="Back" />
 
-      {/* PAGE HEADER */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl p-6 shadow">
         <h1 className="text-3xl font-bold">Teacher Salary Management</h1>
         <p className="text-sm opacity-90 mt-1">
@@ -123,40 +130,53 @@ useEffect(() => {
         </p>
       </div>
 
-      {/* TABLE CARD */}
       <div className="bg-white rounded-xl shadow p-4">
         {loading ? (
           <p className="text-center py-10 text-gray-500">Loading...</p>
         ) : (
-          <table className="w-full mt-2">
+          <table className="w-full">
             <thead>
               <tr className="bg-blue-50 text-blue-900">
-                <th className="p-3 border">Teacher Name</th>
+                <th className="p-3 border">Teacher</th>
                 <th className="p-3 border">Syllabus</th>
-                <th className="p-3 border">Total Student Fee</th>
+                <th className="p-3 border">Total Fee</th>
+                <th className="p-3 border">Status</th>
                 <th className="p-3 border">Action</th>
               </tr>
             </thead>
+
             <tbody>
               {visibleTeachers.map((t) => {
                 const { totalFee } = getAssignedForTeacher(t.id);
+                const isPaid = salaryMap[t.id] === true;
+
                 return (
-                  <tr
-                    key={t.id}
-                    className="border-b hover:bg-blue-50 transition"
-                  >
+                  <tr key={t.id} className="hover:bg-blue-50">
                     <td className="p-3 font-medium">{t.name}</td>
+
                     <td className="p-3 text-gray-600">
                       {t.syllabus?.join(", ") || "—"}
                     </td>
+
                     <td className="p-3 font-semibold text-green-700">
                       Rs {totalFee}
                     </td>
+
+                    <td className="p-3">
+                      <span
+                        className={`px-3 py-1 rounded-full text-white text-xs ${
+                          isPaid ? "bg-green-600" : "bg-red-600"
+                        }`}
+                      >
+                        {isPaid ? "Paid" : "Unpaid"}
+                      </span>
+                    </td>
+
                     <td className="p-3">
                       <div className="flex gap-2">
                         <Button
                           size="sm"
-                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          className="bg-purple-600 text-white"
                           onClick={() =>
                             (window.location.href = `/admin/teachers/salary/${t.id}`)
                           }
@@ -167,12 +187,13 @@ useEffect(() => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openModalFor(t.id)}
+                          onClick={() => {
+                            setModalTeacherId(t.id);
+                            setModalOpen(true);
+                          }}
                         >
                           Students
                         </Button>
-                        
-                                                
                       </div>
                     </td>
                   </tr>
@@ -181,11 +202,8 @@ useEffect(() => {
 
               {visibleTeachers.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={4}
-                    className="p-6 text-center text-gray-500"
-                  >
-                    No teachers found.
+                  <td colSpan={5} className="p-6 text-center text-gray-500">
+                    No teachers found
                   </td>
                 </tr>
               )}
@@ -193,15 +211,17 @@ useEffect(() => {
           </table>
         )}
       </div>
-{isMounted && modalOpen && modalTeacherId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden">
+
+      {/* -------------------- MODAL -------------------- */}
+      {isMounted && modalOpen && modalTeacherId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl">
             <div className="bg-blue-600 text-white px-4 py-3 flex justify-between">
               <h3 className="font-semibold">
                 Assigned Students —{" "}
-                {teachers.find((x) => x.id === modalTeacherId)?.name}
+                {teachers.find((t) => t.id === modalTeacherId)?.name}
               </h3>
-              <button onClick={closeModal}>✕</button>
+              <button onClick={() => setModalOpen(false)}>✕</button>
             </div>
 
             <div className="p-4 max-h-[60vh] overflow-auto">
@@ -210,25 +230,17 @@ useEffect(() => {
                   {getAssignedForTeacher(modalTeacherId).assigned.map((s) => (
                     <li
                       key={s.id}
-                      className="border rounded-lg p-3 flex justify-between items-center bg-gray-50"
+                      className="border rounded-lg p-3 flex justify-between bg-gray-50"
                     >
                       <div>
                         <div className="font-medium">
                           {s.name}{" "}
                           {isNewStudent(s.join_date) && (
-                            <span className="text-xs text-blue-600">
-                              (NEW)
-                            </span>
+                            <span className="text-xs text-blue-600">(NEW)</span>
                           )}
                         </div>
                         <div className="text-xs text-gray-500">
                           Roll: {s.roll_no || "—"}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          Joined:{" "}
-                          {s.join_date
-                            ? new Date(s.join_date).toLocaleDateString()
-                            : "—"}
                         </div>
                       </div>
 
@@ -242,8 +254,8 @@ useEffect(() => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-500 text-center py-6">
-                  No assigned students.
+                <p className="text-center text-gray-500 py-6">
+                  No assigned students
                 </p>
               )}
             </div>

@@ -1,416 +1,261 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import BackButton from "@/components/ui/BackButton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { downloadAttendancePDF } from "@/components/AttendancePdf";
+import jsPDF from "jspdf";
 
-type Attendance = {
-  id: number;
-  student_name: string;
-  student_roll: string;
-  teacher_name: string;
-  subject: string;
-  joined_at: string;
-  status: "Present" | "Absent";
-};
-
-type Student = {
-  id: string;
-  name: string;
-  roll_no: string;
-};
-
-type Teacher = {
-  id: string | number;
-  name: string;
-  subject?: string;
-  google_meet_link?: string;
-};
-
-export default function AttendancePage() {
-  const [records, setRecords] = useState<Attendance[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [modalStudentRoll, setModalStudentRoll] = useState("");
-  const [selectedStudent, setSelectedStudent] = useState<string>("");
-  const [studentSearch, setStudentSearch] = useState<string>("");
-  const [selectedTeacher, setSelectedTeacher] = useState<string>("");
-  const [selectedSubject, setSelectedSubject] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalRecords, setModalRecords] = useState<Attendance[]>([]);
-  const [modalStudentName, setModalStudentName] = useState("");
-  const [monthFilter, setMonthFilter] = useState<string>("");
-
+export default function AdminAttendancePage() {
   const { toast } = useToast();
 
-  // 🔹 Fetch data
+  const [students, setStudents] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string>("All"); // ✅ month filter
+
+  // Load all students
   useEffect(() => {
-    fetchStudents();
-    fetchTeachers();
-    fetchAttendance();
+    loadAllStudents();
   }, []);
 
-  const fetchStudents = async () => {
-    const { data, error } = await supabase.from("students").select("id, name, roll_no");
-    if (!error && data) setStudents(data);
-  };
-
-  const fetchTeachers = async () => {
+  const loadAllStudents = async () => {
     const { data, error } = await supabase
-      .from("teachers")
-      .select("id, name, syllabus, google_meet_link");
+      .from("attendance_with_details_real")
+      .select("student_id, student_name, roll_no, teacher_name");
 
-    if (!error && data) {
-      const formatted = data.map((t) => ({
-        id: t.id,
-        name: t.name,
-        subject: t.syllabus,
-        google_meet_link: t.google_meet_link,
-      }));
-      setTeachers(formatted);
-    }
-  };
-
-  const fetchAttendance = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("attendance")
-      .select("*")
-      .order("joined_at", { ascending: false });
-    if (!error && data) setRecords(data);
-    setLoading(false);
-  };
-
-  // 🔹 Manual Attendance
-  const addAttendance = async () => {
-    if (!selectedStudent || !selectedTeacher || !selectedSubject) {
-      toast({
-        title: "Missing Info ❌",
-        description: "Please select student, teacher, and subject.",
-      });
+    if (error) {
+      console.error(error);
+      setStudents([]);
       return;
     }
 
-    const student = students.find((s) => s.id.toString() === selectedStudent);
-    const teacher = teachers.find((t) => t.id.toString() === selectedTeacher);
-
-    if (!student || !teacher) return;
-
-    await supabase.from("attendance").insert([
-      {
-        student_name: student.name,
-        student_roll: student.roll_no,
-        teacher_name: teacher.name,
-        subject: selectedSubject,
-        joined_at: new Date().toISOString(),
-        status: "Present",
-      },
-    ]);
-
-    setSelectedStudent("");
-    setStudentSearch("");
-    setSelectedTeacher("");
-    setSelectedSubject("");
-    fetchAttendance();
-  };
-
-  // 🔹 Google Meet Auto Attendance
-  const markAttendanceByGoogleMeet = async (teacherId: string | number) => {
-    if (!selectedStudent || !teacherId) {
-      toast({
-        title: "Missing Info ❌",
-        description: "Select student first",
-      });
-      return;
-    }
-
-    const student = students.find((s) => s.id.toString() === selectedStudent);
-    const teacher = teachers.find((t) => t.id.toString() === teacherId.toString());
-
-    if (!student || !teacher || !teacher.google_meet_link) return;
-
-    await supabase.from("attendance").insert([
-      {
-        student_name: student.name,
-        student_roll: student.roll_no,
-        teacher_name: teacher.name,
-        subject: teacher.subject,
-        joined_at: new Date().toISOString(),
-        status: "Present",
-      },
-    ]);
-
-    window.open(teacher.google_meet_link, "_blank");
-
-    toast({
-      title: "Attendance Marked ✅",
-      description: "Present marked via Google Meet",
+    const unique: Record<string, any> = {};
+    data?.forEach((s: any) => {
+      if (!unique[s.student_id]) unique[s.student_id] = s;
     });
-
-    fetchAttendance();
+    setStudents(Object.values(unique));
   };
 
-  // 🔹 Delete Attendance
-  const deleteRecord = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this record?")) return;
-    await supabase.from("attendance").delete().eq("id", id);
-    fetchAttendance();
+  const openViewModal = async (student: any) => {
+    setSelectedStudent(student);
+    setHistory([]);
+    setSelectedMonth("All"); // reset filter
+    setOpen(true);
+    setLoadingHistory(true);
+
+    const { data, error } = await supabase
+      .from("attendance_with_details_real")
+      .select("id, attendance_date, subject, status")
+      .eq("student_id", student.student_id)
+      .order("attendance_date", { ascending: false });
+
+    setLoadingHistory(false);
+
+    if (error) {
+      console.error(error);
+      setHistory([]);
+      return;
+    }
+
+    setHistory(data || []);
   };
 
-  const clearAll = async () => {
-    if (!confirm("Are you sure you want to delete all attendance?")) return;
-    await supabase.from("attendance").delete().neq("id", 0);
-    fetchAttendance();
+  // Filter history by selected month
+  const filteredHistory = selectedMonth === "All"
+    ? history
+    : history.filter(h => {
+        const month = new Date(h.attendance_date).toLocaleString("default", { month: "long" });
+        return month === selectedMonth;
+      });
+
+  // Generate PDF
+  const generatePDF = () => {
+    if (!selectedStudent) return;
+
+    const doc = new jsPDF("p", "pt");
+    const today = new Date().toLocaleDateString();
+    const logoUrl = "/images/logo1.jpg"; // logo in public/images
+    const img = new Image();
+    img.src = logoUrl;
+
+    img.onload = () => {
+      try { doc.addImage(img, "JPEG", 40, 25, 60, 60); } catch (e) { console.warn(e); }
+
+      // Header
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(24);
+      doc.text("Iqra Quran Online Institute", 120, 55);
+      doc.setFontSize(14);
+      doc.text("Monthly Attendance Report", 120, 75);
+      doc.line(40, 95, 555, 95);
+
+      // Info
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(12);
+      doc.text(`Student: ${selectedStudent.student_name}`, 40, 115);
+      doc.text(`Teacher: ${selectedStudent.teacher_name}`, 40, 135);
+      doc.text(`Month: ${selectedMonth}`, 350, 115);
+      doc.text(`Generated on: ${today}`, 350, 135);
+
+      // Table header
+      let y = 160;
+      doc.setFont("Helvetica", "bold");
+      doc.setFillColor(30, 144, 255);
+      doc.rect(40, y - 12, 500, 20, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.text("Date", 45, y);
+      doc.text("Subject", 160, y);
+      doc.text("Status", 350, y);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("Helvetica", "normal");
+
+      // Table rows
+      const subjectColors: Record<string, [number, number, number]> = {
+        Quran: [173, 216, 230],
+        "Islamic Studies": [230, 240, 255],
+        Arabic: [232, 250, 235],
+        Other: [255, 250, 230],
+      };
+
+      filteredHistory.forEach((h, idx) => {
+        y += 20;
+        const color = subjectColors[h.subject] || [245, 245, 245];
+        doc.setFillColor(color[0], color[1], color[2]);
+        doc.rect(40, y - 12, 500, 18, "F");
+        doc.text(h.attendance_date, 45, y);
+        doc.text(h.subject, 160, y);
+        doc.setTextColor(h.status === "present" ? 0 : 200, h.status === "present" ? 128 : 0, 0);
+        doc.text(h.status.toUpperCase(), 350, y);
+        doc.setTextColor(0, 0, 0);
+      });
+
+      doc.save(`${selectedStudent.student_name}_Attendance_${selectedMonth}.pdf`);
+    };
   };
 
-  // 🔹 Filtered Students
-  const filteredStudents = students.filter(
-    (s) =>
-      s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
-      s.roll_no.toLowerCase().includes(studentSearch.toLowerCase())
-  );
-
-  // 🔹 Modal & Month filter
-  const openStudentModal = (studentName: string, studentRoll: string) => {
-  setModalStudentName(studentName);
-  setModalStudentRoll(studentRoll);
-  setModalRecords(records.filter((r) => r.student_name === studentName));
-  setMonthFilter("");
-  setModalOpen(true);
-};
-
-  const filteredModalRecords = modalRecords.filter((rec) => {
-    if (!monthFilter) return true;
-    const recMonth = new Date(rec.joined_at).toISOString().slice(0, 7); // yyyy-mm
-    return recMonth === monthFilter;
-  });
-
-  const uniqueStudents = Array.from(new Set(records.map((r) => r.student_name))).map(
-    (name) => records.find((r) => r.student_name === name)!
-  );
+  // Get month options from history
+  const monthOptions = Array.from(new Set(history.map(h => 
+    new Date(h.attendance_date).toLocaleString("default", { month: "long" })
+  )));
+  monthOptions.unshift("All");
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <BackButton href="/admin/dashboard" label="Back to Dashboard" />
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">
-          📝 Students Attendance
-        </h1>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-8">
+      <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* Manual Attendance */}
-        <Card className="bg-white shadow-md border border-gray-300 rounded-xl">
-          <CardHeader>
-            <CardTitle className="text-xl text-gray-800 font-semibold">
-              Mark Attendance Manually
-            </CardTitle>
+        {/* Header */}
+        <div className="text-center mt-13 mb-6">
+          <h1 className="text-4xl font-extrabold text-blue-800  mb-2">📊 Attendance – All Students</h1>
+          
+          <p className="text-blue-600">View & download student attendance month wise</p>
+        </div>
+
+        {/* Students Table */}
+        <Card className="shadow-lg border border-blue-200">
+          <CardHeader className="bg-blue-100">
+            <CardTitle className="text-xl text-blue-900 font-semibold">All Students</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Select Student</label>
-                <input
-                  type="text"
-                  placeholder="Search by name or roll no"
-                  value={studentSearch}
-                  onChange={(e) => setStudentSearch(e.target.value)}
-                  className="w-full border border-gray-300 bg-white text-gray-900 p-3 rounded-lg mb-3 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <select
-                  className="w-full border border-gray-300 bg-white text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={selectedStudent}
-                  onChange={(e) => setSelectedStudent(e.target.value)}
-                >
-                  <option value="">-- Select Student --</option>
-                  {filteredStudents.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.roll_no})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Select Teacher</label>
-                <select
-                  className="w-full border border-gray-300 bg-white text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={selectedTeacher}
-                  onChange={(e) => setSelectedTeacher(e.target.value)}
-                >
-                  <option value="">-- Select Teacher --</option>
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-700 mb-2">Select Subject</label>
-                <input
-                  type="text"
-                  placeholder="Enter subject"
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                  className="w-full border border-gray-300 bg-white text-gray-900 p-3 rounded-lg placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div className="flex items-end">
-                <Button
-                  className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
-                  onClick={addAttendance}
-                >
-                  Add Attendance
-                </Button>
-              </div>
-            </div>
-
-            {/* Google Meet Buttons */}
-
+            <table className="w-full border-collapse shadow-lg">
+              <thead className="bg-blue-200 text-blue-900">
+                <tr>
+                  <th className="border p-2">Student</th>
+                  <th className="border p-2">Roll</th>
+                  <th className="border p-2">Teacher</th>
+                  <th className="border p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.length > 0 ? students.map((s) => (
+                  <tr key={s.student_id} className="hover:bg-blue-50 transition">
+                    <td className="border p-2 font-medium">{s.student_name}</td>
+                    <td className="border p-2">{s.roll_no}</td>
+                    <td className="border p-2">{s.teacher_name}</td>
+                    <td className="border p-2 text-center">
+                      <Button
+                        variant="outline"
+                        className="hover:bg-blue-600 hover:text-white"
+                        onClick={() => openViewModal(s)}
+                      >
+                        View Attendance
+                      </Button>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={4} className="text-center p-4 text-gray-500">No students found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </CardContent>
         </Card>
 
-        {/* Attendance Records */}
-        <Card className="bg-white shadow-md border border-gray-300 rounded-xl">
-          <CardHeader className="flex justify-between items-center">
-            <CardTitle className="text-xl text-gray-800 font-semibold">
-              Attendance Records
-            </CardTitle>
-            <Button className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg" onClick={clearAll}>
-              Clear All
-            </Button>
-          </CardHeader>
+        {/* Attendance Modal */}
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-blue-800 font-bold text-xl">
+                Attendance History – {selectedStudent?.student_name}
+              </DialogTitle>
+            </DialogHeader>
 
-          <CardContent>
-            {loading ? (
-              <p className="text-center text-gray-500 py-4">Loading...</p>
-            ) : records.length === 0 ? (
-              <p className="text-center text-gray-500 py-6">No attendance records found.</p>
+            {loadingHistory ? (
+              <p className="text-center py-4 text-blue-600">Loading attendance...</p>
+            ) : history.length === 0 ? (
+              <p className="text-center py-4 text-gray-500">No attendance found</p>
             ) : (
-              <div className="overflow-x-auto mt-4 rounded-lg">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-gray-100 text-left">
-                      <th className="p-4 text-gray-800 font-semibold">Student Name</th>
-                      <th className="p-4 text-gray-800 font-semibold">Roll No</th>
-                      <th className="p-4 text-gray-800 font-semibold">Teacher</th>
-                      <th className="p-4 text-gray-800 font-semibold">Subject</th>
-                      <th className="p-4 text-gray-800 font-semibold">Join Time</th>
-                      <th className="p-4 text-gray-800 font-semibold">Action</th>
+              <>
+                {/* Month Filter */}
+                <div className="mb-3 flex items-center gap-3">
+                  <label className="font-medium text-blue-800">Select Month:</label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="border border-blue-300 rounded px-2 py-1"
+                  >
+                    {monthOptions.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Attendance Table */}
+                <table className="w-full border mt-3 border-blue-200">
+                  <thead className="bg-blue-100 text-blue-900">
+                    <tr>
+                      <th className="border p-2">Date</th>
+                      <th className="border p-2">Subject</th>
+                      <th className="border p-2">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {uniqueStudents.map((rec) => (
-                      <tr key={rec.student_roll} className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
-                        <td className="p-4 font-medium text-gray-800">{rec.student_name}</td>
-                        <td className="p-4 text-gray-700">{rec.student_roll}</td>
-                        <td className="p-4 text-gray-700">{rec.teacher_name}</td>
-                        <td className="p-4 text-gray-700">{rec.subject}</td>
-                        <td className="p-4 text-gray-600 whitespace-nowrap">
-                          {new Date(rec.joined_at).toLocaleString()}
-                        </td>
-                        <td className="p-4">
-                          <Button
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md"
-onClick={() => openStudentModal(rec.student_name, rec.student_roll)}
-                          >
-                            View Attendance
-                          </Button>
+                    {filteredHistory.map((h) => (
+                      <tr key={h.id} className="bg-blue-50">
+                        <td className="border p-2">{h.attendance_date}</td>
+                        <td className="border p-2">{h.subject}</td>
+                        <td className={`border p-2 font-semibold ${h.status === "present" ? "text-green-600" : "text-red-600"}`}>
+                          {h.status.toUpperCase()}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+
+                <div className="mt-4 text-right">
+                  <Button onClick={generatePDF} className="bg-blue-600 text-white hover:bg-blue-700">
+                    Download PDF
+                  </Button>
+                </div>
+              </>
             )}
-          </CardContent>
-        </Card>
-
-      {/* Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/30 flex justify-center items-start pt-20 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full p-6 relative border border-gray-300">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">
-              {modalStudentName} - Attendance Records
-            </h2>
-            <div className="mb-4 flex justify-between items-center">
-                <div>
-                <label className="mr-2 font-medium text-gray-700">Filter by Month:</label>
-                <input
-                  type="month"
-                  value={monthFilter}
-                  onChange={(e) => setMonthFilter(e.target.value)}
-                  className="border border-gray-300 bg-white text-gray-900 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-    <Button
-  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
-  onClick={() =>
-    downloadAttendancePDF(
-      filteredModalRecords as Attendance[],
-      modalStudentName,
-      modalStudentRoll
-    )
-  }
->
-  📄 Download PDF
-</Button>
-
-
-            </div>
-            <div className="overflow-x-auto max-h-80 rounded-lg">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-gray-100 text-left">
-                    <th className="p-3 text-gray-800 font-semibold">Teacher</th>
-                    <th className="p-3 text-gray-800 font-semibold">Subject</th>
-                    <th className="p-3 text-gray-800 font-semibold">Join Time</th>
-                    <th className="p-3 text-gray-800 font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredModalRecords.map((rec) => (
-                    <tr key={rec.id} className="border-t border-gray-200 hover:bg-gray-50 transition-colors">
-                      <td className="p-3 text-gray-700">{rec.teacher_name}</td>
-                      <td className="p-3 text-gray-700">{rec.subject}</td>
-                      <td className="p-3 text-gray-600">{new Date(rec.joined_at).toLocaleString()}</td>
-                      <td className="p-3">
-                        <Button
-                          size="sm"
-                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md"
-                          onClick={() => deleteRecord(rec.id)}
-                        >
-                          Delete
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredModalRecords.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="p-3 text-center text-gray-500">
-                        No records found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <Button
-              className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
-              onClick={() => setModalOpen(false)}
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

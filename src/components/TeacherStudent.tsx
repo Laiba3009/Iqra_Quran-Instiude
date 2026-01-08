@@ -40,19 +40,12 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
   const [showMonthlyModal, setShowMonthlyModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
 
-  // NEW Attendance Modal
-  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
-  const [attendanceStatus, setAttendanceStatus] =
-    useState<"present" | "absent" | null>(null);
-  const [attendanceDate, setAttendanceDate] = useState(
-    new Date().toISOString().slice(0, 10)
-  );
+
 
   const [weeklyText, setWeeklyText] = useState("");
   const [monthlyText, setMonthlyText] = useState("");
   const [complaintText, setComplaintText] = useState("");
 
-  const [attendance, setAttendance] = useState<{ [key: string]: string }>({});
 
   const { toast } = useToast();
 
@@ -86,57 +79,10 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
       return;
     }
 
-    const parsed = (data || []).reduce<Student[]>((acc, d) => {
-      const s = d.students;
-      if (!s) return acc;
-      if (Array.isArray(s)) return acc.concat(s);
-      acc.push(s);
-      return acc;
-    }, []);
-
-    setStudents(parsed);
-
-    const initialAttendance: { [key: string]: string } = {};
-    parsed.forEach((s) => (initialAttendance[s.id] = ""));
-    setAttendance(initialAttendance);
-  };
-
-  // OPEN Attendance Modal
-  const openAttendanceModal = (student: Student, status: "present" | "absent") => {
-    setSelectedStudent(student);
-    setAttendanceStatus(status);
-    setAttendanceDate(new Date().toISOString().slice(0, 10));
-    setShowAttendanceModal(true);
-  };
-
-  // SAVE attendance with selected date
-  const saveAttendance = async () => {
-    if (!selectedStudent || !attendanceStatus) return;
-
-    setAttendance((prev) => ({ ...prev, [selectedStudent.id]: attendanceStatus }));
-
-    const { error } = await supabase.from("tsattendance").insert([
-      {
-        student_id: selectedStudent.id,
-        teacher_id: teacherId,
-        date: attendanceDate,
-        status: attendanceStatus,
-      },
-    ]);
-
-    if (error) {
-      toast({
-        title: "❌ Error",
-        description: "Attendance save nahi hui.",
-      });
-    } else {
-      toast({
-        title: "✅ Attendance Saved",
-        description: `${selectedStudent.name} marked ${attendanceStatus} on ${attendanceDate}.`,
-      });
+    if (data) {
+      const studentList = data.map((item: any) => item.students).filter(Boolean);
+      setStudents(studentList);
     }
-
-    setShowAttendanceModal(false);
   };
 
   // Weekly Report
@@ -248,34 +194,6 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
 </td>
 
 
-                <td className="p-3 text-center">
-                  <div className="flex justify-center gap-2">
-                    <Button
-                      size="sm"
-                      className={`${
-                        attendance[s.id] === "present"
-                          ? "bg-green-700"
-                          : "bg-green-500"
-                      } text-white`}
-                      onClick={() => openAttendanceModal(s, "present")}
-                    >
-                      Present
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      className={`${
-                        attendance[s.id] === "absent"
-                          ? "bg-red-700"
-                          : "bg-red-500"
-                      } text-white`}
-                      onClick={() => openAttendanceModal(s, "absent")}
-                    >
-                      Absent
-                    </Button>
-                  </div>
-                </td>
-
                 <td className="p-3 flex justify-center gap-2 flex-wrap">
                   <Button
                     size="sm"
@@ -315,36 +233,7 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
           </tbody>
         </table>
       </div>
-
-      {/* 🟢 Attendance Modal */}
-      <Dialog open={showAttendanceModal} onOpenChange={setShowAttendanceModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Mark Attendance – {selectedStudent?.name}
-            </DialogTitle>
-          </DialogHeader>
-
-          <label className="text-sm mb-1 block">Select Date:</label>
-          <input
-            type="date"
-            value={attendanceDate}
-            onChange={(e) => setAttendanceDate(e.target.value)}
-            className="border p-2 rounded w-full"
-          />
-
-          <DialogFooter>
-            <Button
-              className={`${
-                attendanceStatus === "present" ? "bg-green-600" : "bg-red-600"
-              } text-white w-full`}
-              onClick={saveAttendance}
-            >
-              Save Attendance
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+  
 
       {/* Weekly Modal */}
       <Dialog open={showWeeklyModal} onOpenChange={setShowWeeklyModal}>
