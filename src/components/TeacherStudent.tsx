@@ -160,7 +160,6 @@ export default function TeacherStudents({ teacherId }: TeacherStudentsProps) {
               <th className="p-3 border-b">Roll No</th>
               <th className="p-3 border-b">Joining Date</th>
               <th className="p-3 border-b text-center">Class Schedule</th>
-              <th className="p-3 border-b text-center">Attendance</th>
               <th className="p-3 border-b text-center">Actions</th>
             </tr>
           </thead>
