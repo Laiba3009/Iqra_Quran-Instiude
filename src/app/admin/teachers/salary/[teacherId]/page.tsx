@@ -205,20 +205,21 @@ export default function TeacherSalaryPage() {
                   <td className="p-2 text-red-500">{r.deduct_salary || 0}</td>
                   <td className="p-2">{r.remarks || "—"}</td>
                   <td className="p-2 font-semibold">{total}</td>
-                  <td className="p-2 flex gap-1">
-                    <button
-                      className="text-blue-700 hover:underline"
-                      onClick={() => setViewRecord(r)}
-                    >
-                      View Record
-                    </button>
-                    <button
-                      className="text-red-600 hover:underline"
-                      onClick={() => deleteSalaryRecord(r.id)}
-                    >
-                      ❌
-                    </button>
-                  </td>
+                 <td className="p-2 flex gap-2 justify-center">
+  <button
+    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+    onClick={() => setViewRecord(r)}
+  >
+    Record
+  </button>
+  <button
+    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
+    onClick={() => deleteSalaryRecord(r.id)}
+  >
+    ❌
+  </button>
+</td>
+
                 </tr>
               );
             })}
