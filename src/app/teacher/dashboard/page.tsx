@@ -8,6 +8,8 @@ import { useToast } from "@/components/ui/use-toast";
 import TeacherStudents from "@/components/TeacherStudent";
 import BannerSlider from "@/components/BannerSlider";
 import RoleBasedLayout from "@/components/RoleBasedLayout";
+import TeacherSchedule from "@/components/TeacherSchedule";
+
 import Link from "next/link";
 
 // ----------------------------
@@ -23,15 +25,23 @@ function getCookie(name: string) {
 // ----------------------------
 // 🔹 Convert "07:00 PM" → minutes
 // ----------------------------
-function timeToMinutes(time: string) {
-  const [hm, ampm] = time.split(" ");
+function timeToMinutes(time?: string | null) {
+  if (!time || !time.includes(":")) return null;
+
+  const parts = time.split(" ");
+  if (parts.length < 1) return null;
+
+  const hm = parts[0];
+  const ampm = parts[1]?.toLowerCase();
+
   let [h, m] = hm.split(":").map(Number);
 
-  if (ampm?.toLowerCase() === "pm" && h !== 12) h += 12;
-  if (ampm?.toLowerCase() === "am" && h === 12) h = 0;
+  if (ampm === "pm" && h !== 12) h += 12;
+  if (ampm === "am" && h === 12) h = 0;
 
   return h * 60 + m;
 }
+
 
 // ----------------------------
 // 🔹 Notice Board
@@ -179,6 +189,9 @@ export default function TeacherDashboard() {
   const [teacher, setTeacher] = useState<any>(null);
   const [zoomLink, setZoomLink] = useState("");
   const [attendanceStatus, setAttendanceStatus] = useState("");
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [students, setStudents] = useState<any[]>([]);
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -188,6 +201,17 @@ export default function TeacherDashboard() {
       localStorage.setItem("userRole", "teacher");
     }
   }, []);
+
+  const loadStudents = async (teacherId: string) => {
+  const { data } = await supabase
+    .from("student_teachers")
+    .select("students(*)")
+    .eq("teacher_id", teacherId);
+
+  if (data) {
+    setStudents(data.map((d: any) => d.students).filter(Boolean));
+  }
+};
 
   // Load teacher
   const loadTeacher = async (rollNo: string) => {
@@ -199,7 +223,7 @@ export default function TeacherDashboard() {
 
     if (data) {
       setTeacher(data);
-
+     loadStudents(data.id);
       const { data: settings } = await supabase
         .from("settings")
         .select("current_zoom_link")
@@ -222,9 +246,17 @@ export default function TeacherDashboard() {
       minute: "2-digit",
       hour12: true,
     });
+const jobMins = timeToMinutes(teacher.job_time);
+const nowMins = timeToMinutes(formattedNow);
 
-    const jobMins = timeToMinutes(teacher.job_time);
-    const nowMins = timeToMinutes(formattedNow);
+if (jobMins === null || nowMins === null) {
+  toast({
+    title: "⚠️ Job Time Missing",
+    description: "Teacher job time set nahi hai. Admin se contact karein.",
+  });
+  return;
+}
+
 
     const isLate = nowMins > jobMins;
     const minutesLate = isLate ? nowMins - jobMins : 0;
@@ -265,38 +297,24 @@ export default function TeacherDashboard() {
         <h1 className="text-3xl font-bold text-center text-green-800">
           Welcome, {teacher.name}
         </h1>
+<div className="flex justify-center">
+  <Button
+    onClick={() => setShowSchedule((prev) => !prev)}
+    className="bg-blue-600 text-white"
+  >
+    📅 {showSchedule ? "Hide" : "Show"} Today Schedule
+  </Button>
+</div>
+{showSchedule && (
+  <TeacherSchedule students={students} teacher={teacher} />
+)}
+
 
         <NoticeBoard />
 
         {/* ZOOM + REMINDER */}
-        <Card className="shadow-lg border bg-white">
-          <CardContent className="flex flex-wrap justify-center gap-3 p-4">
-            <a
-              href={zoomLink || "#"}
-              target="_blank"
-              className={`px-5 py-2 rounded-lg text-white font-medium ${
-                zoomLink
-                  ? "bg-blue-600 hover:bg-blue-700"
-                  : "bg-gray-400 cursor-not-allowed"
-              }`}
-            >
-              Join Zoom Class
-            </a>
-
-    <a
-      href={teacher.google_meet_link || "#"}  // teacher ke Google Meet link
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`px-5 py-2 rounded-lg text-white font-medium ${
-        teacher.google_meet_link
-          ? "bg-blue-600 hover:bg-pink-500"
-          : "bg-gray-400 cursor-not-allowed"
-      }`}
-    >
-      Join Google Meet Class
-    </a>
+        <Card className="bg-gray-50">
         
-          <CardContent className="text-center space-y-3">
             <Button
               onClick={markAttendance}
               className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-lg"
@@ -318,8 +336,6 @@ export default function TeacherDashboard() {
                 </span>
               </p>
             )}
-          </CardContent>
-  </CardContent>
 </Card>       
 
         {/* SYLLABUS */}
