@@ -62,6 +62,7 @@ export default function ClassSchedulePage() {
       const rollNo = getCookie("student_roll");
       if (!rollNo) return;
 
+      
       const { data: student } = await supabase
         .from("students")
         .select("id, name, timezone, class_days")
@@ -176,30 +177,65 @@ export default function ClassSchedulePage() {
     setOpenCancelModal(true);
   };
 
-  const sendCancelRequest = async () => {
-    if (!cancelClass || !cancelSubject) {
-      alert("Please select a subject to cancel!");
-      return;
-    }
+const sendCancelRequest = async () => {
+  if (!cancelClass || !cancelSubject) {
+    alert("Please select a subject");
+    return;
+  }
 
-    const studentRoll = getCookie("student_roll");
+  const studentRoll = getCookie("student_roll");
+  if (!studentRoll) return;
 
-    await supabase.from("class_cancellations").insert([
-      {
-        student_name: studentName,
-        student_roll: studentRoll,
-        teacher_name: cancelClass.teacher_name,
-        day: cancelClass.day,
-        time: cancelClass.schedule
-          .find((s) => s.subjects.includes(cancelSubject))?.time,
-        subject: cancelSubject,
-        reason: cancelReason,
-      },
-    ]);
+  // 1️⃣ Get real student (UUID)
+  const { data: student, error: studentErr } = await supabase
+    .from("students")
+    .select("id, name")
+    .eq("roll_no", studentRoll)
+    .single();
 
+  if (studentErr || !student) {
+    console.error("Student not found");
+    return;
+  }
+
+  // 2️⃣ Get teacher_id
+  const { data: teacherMap, error: teacherErr } = await supabase
+    .from("student_teachers")
+    .select("teacher_id")
+    .eq("student_id", student.id)
+    .single();
+
+  if (teacherErr || !teacherMap?.teacher_id) {
+    console.error("Teacher mapping not found");
+    return;
+  }
+
+  // 3️⃣ Insert cancellation (NO DATE FILTER ISSUE NOW)
+  const { error } = await supabase.from("class_cancellations").insert([
+    {
+      student_name: student.name,
+      student_roll: studentRoll,
+      teacher_name: cancelClass.teacher_name,
+      teacher_id: teacherMap.teacher_id, // ✅ GUARANTEED NOT NULL
+      day: cancelClass.day,
+      time: cancelClass.schedule.find(s =>
+        s.subjects.includes(cancelSubject)
+      )?.time,
+      subject: cancelSubject,
+      reason: cancelReason,
+    },
+  ]);
+
+  if (!error) {
+    alert("Class cancelled successfully");
     setOpenCancelModal(false);
-    alert("Class cancellation request sent to teacher!");
-  };
+  } else {
+    console.error(error);
+  }
+};
+
+
+
 
   /* ================= UI ================= */
 
