@@ -33,6 +33,7 @@ export default function TeacherList() {
   const [modalTeacherId, setModalTeacherId] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
+  
   /* -------------------- LOAD DATA -------------------- */
   useEffect(() => {
     setIsMounted(true);

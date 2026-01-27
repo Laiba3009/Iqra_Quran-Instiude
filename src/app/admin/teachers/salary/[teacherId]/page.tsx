@@ -27,6 +27,18 @@ export default function TeacherSalaryPage() {
   const [secYear, setSecYear] = useState(new Date().getFullYear());
   const [secAmount, setSecAmount] = useState("");
 
+  const isNewStudent = (joinDate: string | null) => {
+  if (!joinDate) return false;
+
+  const joined = new Date(joinDate);
+  const today = new Date();
+
+  const diffDays =
+    (today.getTime() - joined.getTime()) / (1000 * 60 * 60 * 24);
+
+  return diffDays < 30;
+};
+
   // ---------------- FETCH DATA ----------------
   const fetchAll = async () => {
     setLoading(true);
@@ -78,11 +90,15 @@ export default function TeacherSalaryPage() {
   const activeStudents = students.filter(
     (s) => s.status?.toLowerCase() === "active"
   );
+  
 
-  const baseSalary = activeStudents.reduce(
-    (t, s) => t + Number(s.teacher_fee || 0),
-    0
-  );
+const baseSalary = activeStudents.reduce((t, s) => {
+  if (isNewStudent(s.join_date)) {
+    return t; // NEW student → salary count nahi hogi
+  }
+  return t + Number(s.teacher_fee || 0);
+}, 0);
+
 
   const totalSecurity = security.reduce(
     (t, s) => t + Number(s.amount || 0),
@@ -161,7 +177,13 @@ export default function TeacherSalaryPage() {
                     ? new Date(s.join_date).toLocaleDateString()
                     : "—"}
                 </td>
-                <td className="p-2">Rs {s.teacher_fee}</td>
+                <td className="p-2">
+  {isNewStudent(s.join_date) ? (
+    <span className="text-orange-600 font-semibold">NEW</span>
+  ) : (
+    <>Rs {s.teacher_fee}</>
+  )}
+</td>
               </tr>
             ))}
           </tbody>

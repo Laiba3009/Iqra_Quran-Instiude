@@ -44,10 +44,39 @@ const [tzSearch, setTzSearch] = useState("");
 
     const allTimezones = moment.tz.names();
 
+
   useEffect(() => {
     loadRows();
     loadTeachers();
   }, []);
+
+  function isFeeExpired(joinDate: string) {
+  if (!joinDate) return false;
+
+  const join = new Date(joinDate);
+  const resetDate = new Date(join);
+
+  resetDate.setMonth(resetDate.getMonth() + 1); // +1 month
+  resetDate.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return today >= resetDate; // 🔴 unpaid after this date
+}
+
+function isJoiningMonth(joinDate: string) {
+  if (!joinDate) return false;
+
+  const join = new Date(joinDate);
+  const now = new Date();
+
+  return (
+    join.getFullYear() === now.getFullYear() &&
+    join.getMonth() === now.getMonth()
+  );
+}
+
 
   // ================= Load Students =================
   const loadRows = async () => {
@@ -323,17 +352,19 @@ if (editing) {
   };
 
   // ================= Toggle Fee =================
- const toggleFee = async (id: string) => {
-  const today = new Date();
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+const toggleFee = async (student: any) => {
+  // ❌ agar reset date cross ho chuki
+  if (isFeeExpired(student.join_date)) {
+    alert("Fee period expired. New month ki fee unpaid ho chuki hai.");
+    return;
+  }
 
   await supabase
     .from("students")
     .update({
       fee_status: "paid",
-      last_fee_paid_month: monthStart.toISOString().split("T")[0],
     })
-    .eq("id", id);
+    .eq("id", student.id);
 
   await loadRows();
 };
@@ -729,12 +760,20 @@ onClick={() => {
                 <td className="p-3 text-blue-700 font-semibold">Rs {r.academy_fee}</td>
                 <td className="p-3 text-green-700 font-bold">Rs {r.student_total_fee || 0}</td>
                 <td>{r.join_date ? new Date(r.join_date).toLocaleDateString() : "—"}</td>
-                <td className={`p-3 font-medium ${r.fee_status === "paid" ? "text-green-600" : "text-red-600"}`}>
-                  {r.fee_status}
-                </td>
+                <td
+  className={`p-3 font-medium ${
+    isJoiningMonth(r.join_date)
+      ? "text-red-600"
+      : r.fee_status === "paid"
+      ? "text-green-600"
+      : "text-red-600"
+  }`}
+>
+  {isJoiningMonth(r.join_date) ? "unpaid" : r.fee_status}
+</td>
                 <td className="p-3 flex gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={() => editStudent(r)}>Edit</Button>
-                  <Button size="sm" variant="outline" onClick={() => toggleFee(r.id)}>Toggle Fee</Button>
+                  <Button size="sm" variant="outline" onClick={() => toggleFee(r)}>Toggle Fee</Button>
                   <div className="flex gap-2">
 
   <div className="flex gap-2">
@@ -759,9 +798,6 @@ onClick={() => {
 >
   {r.status === "active" ? "Disable" : "Enable"}
 </Button>
-
- 
-
 
 </div>
 
