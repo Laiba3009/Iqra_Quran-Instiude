@@ -135,11 +135,6 @@ export default function TeacherList() {
     setModalTeacherId(null);
   };
 
-  const toggleSalary = async (id: string, status: string | undefined) => {
-    const newStatus = status === "paid" ? "unpaid" : "paid";
-    await supabase.from("teachers").update({ salary_status: newStatus }).eq("id", id);
-    await loadAll();
-  };
 
   const delTeacher = async (id: string) => {
     if (!confirm("Delete teacher and related mappings?")) return;
@@ -203,15 +198,7 @@ export default function TeacherList() {
               onChange={(e) => setSearch(e.target.value)}
               className="border border-gray-300 bg-white text-gray-900 p-3 rounded-lg w-full md:w-80 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-            <select
-              value={filterSalary}
-              onChange={(e) => setFilterSalary(e.target.value as any)}
-              className="border border-gray-300 bg-white text-gray-900 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Status</option>
-              <option value="paid">Paid</option>
-              <option value="unpaid">Unpaid</option>
-            </select>
+           
             <select
               value={filterSyllabus}
               onChange={(e) => setFilterSyllabus(e.target.value)}
@@ -253,7 +240,6 @@ export default function TeacherList() {
                   <th className="p-4 text-gray-800 font-semibold">Name</th>
                   <th className="p-4 text-gray-800 font-semibold">Syllabus</th>
                   <th className="p-4 text-gray-800 font-semibold">Total Teacher Fee</th>
-                  <th className="p-4 text-gray-800 font-semibold">Status</th>
                   <th className="p-4 text-gray-800 font-semibold">Assigned Students</th>
                   <th className="p-4 text-gray-800 font-semibold">Actions</th>
                 </tr>
@@ -268,26 +254,19 @@ export default function TeacherList() {
                         {Array.isArray(t.syllabus) ? t.syllabus.join(", ") : t.syllabus || "—"}
                       </td>
                       <td className="p-4 text-gray-700 font-medium">Rs {totalFee}</td>
-                      <td
-                        className={`p-4 font-medium ${
-                          t.salary_status === "paid" ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {t.salary_status ?? "unpaid"}
-                      </td>
+                      
                       <td className="p-4">
-                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md">
-                          View Assigned Students ({assigned.length})
-                        </Button>
+                        <Button
+  size="sm"
+  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md"
+  onClick={() => openModalFor(t.id)}
+>
+  View Assigned Students ({assigned.length})
+</Button>
+
                       </td>
                       <td className="p-4 flex gap-2 flex-wrap">
-                        <Button
-                          size="sm"
-                          className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-md"
-                          onClick={() => toggleSalary(t.id, t.salary_status)}
-                        >
-                          {t.salary_status === "paid" ? "Mark Unpaid" : "Mark Paid"}
-                        </Button>
+                       
                         <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md" onClick={() => delTeacher(t.id)}>
                           Delete
                         </Button>

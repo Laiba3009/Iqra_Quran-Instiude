@@ -201,16 +201,16 @@ const baseSalary = activeStudents.reduce((t, s) => {
         <table className="w-full">
           <thead className="bg-gray-100">
             <tr>
-              <th className="p-2 border">Month</th>
-              <th className="p-2 border">Total Salary</th>
+            <th className="p-2 border text-right">Month</th>
+              <th className="p-2 text-right border">Total Salary</th>
               <th className="p-2 border">Action</th>
             </tr>
           </thead>
           <tbody>
             {salaryRecords.map((r) => (
               <tr key={r.id}>
-                <td className="p-2">{r.month}/{r.year}</td>
-                <td className="p-2 font-semibold">
+                <td className="p-2 text-right">{r.month}/{r.year}</td>
+                <td className="p-2 text-right font-semibold">
                   {r.base_salary +
                     r.bonus -
                     r.advance -

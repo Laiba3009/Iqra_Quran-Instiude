@@ -24,9 +24,7 @@ header {
 }
 
 /* Page content should start after header */
-.main-content {
-  margin-top: 1.5rem; /* header ke neeche thoda gap */
-}
+
 
 /* Footer spacing */
 footer {

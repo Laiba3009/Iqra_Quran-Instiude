@@ -14,10 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="bg-gray-50">
-        {/* ✅ Wrap the app content with your custom Toaster */}
         <Toaster>
-          {/* Optional Navbar/Header */}
-          {/* <Navbar /> */}
           <main className="min-h-screen">{children}</main>
         </Toaster>
       </body>

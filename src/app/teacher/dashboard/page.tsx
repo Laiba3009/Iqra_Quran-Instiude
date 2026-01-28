@@ -291,8 +291,8 @@ if (jobMins === null || nowMins === null) {
 
   return (
     <RoleBasedLayout role="teacher">
-      <div className="p-6 space-y-10">
-        <BannerSlider />
+      <div className="-mx-6 -mt-6">
+  <BannerSlider />
 
         <h1 className="text-3xl font-bold text-center text-green-800">
           Welcome, {teacher.name}
@@ -313,7 +313,6 @@ if (jobMins === null || nowMins === null) {
         <NoticeBoard />
 
         {/* ZOOM + REMINDER */}
-        <Card className="bg-gray-50">
         
             <Button
               onClick={markAttendance}
@@ -336,45 +335,11 @@ if (jobMins === null || nowMins === null) {
                 </span>
               </p>
             )}
-</Card>       
 
-        {/* SYLLABUS */}
-        <Card className="bg-gray-50 border shadow">
-          <CardHeader>
-            <CardTitle className="text-xl text-center text-gray-700">
-              Assigned Syllabus
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {teacher.syllabus?.length ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {teacher.syllabus.map((subject: string, i: number) => (
-                  <Link
-                    key={i}
-                    href={`/teacher/syllabus/${subject
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")}`}
-                  >
-                    <div className="p-4 border rounded-lg bg-white hover:bg-green-50 shadow-sm hover:shadow-md transition cursor-pointer">
-                      <h3 className="font-semibold text-green-700 text-lg">
-                        📘 {subject}
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Click to view details.
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-gray-500">No syllabus assigned.</p>
-            )}
-          </CardContent>
-        </Card>
 
         {/* STUDENTS */}
-        <Card className="border shadow bg-white">
-          <CardHeader>
+         <div>
+      <CardHeader>
             <CardTitle className="text-xl text-center text-gray-700">
               🧑‍🎓 Assigned Students & Weekly Report
             </CardTitle>
@@ -388,8 +353,7 @@ if (jobMins === null || nowMins === null) {
               </p>
             )}
           </CardContent>
-        </Card>
-
+</div>
         
       </div>
     </RoleBasedLayout>
