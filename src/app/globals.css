@@ -3,13 +3,10 @@
 @tailwind utilities;
 @import "@fortawesome/fontawesome-free/css/all.min.css";
 
-
-
 /* Smooth scroll */
 html {
   scroll-behavior: smooth;
 }
-
 /* Default headings bold */
 h1, h2, h3, h4, h5, h6 {
   @apply font-bold;

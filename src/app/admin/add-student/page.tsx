@@ -24,6 +24,7 @@ export default function AddStudent() {
     student_total_fee: "",
     fee_status: "unpaid",
     join_date: "",
+     remark: "",  
   
     class_days: [] as { day: string; subject: string; time: string }[],
   });
@@ -76,7 +77,6 @@ function isJoiningMonth(joinDate: string) {
     join.getMonth() === now.getMonth()
   );
 }
-
 
   // ================= Load Students =================
   const loadRows = async () => {
@@ -136,8 +136,6 @@ const loadTeachers = async () => {
     alert(err.message);
   }
 };
-
-
   // ================= Toggle Functions =================
   const toggleSyllabus = (name: string) => {
     setForm((prev) => ({
@@ -258,6 +256,8 @@ function cleanTime(t: string) {
    class_days: class_days_clean,
     timezone: form.timezone || "Asia/Karachi",
     academy_fee: academyFee,
+    remark: form.remark || null,   // ✅ ADD
+
   };
 
 if (editing) {
@@ -305,6 +305,7 @@ if (editing) {
     fee_status: "unpaid",
     join_date: "",
     class_days: [],
+    remark: "",
   });
   setTeacherList(prev => prev.map(x => ({ ...x, selected: false, amount: 0 })));
   setEditing(false);
@@ -338,6 +339,8 @@ if (editing) {
       fee_status: student.fee_status,
       join_date: student.join_date ?? "",
       class_days: localClassDays,
+      remark: student.remark ?? "",   // ✅ ADD
+
     });
 
     setTeacherList((prev) =>
@@ -368,8 +371,6 @@ const toggleFee = async (student: any) => {
 
   await loadRows();
 };
-
-
   // ================= Delete Student =================
   const del = async (id: string) => {
     if (!confirm("Are you sure to delete?")) return;
@@ -384,16 +385,11 @@ const toggleFee = async (student: any) => {
   return pkTime.clone().tz(timezone).format("hh:mm A");
 }
 
-
-
-
-  const filteredRows = rows.filter(
+ const filteredRows = rows.filter(
   (r) =>
     (r.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
     (r.roll_no ?? "").toLowerCase().includes(search.toLowerCase())
 );
-
-
   // ================= PDF Download =================
   const downloadPDF = () => {
     const doc = new jsPDF("p", "mm", "a4");
@@ -446,7 +442,6 @@ const tableData = filteredRows.map((r) => [
   const diffDays = (now.getTime() - join.getTime()) / (1000 * 60 * 60 * 24);
   return diffDays <= 30; // last 30 days
 }
-
 
   return (
     <div className="bg-blue-100 min-h-screen px-4 md:px-8 space-y-8 pb-10">
@@ -544,8 +539,12 @@ const tableData = filteredRows.map((r) => [
   value={form.student_total_fee}
   onChange={(e) => setForm({ ...form, student_total_fee: e.target.value })}
 />
-
-
+<textarea
+  className="border p-2 rounded-lg text-sm md:col-span-2"
+  placeholder="Remarks / Notes (e.g. late fee, special case)"
+  value={form.remark}
+  onChange={(e) => setForm({ ...form, remark: e.target.value })}
+/>
           <input
             type="date"
             className="border p-2 rounded-lg text-sm"
@@ -631,9 +630,6 @@ onClick={() => {
     </div>
   </>
 )}
-
-
-
 
         {/* Assign Teachers */}
       {activeSyllabus && (
@@ -728,6 +724,7 @@ onClick={() => {
               <th className="p-3 text-green-700">Total Fee</th>
               <th className="p-3">Joining Date</th>
               <th className="p-3">Status</th>
+              <th className="p-3">Fee Remarks</th>
               <th className="p-3">Actions</th>
             </tr>
           </thead>
@@ -759,8 +756,13 @@ onClick={() => {
                 <td className="p-3 text-purple-700 font-semibold">Rs {r.teacherFee}</td>
                 <td className="p-3 text-blue-700 font-semibold">Rs {r.academy_fee}</td>
                 <td className="p-3 text-green-700 font-bold">Rs {r.student_total_fee || 0}</td>
-                <td>{r.join_date ? new Date(r.join_date).toLocaleDateString() : "—"}</td>
-                <td
+   {/* Joining Date */}
+<td className="p-3">
+  {r.join_date ? new Date(r.join_date).toLocaleDateString() : "—"}
+</td>
+
+{/* Status */}
+<td
   className={`p-3 font-medium ${
     isJoiningMonth(r.join_date)
       ? "text-red-600"
@@ -771,6 +773,12 @@ onClick={() => {
 >
   {isJoiningMonth(r.join_date) ? "unpaid" : r.fee_status}
 </td>
+
+{/* Fee Remarks */}
+<td className="p-3 text-gray-600">
+  {r.remark || "—"}
+</td>
+
                 <td className="p-3 flex gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={() => editStudent(r)}>Edit</Button>
                   <Button size="sm" variant="outline" onClick={() => toggleFee(r)}>Toggle Fee</Button>
@@ -798,10 +806,7 @@ onClick={() => {
 >
   {r.status === "active" ? "Disable" : "Enable"}
 </Button>
-
 </div>
-
-
 </div>
 
                 </td>
