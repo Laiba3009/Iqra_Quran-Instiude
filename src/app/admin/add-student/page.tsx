@@ -39,6 +39,9 @@ export default function AddStudent() {
 const [activeSyllabus, setActiveSyllabus] = useState<string | null>(null);
 const [tzOpen, setTzOpen] = useState(false);
 const [tzSearch, setTzSearch] = useState("");
+const [remarkOpen, setRemarkOpen] = useState(false);
+const [remarkText, setRemarkText] = useState("");
+const [selectedStudent, setSelectedStudent] = useState<any>(null);
 
   const syllabusList = ["Quran", "Islamic Studies", "Tafseer", "Urdu", "English"];
   const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -55,16 +58,25 @@ const [tzSearch, setTzSearch] = useState("");
   if (!joinDate) return false;
 
   const join = new Date(joinDate);
-  const resetDate = new Date(join);
-
-  resetDate.setMonth(resetDate.getMonth() + 1); // +1 month
-  resetDate.setHours(0, 0, 0, 0);
-
   const today = new Date();
+
+  // next month same date
+  const target = new Date(join);
+  target.setMonth(target.getMonth() + 1);
+
+  // ⚠️ handle 30/31 → Feb issue
+  if (target.getDate() !== join.getDate()) {
+    // move to last day of previous month
+    target.setDate(0);
+  }
+
+  // time normalize
+  target.setHours(0, 0, 0, 0);
   today.setHours(0, 0, 0, 0);
 
-  return today >= resetDate; // 🔴 unpaid after this date
+  return today >= target;
 }
+
 
 function isJoiningMonth(joinDate: string) {
   if (!joinDate) return false;
@@ -305,7 +317,7 @@ if (editing) {
     fee_status: "unpaid",
     join_date: "",
     class_days: [],
-    remark: "",
+    
   });
   setTeacherList(prev => prev.map(x => ({ ...x, selected: false, amount: 0 })));
   setEditing(false);
@@ -356,21 +368,36 @@ if (editing) {
 
   // ================= Toggle Fee =================
 const toggleFee = async (student: any) => {
-  // ❌ agar reset date cross ho chuki
   if (isFeeExpired(student.join_date)) {
-    alert("Fee period expired. New month ki fee unpaid ho chuki hai.");
+    alert("New billing cycle start ho chuki hai. Fee unpaid hai.");
     return;
   }
 
   await supabase
     .from("students")
     .update({
-      fee_status: "paid",
+      fee_status: student.fee_status === "paid" ? "unpaid" : "paid",
     })
     .eq("id", student.id);
 
   await loadRows();
 };
+
+const saveRemark = async () => {
+  if (!selectedStudent) return;
+
+  await supabase
+    .from("students")
+    .update({ remark: remarkText })
+    .eq("id", selectedStudent.id);
+
+  setRemarkOpen(false);
+  setSelectedStudent(null);
+  setRemarkText("");
+
+  await loadRows(); // 🔥 list refresh
+};
+
   // ================= Delete Student =================
   const del = async (id: string) => {
     if (!confirm("Are you sure to delete?")) return;
@@ -415,8 +442,6 @@ const tableData = filteredRows.map((r) => [
   `Rs ${r.student_total_fee || 0}`,
   r.fee_status.toUpperCase(),
 ]);
-
-
 
       autoTable(doc, {
         startY: 40,
@@ -539,12 +564,7 @@ const tableData = filteredRows.map((r) => [
   value={form.student_total_fee}
   onChange={(e) => setForm({ ...form, student_total_fee: e.target.value })}
 />
-<textarea
-  className="border p-2 rounded-lg text-sm md:col-span-2"
-  placeholder="Remarks / Notes (e.g. late fee, special case)"
-  value={form.remark}
-  onChange={(e) => setForm({ ...form, remark: e.target.value })}
-/>
+
           <input
             type="date"
             className="border p-2 rounded-lg text-sm"
@@ -774,15 +794,51 @@ onClick={() => {
   {isJoiningMonth(r.join_date) ? "unpaid" : r.fee_status}
 </td>
 
-{/* Fee Remarks */}
-<td className="p-3 text-gray-600">
-  {r.remark || "—"}
+<td className="p-3 text-gray-600 max-w-[220px]">
+  <div className="line-clamp-2 break-words">
+    {r.remark || "—"}
+  </div>
 </td>
 
+
+
                 <td className="p-3 flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={() => editStudent(r)}>Edit</Button>
-                  <Button size="sm" variant="outline" onClick={() => toggleFee(r)}>Toggle Fee</Button>
+<Button
+  size="sm"
+  variant="outline"
+  className="border-blue-600 text-blue-600 
+             hover:bg-blue-600 hover:text-white 
+             transition"
+  onClick={() => editStudent(r)}
+>
+  Edit
+</Button>
+<Button
+  size="sm"
+  variant="outline"
+  className="border-purple-600 text-purple-600 
+             hover:bg-purple-600 hover:text-white 
+             transition"
+  onClick={() => toggleFee(r)}
+>
+  Toggle Fee
+</Button>
                   <div className="flex gap-2">
+<Button
+  size="sm"
+  variant="outline"
+  className="border-orange-500 text-orange-600 
+             hover:bg-orange-500 hover:text-white 
+             transition"
+  onClick={() => {
+    setSelectedStudent(r);
+    setRemarkText(r.remark || "");
+    setRemarkOpen(true);
+  }}
+>
+  Fee Remark
+</Button>
+
 
   <div className="flex gap-2">
 
@@ -808,9 +864,10 @@ onClick={() => {
 </Button>
 </div>
 </div>
-
                 </td>
               </tr>
+   
+
             ))}
             {filteredRows.length === 0 && (
               <tr>
@@ -823,6 +880,39 @@ onClick={() => {
         </table>
       </div>
    </div>
+              {remarkOpen && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white rounded-xl p-6 w-full max-w-md space-y-4">
+      <h2 className="text-lg font-bold text-green-700">
+        Add Fee Remark
+      </h2>
+
+      <textarea
+        className="border p-2 rounded-lg w-full text-sm"
+        rows={4}
+        placeholder="e.g. Late fee, discount, special case"
+        value={remarkText}
+        onChange={(e) => setRemarkText(e.target.value)}
+      />
+
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setRemarkOpen(false)}
+        >
+          Cancel
+        </Button>
+
+        <Button
+          className="bg-green-600 text-white"
+          onClick={saveRemark}
+        >
+          Save
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
   </div>
 );
 }

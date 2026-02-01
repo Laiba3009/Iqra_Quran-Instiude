@@ -149,7 +149,7 @@ export default function AdminAttendancePage() {
       <div className="max-w-6xl mx-auto space-y-6">
 
         {/* Header */}
-        <div className="text-center mt-13 mb-6">
+        <div className="text-center mt-20 mb-6">
           <h1 className="text-4xl font-extrabold text-blue-800  mb-2">📊 Attendance – All Students</h1>
           
           <p className="text-blue-600">View & download student attendance month wise</p>

@@ -12,6 +12,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 
+/* LocalStorage helper for teacher roll */
+function saveTeacherRoll(roll: string) {
+  localStorage.setItem("teacher_roll", roll);
+}
+
+function getTeacherRoll() {
+  return localStorage.getItem("teacher_roll") || "";
+}
+
 /* cookie helper */
 function getCookie(name: string) {
   return document.cookie.split("; ").reduce((r, v) => {
@@ -40,11 +49,21 @@ export default function TeacherAttendancePage() {
 const [loadingHistory, setLoadingHistory] = useState(false);
 
 
-  /* load teacher */
-  useEffect(() => {
-    const roll = getCookie("teacher_roll");
-    if (roll) loadTeacher(roll);
-  }, []);
+useEffect(() => {
+  let roll = getTeacherRoll();
+  if (!roll) {
+    // fallback: ask teacher to select roll
+    const savedRoll = prompt("Enter your Roll No:");
+    if (savedRoll) {
+      saveTeacherRoll(savedRoll);
+      roll = savedRoll;
+    } else {
+      toast({ title: "⚠️ Roll No missing", description: "Cannot load attendance" });
+      return;
+    }
+  }
+  loadTeacher(roll);
+}, []);
 
   const loadTeacher = async (roll: string) => {
     const { data } = await supabase

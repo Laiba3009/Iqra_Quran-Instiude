@@ -59,28 +59,43 @@ export default function TeacherAttendancePage() {
     if (record.status === "leave") return "LV";
     return "";
   };
+const markStatus = async (teacherId, date, status) => {
+  if (!teacherId || !date) return;
 
-  const markStatus = async (teacherId, date, status) => {
-    if (!teacherId || !date) return;
-    const teacher = teachers.find(t => t.id === teacherId);
-    if (!teacher) return;
+  const teacher = teachers.find(t => t.id === teacherId);
+  if (!teacher) return;
 
-    await supabase.from("teacher_attendance").insert([
+  const { error } = await supabase
+    .from("teacher_attendance")
+    .upsert(
+      [
+        {
+          teacher_id: teacher.id,
+          teacher_name: teacher.name,
+          attendance_date: date,
+          status, // ← yahan Absent / Leave overwrite ho jaye ga
+          job_time: null,
+          attendance_time: null,
+          minutes_late: null,
+        },
+      ],
       {
-        teacher_id: teacher.id,
-        teacher_name: teacher.name,
-        attendance_date: date,
-        status,
-        job_time: null,
-        attendance_time: null,
-        minutes_late: null,
-      },
-    ]);
-    loadAttendance();
-    alert("✅ Done");
-    setDateInputVisible(false);
-    setDateForMarking("");
-  };
+        onConflict: "teacher_id,attendance_date",
+      }
+    );
+
+  if (error) {
+    alert("❌ Error updating attendance");
+    console.error(error);
+    return;
+  }
+
+  await loadAttendance();
+  alert("✅ Attendance updated");
+  setDateInputVisible(false);
+  setDateForMarking("");
+};
+
 
   const clearMonthRecords = async () => {
     if (!confirm("Are you sure you want to clear all records for this month?")) return;
