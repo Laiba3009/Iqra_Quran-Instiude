@@ -21,7 +21,7 @@ export default function TeacherSalarySnapshotModal({
   const [loading, setLoading] = useState(true);
   const [snapshot, setSnapshot] = useState<any>(null);
 
-  // ---------------- FETCH SNAPSHOT ----------------
+  // -------- FETCH SNAPSHOT --------
   const loadSnapshot = async () => {
     setLoading(true);
 
@@ -40,13 +40,23 @@ export default function TeacherSalarySnapshotModal({
     }
 
     if (data) {
-      setSnapshot(data);
+      // 🔹 Filter only active students from snapshot
+      const students =
+        (data.students || []).filter((s: any) => s.status === "active") || [];
+
+      setSnapshot({ ...data, students });
+    } else {
+      setSnapshot(null);
     }
 
     setLoading(false);
   };
 
-  // ---------------- PDF ----------------
+  useEffect(() => {
+    loadSnapshot();
+  }, []);
+
+  // -------- PDF --------
   const generatePDF = () => {
     if (!snapshot) return;
 
@@ -54,16 +64,17 @@ export default function TeacherSalarySnapshotModal({
     doc.setFontSize(14);
     doc.text(`Salary Record (${month}/${year})`, 10, 10);
 
-    // Students table
     autoTable(doc, {
       startY: 18,
       head: [["Student Name", "Fee"]],
-      body: snapshot.students.map((s: any) => [s.name, s.fee]),
+      body: snapshot.students.map((s: any) => [
+        s.name,
+        s.is_new ? "NEW" : `Rs ${s.fee}`,
+      ]),
     });
 
     const y = (doc as any).lastAutoTable.finalY + 10;
 
-    // Salary summary
     autoTable(doc, {
       startY: y,
       head: [["Salary Detail", "Amount"]],
@@ -71,7 +82,7 @@ export default function TeacherSalarySnapshotModal({
         ["Base Salary", snapshot.total_student_fee],
         ["Bonus", snapshot.bonus || 0],
         ["Advance", snapshot.advance || 0],
-        ["Deduct", snapshot.deduct_salary || 0],
+        ["Deduct Salary", snapshot.deduct_salary || 0],
         [
           "Net Salary",
           snapshot.total_student_fee +
@@ -86,22 +97,20 @@ export default function TeacherSalarySnapshotModal({
     doc.save(`salary-${month}-${year}.pdf`);
   };
 
-  useEffect(() => {
-    loadSnapshot();
-  }, []);
-
-  if (loading)
+  // -------- UI STATES --------
+  if (loading) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
         <div className="bg-white p-6 rounded">Loading...</div>
       </div>
     );
+  }
 
-  if (!snapshot)
+  if (!snapshot) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
         <div className="bg-white p-6 rounded">
-          <p>No snapshot found for this month/year.</p>
+          <p>No snapshot found.</p>
           <button
             onClick={onClose}
             className="mt-4 bg-red-500 text-white px-4 py-2 rounded"
@@ -111,6 +120,7 @@ export default function TeacherSalarySnapshotModal({
         </div>
       </div>
     );
+  }
 
   const netSalary =
     snapshot.total_student_fee +
@@ -118,7 +128,7 @@ export default function TeacherSalarySnapshotModal({
     (snapshot.advance || 0) -
     (snapshot.deduct_salary || 0);
 
-  // ---------------- UI ----------------
+  // -------- UI --------
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center">
       <div className="bg-white w-full max-w-xl p-6 rounded space-y-4">
@@ -126,27 +136,31 @@ export default function TeacherSalarySnapshotModal({
           Salary Record — {month}/{year}
         </h2>
 
-        {/* Students */}
+        {/* STUDENTS */}
         <div className="border rounded p-3 max-h-40 overflow-y-auto">
           {snapshot.students.map((s: any, i: number) => (
-            <div
-              key={i}
-              className="flex justify-between border-b py-1"
-            >
+            <div key={i} className="flex justify-between border-b py-1">
               <span>{s.name}</span>
-              <span>Rs {s.fee}</span>
+              <span>
+                {s.is_new ? (
+                  <span className="text-orange-600 font-semibold">NEW</span>
+                ) : (
+                  <>Rs {s.fee}</>
+                )}
+              </span>
             </div>
           ))}
         </div>
 
-        <p className="font-semibold">Base Salary: Rs {snapshot.total_student_fee}</p>
+        <p className="font-semibold">
+          Base Salary: Rs {snapshot.total_student_fee}
+        </p>
         <p>Bonus: Rs {snapshot.bonus || 0}</p>
         <p>Advance: Rs {snapshot.advance || 0}</p>
         <p>Deduct Salary: Rs {snapshot.deduct_salary || 0}</p>
         <p>Remarks: {snapshot.remarks || "-"}</p>
         <p className="font-bold">Net Salary: Rs {netSalary}</p>
 
-        {/* Buttons */}
         <div className="flex gap-2">
           <button
             onClick={generatePDF}
@@ -154,7 +168,6 @@ export default function TeacherSalarySnapshotModal({
           >
             Download PDF
           </button>
-
           <button
             onClick={onClose}
             className="bg-red-500 text-white px-4 py-2 rounded w-full"

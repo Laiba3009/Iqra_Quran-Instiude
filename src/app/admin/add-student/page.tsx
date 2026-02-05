@@ -42,6 +42,7 @@ const [tzSearch, setTzSearch] = useState("");
 const [remarkOpen, setRemarkOpen] = useState(false);
 const [remarkText, setRemarkText] = useState("");
 const [selectedStudent, setSelectedStudent] = useState<any>(null);
+const [selectedTeacher, setSelectedTeacher] = useState<string | null>(null);
 
   const syllabusList = ["Quran", "Islamic Studies", "Tafseer", "Urdu", "English"];
   const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -411,12 +412,24 @@ const saveRemark = async () => {
   const pkTime = moment.tz(time, "HH:mm", "Asia/Karachi"); // <- treat as PKT
   return pkTime.clone().tz(timezone).format("hh:mm A");
 }
+const filteredRows = rows.filter((r) => {
+  const searchLower = search.toLowerCase();
 
- const filteredRows = rows.filter(
-  (r) =>
-    (r.name ?? "").toLowerCase().includes(search.toLowerCase()) ||
-    (r.roll_no ?? "").toLowerCase().includes(search.toLowerCase())
-);
+  const nameMatch = (r.name ?? "").toLowerCase().includes(searchLower);
+  const rollMatch = (r.roll_no ?? "").toLowerCase().includes(searchLower);
+  const teacherMatch = (r.teacherNames || []).some((t: string) =>
+    t.toLowerCase().includes(searchLower)
+  );
+
+  // ✅ Filter by dropdown
+  const dropdownMatch =
+    !selectedTeacher || (r.teacherNames || []).some((t: string) =>
+      t.includes(selectedTeacher)
+    );
+
+  return (nameMatch || rollMatch || teacherMatch) && dropdownMatch;
+});
+
   // ================= PDF Download =================
   const downloadPDF = () => {
     const doc = new jsPDF("p", "mm", "a4");
@@ -708,7 +721,7 @@ onClick={() => {
       </div>
 
       {/* Students Table */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 space-y-4 max-w-6xl mx-auto">
+<div className="bg-white rounded-2xl shadow-lg p-6 space-y-4 w-full">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-3">
             <img src="/images/logo1.jpg" alt="Institute Logo" className="w-12 h-12 rounded-full border" />
@@ -722,30 +735,48 @@ onClick={() => {
             Download PDF
           </Button>
         </div>
+<div className="flex gap-3 mb-3 items-center">
+  <input
+    type="text"
+    placeholder="Search by name or roll no..."
+    className="border p-2 rounded-lg w-full text-sm"
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+  />
 
-        <input
-          type="text"
-          placeholder="Search by name or roll no..."
-          className="border p-2 rounded-lg w-full text-sm mb-3"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+  <select
+    className="border p-2 rounded-lg text-sm"
+    value={selectedTeacher || ""}
+    onChange={(e) =>
+      setSelectedTeacher(e.target.value || null)
+    }
+  >
+    <option value="">All Teachers</option>
+    {teacherList.map((t) => (
+      <option key={t.id} value={t.name}>
+        {t.name}
+      </option>
+    ))}
+  </select>
+</div>
+
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
+<table className="min-w-full table-auto text-sm border-collapse">
             <thead>
                             <tr className="bg-green-100 text-left">
-              <th className="p-3">Name</th>
-              <th className="p-3">Roll</th>
-              <th className="p-3">Class Days</th>
-              <th className="p-3">Teachers</th>
-              <th className="p-3 text-purple-700">Teacher Fee</th>
-              <th className="p-3 text-blue-700">Academy Fee</th>
-              <th className="p-3 text-green-700">Total Fee</th>
-              <th className="p-3">Joining Date</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">Fee Remarks</th>
-              <th className="p-3">Actions</th>
+           <th className="p-3 w-[15%]">Name</th>
+<th className="p-3 w-[8%]">Roll</th>
+<th className="p-3 w-[20%]">Class Days</th>
+<th className="p-3 w-[15%]">Teachers</th>
+<th className="p-3 w-[8%] text-purple-700">Teacher Fee</th>
+<th className="p-3 w-[8%] text-blue-700">Academy Fee</th>
+<th className="p-3 w-[8%] text-green-700">Total Fee</th>
+<th className="p-3 w-[10%]">Joining Date</th>
+<th className="p-3 w-[5%]">Status</th>
+<th className="p-3 w-[8%]">Fee Remarks</th>
+<th className="p-3 w-[10%]">Actions</th>
+
             </tr>
           </thead>
           <tbody>
@@ -799,8 +830,6 @@ onClick={() => {
     {r.remark || "—"}
   </div>
 </td>
-
-
 
                 <td className="p-3 flex gap-2 flex-wrap">
 <Button

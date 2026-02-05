@@ -241,6 +241,11 @@ export default function AdminDashboard() {
               Teacher Attendance
             </Button>
           </Link>
+            <Link href="/admin/teacher-schedules">
+            <Button className="bg-orange-500 hover:bg-orange-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+            Teacher Schedules
+            </Button>
+          </Link>
         </div>
 
         {/* Notice Board */}

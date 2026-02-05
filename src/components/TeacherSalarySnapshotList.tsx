@@ -6,7 +6,7 @@ import TeacherSalarySnapshotModal from "./TeacherSalarySnapshotModal";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
+  "July", "August", "September", "October", "November", "December",
 ];
 
 export default function TeacherSalarySnapshotList({
@@ -18,9 +18,10 @@ export default function TeacherSalarySnapshotList({
   const [selected, setSelected] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all saved salary snapshots
+  // ---------------- FETCH SNAPSHOTS ----------------
   const fetchSnapshots = async () => {
     setLoading(true);
+
     const { data, error } = await supabase
       .from("teacher_monthly_snapshot")
       .select("*")
@@ -28,8 +29,13 @@ export default function TeacherSalarySnapshotList({
       .order("year", { ascending: false })
       .order("month", { ascending: false });
 
-    if (error) console.error(error);
-    else setRecords(data || []);
+    if (error) {
+      console.error(error);
+      setRecords([]);
+    } else {
+      setRecords(data || []);
+    }
+
     setLoading(false);
   };
 
@@ -37,7 +43,7 @@ export default function TeacherSalarySnapshotList({
     fetchSnapshots();
   }, [teacherId]);
 
-  // Delete a snapshot
+  // ---------------- DELETE SNAPSHOT ----------------
   const deleteSnapshot = async (id: string) => {
     if (!confirm("Delete this salary record?")) return;
 
@@ -58,16 +64,17 @@ export default function TeacherSalarySnapshotList({
 
   if (loading) return <p className="p-4">Loading salary records...</p>;
 
+  // ---------------- UI ----------------
   return (
     <div className="bg-white rounded shadow p-4">
       <h2 className="text-lg font-semibold mb-3">
         Saved Salary Records
       </h2>
 
-      <table className="w-full">
+      <table className="w-full border">
         <thead className="bg-gray-100">
           <tr>
-            <th className="p-2 border">Month/Year</th>
+            <th className="p-2 border">Month / Year</th>
             <th className="p-2 border">Base Salary</th>
             <th className="p-2 border">Net Salary</th>
             <th className="p-2 border">Action</th>
@@ -93,7 +100,6 @@ export default function TeacherSalarySnapshotList({
                 <td className="p-2 font-semibold">Rs {net}</td>
 
                 <td className="p-2 flex gap-2">
-                  {/* VIEW BUTTON */}
                   <button
                     className="bg-blue-600 text-white px-3 py-1 rounded text-sm"
                     onClick={() => setSelected(r)}
@@ -101,7 +107,6 @@ export default function TeacherSalarySnapshotList({
                     View
                   </button>
 
-                  {/* DELETE BUTTON */}
                   <button
                     className="bg-red-500 text-white px-3 py-1 rounded text-sm"
                     onClick={() => deleteSnapshot(r.id)}
@@ -129,9 +134,7 @@ export default function TeacherSalarySnapshotList({
       {/* VIEW MODAL */}
       {selected && (
         <TeacherSalarySnapshotModal
-          teacherId={teacherId}
-          month={selected.month}
-          year={selected.year}
+          snapshotId={selected.id}   // 🔥 best practice
           onClose={() => setSelected(null)}
         />
       )}
