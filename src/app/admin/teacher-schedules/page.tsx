@@ -10,16 +10,21 @@ export default function AdminTeacherSchedules() {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 🔹 Load all teachers
+  // 🔹 Load all teachers (Zoom/Google links removed)
   useEffect(() => {
     loadTeachers();
   }, []);
 
   const loadTeachers = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("teachers")
-      .select("id, name, zoom_link, google_meet_link")
+      .select("id, name") // ❌ removed zoom_link & google_meet_link
       .order("name");
+
+    if (error) {
+      console.error("Error loading teachers:", error.message);
+      return;
+    }
 
     setTeachers(data || []);
   };
@@ -29,7 +34,7 @@ export default function AdminTeacherSchedules() {
     setSelectedTeacher(teacher);
     setLoading(true);
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("student_teachers")
       .select(
         `
@@ -37,13 +42,20 @@ export default function AdminTeacherSchedules() {
           id,
           name,
           class_days,
-          status
+          status,
+          timezone
         )
       `
       )
       .eq("teacher_id", teacher.id);
 
-    // ❌ disabled students remove
+    if (error) {
+      console.error("Error loading schedule:", error.message);
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Only active students
     const activeStudents =
       data
         ?.map((d: any) => d.students)
@@ -55,6 +67,7 @@ export default function AdminTeacherSchedules() {
 
   return (
     <div className="p-6 max-w-7xl mt-16 mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+      
       {/* LEFT: Teacher List */}
       <div className="bg-white rounded-xl shadow p-4">
         <h2 className="font-bold text-lg mb-3 text-green-700">
@@ -66,7 +79,7 @@ export default function AdminTeacherSchedules() {
             <li
               key={t.id}
               onClick={() => loadTeacherSchedule(t)}
-              className={`cursor-pointer p-2 rounded border
+              className={`cursor-pointer p-2 rounded border transition
                 ${
                   selectedTeacher?.id === t.id
                     ? "bg-green-100 border-green-500"
@@ -79,7 +92,7 @@ export default function AdminTeacherSchedules() {
         </ul>
       </div>
 
-      {/* RIGHT: Today Schedule */}
+      {/* RIGHT: Schedule */}
       <div className="md:col-span-2 mt-16">
         {!selectedTeacher && (
           <div className="bg-gray-50 p-6 rounded-xl text-center text-gray-500">
@@ -88,7 +101,9 @@ export default function AdminTeacherSchedules() {
         )}
 
         {selectedTeacher && loading && (
-          <div className="p-6 text-center">Loading schedule...</div>
+          <div className="p-6 text-center text-gray-600">
+            Loading schedule...
+          </div>
         )}
 
         {selectedTeacher && !loading && (

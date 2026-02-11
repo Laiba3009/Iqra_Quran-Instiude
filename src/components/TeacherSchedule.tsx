@@ -1,5 +1,6 @@
 "use client";
 
+import moment from "moment-timezone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +15,20 @@ export default function TeacherSchedule({
     weekday: "long",
   });
 
+  // ✅ Time Functions
+  function formatPKTime(timePK: string) {
+    if (!timePK) return "—";
+    return moment
+      .tz(timePK, "HH:mm", "Asia/Karachi")
+      .format("hh:mm A");
+  }
+
+  function formatStudentTime(timePK: string, timezone: string) {
+    if (!timePK) return "—";
+    const pkMoment = moment.tz(timePK, "HH:mm", "Asia/Karachi");
+    return pkMoment.clone().tz(timezone).format("hh:mm A");
+  }
+
   const todayClasses = students.flatMap((student) =>
     (student.class_days || [])
       .filter(
@@ -23,6 +38,7 @@ export default function TeacherSchedule({
         studentName: student.name,
         subject: d.subject,
         time: d.time,
+        timezone: student.timezone || "Asia/Karachi",
       }))
   );
 
@@ -44,9 +60,7 @@ export default function TeacherSchedule({
         </CardTitle>
       </CardHeader>
 
-      {/* SCROLLABLE CONTENT */}
       <CardContent className="max-h-[420px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200">
-        {/* GRID: 2 per row when classes are more */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {todayClasses.map((c, i) => (
             <div
@@ -61,12 +75,16 @@ export default function TeacherSchedule({
                 <p className="text-sm text-gray-600">
                   📘 Subject: {c.subject}
                 </p>
-                <p className="text-sm text-gray-500">
-                  ⏰ Time: {c.time}
-                </p>
+
+                {/* ✅ OLD TIME + NEW TIMES */}
+                <div className="text-sm text-gray-500 space-y-1">
+                  <p>⏰ Raw Time: {c.time}</p>
+                  <p>🇵🇰 Pakistan Time: {formatPKTime(c.time)}</p>
+                  <p>🌍 Student Time: {formatStudentTime(c.time, c.timezone)}</p>
+                </div>
               </div>
 
-              {/* Action Buttons (Always Visible) */}
+              {/* Action Buttons (UNCHANGED) */}
               <div className="flex gap-2 flex-wrap">
                 <Button
                   asChild={!!teacher.zoom_link}
