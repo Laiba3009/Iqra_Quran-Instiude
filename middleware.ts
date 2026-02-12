@@ -1,10 +1,6 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -22,49 +18,44 @@ export async function middleware(req: NextRequest) {
     if (portalRole === "student" && studentRoll) {
       return NextResponse.next();
     }
+  );
 
-    // 🚫 Otherwise redirect to student login
-    const url = req.nextUrl.clone();
-    url.pathname = "/student-signin";
-    return NextResponse.redirect(url);
+  // 🔐 Get logged in user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = req.nextUrl;
+
+  // ✅ Allow public routes
+  const publicRoutes = [
+    "/",
+    "/admin/login",
+    "/student-signin",
+    "/login",
+  ];
+
+  if (publicRoutes.includes(pathname)) {
+    return res;
   }
 
-  // 🧩 Admin & Teacher — use Supabase Auth only
-  const token = req.cookies.get("sb:token")?.value || null;
-
-  if (token) {
-    const { data: userData } = await supabase.auth.getUser(token);
-    if (userData?.user) {
-      const userId = userData.user.id;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .maybeSingle();
-
-      const role = profile?.role ?? "student";
-
-      if (pathname.startsWith("/admin") && role !== "admin") {
-        return NextResponse.redirect(new URL("/unauthorized", req.url));
-      }
-      if (pathname.startsWith("/teacher") && role !== "teacher") {
-        return NextResponse.redirect(new URL("/unauthorized", req.url));
-      }
-
-      return NextResponse.next();
+  // 🚫 Protect Admin Routes
+  if (pathname.startsWith("/admin")) {
+    if (!user) {
+      return NextResponse.redirect(new URL("/admin/login", req.url));
     }
   }
 
-  // 🚫 If no token and trying to access admin/teacher
-  if (pathname.startsWith("/admin") || pathname.startsWith("/teacher")) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  // 🚫 Protect Teacher Routes
+  if (pathname.startsWith("/teacher")) {
+    if (!user) {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
   }
 
-  return NextResponse.next();
+  return res;
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/teacher/:path*", "/student/:path*"]
+  matcher: ["/admin/:path*", "/teacher/:path*"],
 };

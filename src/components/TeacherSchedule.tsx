@@ -15,32 +15,40 @@ export default function TeacherSchedule({
     weekday: "long",
   });
 
-  // ✅ Time Functions
-  function formatPKTime(timePK: string) {
+  // ✅ Roman Urdu Time Functions
+  function formatPKTimeRoman(timePK: string) {
     if (!timePK) return "—";
     return moment
       .tz(timePK, "HH:mm", "Asia/Karachi")
-      .format("hh:mm A");
+      .format("hh:mm A")
   }
 
-  function formatStudentTime(timePK: string, timezone: string) {
+  function formatStudentTimeRoman(timePK: string, timezone: string) {
     if (!timePK) return "—";
     const pkMoment = moment.tz(timePK, "HH:mm", "Asia/Karachi");
-    return pkMoment.clone().tz(timezone).format("hh:mm A");
+    return pkMoment
+      .clone()
+      .tz(timezone)
+      .format("hh:mm A")
   }
 
-  const todayClasses = students.flatMap((student) =>
-    (student.class_days || [])
-      .filter(
-        (d: any) => d.day?.toLowerCase() === today.toLowerCase()
-      )
-      .map((d: any) => ({
-        studentName: student.name,
-        subject: d.subject,
-        time: d.time,
-        timezone: student.timezone || "Asia/Karachi",
-      }))
-  );
+  // ✅ Get today's classes and sort by Pakistan time
+  const todayClasses = students
+    .flatMap((student) =>
+      (student.class_days || [])
+        .filter((d: any) => d.day?.toLowerCase() === today.toLowerCase())
+        .map((d: any) => ({
+          studentName: student.name,
+          subject: d.subject,
+          time: d.time,
+          timezone: student.timezone || "Asia/Karachi",
+        }))
+    )
+    .sort((a, b) => {
+      const timeA = moment.tz(a.time, "HH:mm", "Asia/Karachi");
+      const timeB = moment.tz(b.time, "HH:mm", "Asia/Karachi");
+      return timeA.diff(timeB);
+    });
 
   if (todayClasses.length === 0) {
     return (
@@ -76,15 +84,14 @@ export default function TeacherSchedule({
                   📘 Subject: {c.subject}
                 </p>
 
-                {/* ✅ OLD TIME + NEW TIMES */}
+                {/* ✅ Pakistan Time + Student Time in Roman Urdu */}
                 <div className="text-sm text-gray-500 space-y-1">
-                  <p>⏰ Raw Time: {c.time}</p>
-                  <p>🇵🇰 Pakistan Time: {formatPKTime(c.time)}</p>
-                  <p>🌍 Student Time: {formatStudentTime(c.time, c.timezone)}</p>
+                  <p>🇵🇰 Pakistan Time: {formatPKTimeRoman(c.time)}</p>
+                  <p>🌍 Student Time: {formatStudentTimeRoman(c.time, c.timezone)}</p>
                 </div>
               </div>
 
-              {/* Action Buttons (UNCHANGED) */}
+              {/* Action Buttons */}
               <div className="flex gap-2 flex-wrap">
                 <Button
                   asChild={!!teacher.zoom_link}

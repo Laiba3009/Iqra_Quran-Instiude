@@ -1,6 +1,6 @@
 "use client";
 import RoleBasedLayout from "@/components/RoleBasedLayout";
-
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import SendNotice from "../send-notice/page";
 import StudentSearchBar from "@/components/admin/StudentSearchBar";
+import AdminDashboardWrapper from "@/components/AdminDashboard";
 import { Users, Wallet, DollarSign, GraduationCap, AlertTriangle, Banknote, CreditCard, UserX } from "lucide-react";
 
 // ✅ TypeScript Interfaces
@@ -21,8 +22,8 @@ interface Student {
   fee_status: string;
   academy_fee?: number;
   student_total_fee?: number;
-  join_date?: string; // important
-  status?: string; // ✅ added for disabled students
+  join_date?: string; 
+  status?: string; 
 }
 
 export default function AdminDashboard() {
@@ -36,17 +37,27 @@ export default function AdminDashboard() {
   const [academyFeeTotal, setAcademyFeeTotal] = useState(0);
   const [studentFeeTotal, setStudentFeeTotal] = useState(0);
   const [newStudentsCount, setNewStudentsCount] = useState(0);
-
+const [loading, setLoading] = useState(true);
   const [studentsData, setStudentsData] = useState<Student[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState("");
   const [modalStudents, setModalStudents] = useState<Student[]>([]);
+const router = useRouter();
 
-  useEffect(() => {
-    const storedRole = localStorage.getItem("userRole");
-    setRole(storedRole);
-    fetchDashboardData();
-  }, []);
+useEffect(() => {
+  const checkAuth = async () => {
+    const { data } = await supabase.auth.getUser();
+
+    if (!data.user) {
+      router.replace("/admin/login");
+    } else {
+      await fetchDashboardData();  
+      setLoading(false);
+    }
+  };
+
+  checkAuth();
+}, []);
 
   const fetchDashboardData = async () => {
     const { count: studentCount, data: students } = await supabase
@@ -105,12 +116,18 @@ export default function AdminDashboard() {
     }
     setShowModal(true);
   };
+if (loading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p>Loading...</p>
+    </div>
+  );
+}
 
   return (
-    <RoleBasedLayout role="admin">
+    <AdminDashboardWrapper>
+    <RoleBasedLayout role="admin"> 
       <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      
-
           <h1 className="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-8">📊 Admin Dashboard</h1>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -279,5 +296,8 @@ export default function AdminDashboard() {
         )}
         </div>
     </RoleBasedLayout>
+    </AdminDashboardWrapper>
+
   );
 }
+
