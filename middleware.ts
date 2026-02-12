@@ -3,20 +3,17 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const res = NextResponse.next();
 
-  // Public routes (accessible without login)
-  const publicPaths = ["/", "/login", "/signup", "/forgot", "/api", "/_next", "/static", "/student-signin"];
-  if (publicPaths.some(p => pathname.startsWith(p))) return NextResponse.next();
-
-  // 🧩 Check Student Cookie Auth first (custom auth)
-  const portalRole = req.cookies.get("portal_role")?.value;
-  const studentRoll = req.cookies.get("student_roll")?.value;
-
-  if (pathname.startsWith("/student")) {
-    // ✅ Allow if student cookie exists
-    if (portalRole === "student" && studentRoll) {
-      return NextResponse.next();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+      },
     }
   );
 
