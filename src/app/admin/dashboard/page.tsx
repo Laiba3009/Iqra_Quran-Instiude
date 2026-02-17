@@ -243,6 +243,7 @@ if (loading) {
               View Attendance
             </Button>
           </Link>
+
             <Link href="/admin/today-cancel-class">
             <Button className="bg-rose-900 hover:bg-rose-300 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
               View Cancelled Classes
@@ -261,6 +262,11 @@ if (loading) {
             <Link href="/admin/teacher-schedules">
             <Button className="bg-orange-500 hover:bg-orange-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
             Teacher Schedules
+            </Button>
+          </Link>
+            <Link href="/admin/add-syllabus">
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg">
+              Add Syllabus
             </Button>
           </Link>
         </div>

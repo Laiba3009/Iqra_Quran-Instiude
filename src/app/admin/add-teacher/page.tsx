@@ -17,26 +17,29 @@ export default function AddTeacher() {
     zoom_link: '',
     google_meet_link: '', // ✅ Google Meet
     job_time:'', 
-    syllabus: [] as string[],
+  syllabus: [] as string[],   
     joining_date: '',
   });
-
+  
+  const [syllabusList, setSyllabusList] = useState<string[]>([]); // ✅ yahan define karo
   const [rows, setRows] = useState<any[]>([]);
   const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState('');
   const [filterSubject, setFilterSubject] = useState('');
 
-  const syllabusList = [
-    'Quran',
-    'Islamic Studies',
-    'Quran Translation & Tafseer',
-    'Urdu',
-    'English',
-  ];
+useEffect(() => {
+  const loadSyllabus = async () => {
+    const { data } = await supabase.from('syllabus').select('title');
+    if (data) setSyllabusList(data.map(s => s.title));
+  };
+  loadSyllabus();
+}, []);
 
-  useEffect(() => {
-    loadTeachers();
-  }, []);
+useEffect(() => {
+  loadTeachers();
+}, []);
+
+
 
   const loadTeachers = async () => {
     const { data } = await supabase
@@ -46,14 +49,15 @@ export default function AddTeacher() {
     setRows(data ?? []);
   };
 
-  const toggleSyllabus = (name: string) => {
-    setForm((prev) => ({
-      ...prev,
-      syllabus: prev.syllabus.includes(name)
-        ? prev.syllabus.filter((s) => s !== name)
-        : [...prev.syllabus, name],
-    }));
-  };
+ const toggleSyllabus = (name: string) => {
+  setForm(prev => ({
+    ...prev,
+    syllabus: prev.syllabus.includes(name)
+      ? prev.syllabus.filter(s => s !== name)
+      : [...prev.syllabus, name],
+  }));
+};
+
 
   const save = async () => {
     if (!form.name || !form.roll_no || form.syllabus.length === 0) {
@@ -256,25 +260,26 @@ export default function AddTeacher() {
         </div>
 
         {/* Syllabus Selection */}
-        <div>
-          <h3 className="font-semibold mb-2 text-gray-700">Select Syllabus</h3>
-          <div className="flex flex-wrap gap-2">
-            {syllabusList.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggleSyllabus(s)}
-                className={`px-3 py-1 rounded-full border text-sm ${
-                  form.syllabus.includes(s)
-                    ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-green-50'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
+      <div>
+  <h3 className="font-semibold mb-2 text-gray-700">Select Syllabus</h3>
+  <div className="flex flex-wrap gap-2 mb-4">
+    {syllabusList.map(s => (
+      <button
+        key={s}
+        type="button"
+        onClick={() => toggleSyllabus(s)}
+        className={`px-3 py-1 rounded-full border text-sm ${
+          form.syllabus.includes(s)
+            ? 'bg-green-600 text-white border-green-600'
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-green-50'
+        }`}
+      >
+        {s}
+      </button>
+    ))}
+  </div>
+</div>
+
 
         <Button onClick={save} className="bg-green-600 hover:bg-green-700 w-full md:w-auto">
           {editing ? 'Update Teacher' : 'Save Teacher'}

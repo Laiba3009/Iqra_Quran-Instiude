@@ -34,7 +34,7 @@ export default function Header({ toggleSidebar, role }: HeaderProps) {
           {/* 👇 Admin Signin sirf tab dikhayenge jab role khali ya guest ho */}
           {(!role || role === "guest") && (
             <Link
-              href="/admin/signin"
+              href="/admin/login"
               className="text-[#001F3F] font-medium hover:text-blue-600"
             >
               Admin Signin

@@ -29,7 +29,7 @@ export default function AddStudentForm() {
   const [teachers, setTeachers] = useState<any[]>([]);
 
   const weekDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-  const syllabusList = ["Quran","Islamic Studies","Tafseer","Urdu","English"];
+  const syllabusList = ["Quran","Islamic Studies","Urdu","English"];
 
   useEffect(() => {
     loadStudents();

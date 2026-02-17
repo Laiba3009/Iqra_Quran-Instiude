@@ -44,16 +44,34 @@ const [remarkText, setRemarkText] = useState("");
 const [selectedStudent, setSelectedStudent] = useState<any>(null);
 const [selectedTeacher, setSelectedTeacher] = useState<string | null>(null);
 
-  const syllabusList = ["Quran", "Islamic Studies", "Tafseer", "Urdu", "English"];
   const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     const allTimezones = moment.tz.names();
+const [syllabusList, setSyllabusList] = useState<{ title: string; image_url?: string }[]>([]);
+
+const loadSyllabus = async () => {
+  const { data } = await supabase
+    .from("syllabus")
+    .select("title, image_url");
+
+  if (data) setSyllabusList(data);
+};
+
+const toggleSyllabus = (title: string) => {
+  setForm(prev => ({
+    ...prev,
+    syllabus: prev.syllabus.includes(title)
+      ? prev.syllabus.filter(s => s !== title)
+      : [...prev.syllabus, title],
+  }));
+};
 
 
   useEffect(() => {
-    loadRows();
-    loadTeachers();
-  }, []);
+  loadRows();
+  loadTeachers();
+  loadSyllabus();
+}, []);
 
   function isFeeExpired(joinDate: string) {
   if (!joinDate) return false;
@@ -149,15 +167,6 @@ const loadTeachers = async () => {
     alert(err.message);
   }
 };
-  // ================= Toggle Functions =================
-  const toggleSyllabus = (name: string) => {
-    setForm((prev) => ({
-      ...prev,
-      syllabus: prev.syllabus.includes(name)
-        ? prev.syllabus.filter((c) => c !== name)
-        : [...prev.syllabus, name],
-    }));
-  };
 
   const toggleTeacher = (teacherId: string) => {
     setTeacherList((prev) =>
@@ -273,6 +282,9 @@ function cleanTime(t: string) {
 
   };
 
+
+console.log("Selected syllabus BEFORE SAVE:", form.syllabus);
+
 if (editing) {
   await supabase.from("students").update(payload).eq("id", form.id);
   await supabase.from("student_teachers").delete().eq("student_id", form.id);
@@ -318,6 +330,8 @@ if (editing) {
     fee_status: "unpaid",
     join_date: "",
     class_days: [],
+    remark: "",      
+
     
   });
   setTeacherList(prev => prev.map(x => ({ ...x, selected: false, amount: 0 })));
@@ -585,28 +599,35 @@ const tableData = filteredRows.map((r) => [
             onChange={(e) => setForm({ ...form, join_date: e.target.value })}
           />
         </div>
+     
 
-        {/* Syllabus */}
-        <h3 className="font-semibold mb-2 text-gray-700">Select Syllabus</h3>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {syllabusList.map((s) => (
-            <button
-              key={s}
-              type="button"
-onClick={() => {
-  toggleSyllabus(s);
-  setActiveSyllabus(prev => (prev === s ? null : s));
-}}
-              className={`px-3 py-1 rounded-full border text-sm ${
-                form.syllabus.includes(s)
-                  ? "bg-green-600 text-white border-green-600"
-                  : "bg-white text-gray-700 border-gray-300 hover:bg-green-50"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+{/* Select Syllabus */}
+<div className="mt-4">
+  <h3 className="font-semibold mb-2 text-gray-700">
+    Select Syllabus
+  </h3>
+
+  <div className="flex flex-wrap gap-2">
+    {syllabusList.map((s) => (
+      <div
+        key={s.title}
+        onClick={() => {
+          toggleSyllabus(s.title);
+          setActiveSyllabus(s.title);
+        }}
+        className={`px-3 py-2 rounded-lg border cursor-pointer text-sm transition
+        ${
+          form.syllabus.includes(s.title)
+            ? "bg-green-600 text-white border-green-600"
+            : "bg-white hover:bg-green-100"
+        }`}
+      >
+        {s.title}
+      </div>
+    ))}
+  </div>
+</div>
+
 
  {activeSyllabus && (
   <>

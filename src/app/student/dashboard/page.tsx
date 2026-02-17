@@ -64,6 +64,8 @@ export default function StudentDashboard() {
   const [cancelReason, setCancelReason] = useState("");
   const [complaint, setComplaint] = useState("");
   const [suggestion, setSuggestion] = useState("");
+const [syllabus, setSyllabus] = useState<any[]>([]);
+const [syllabusOpen, setSyllabusOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -72,7 +74,7 @@ export default function StudentDashboard() {
 
       const { data: s } = await supabase
         .from("students")
-        .select("id, name, roll_no, timezone")
+        .select("id, name, roll_no, timezone, syllabus")
         .eq("roll_no", roll)
         .maybeSingle();
 
@@ -91,6 +93,25 @@ export default function StudentDashboard() {
     };
     load();
   }, []);
+
+  useEffect(() => {
+  if (!student?.syllabus) return;
+
+  const loadSyllabus = async () => {
+    const titles = Array.isArray(student.syllabus)
+      ? student.syllabus
+      : [student.syllabus];
+
+    const { data } = await supabase
+      .from("syllabus")
+      .select("*")
+      .in("title", titles);
+
+    if (data) setSyllabus(data);
+  };
+
+  loadSyllabus();
+}, [student]);
 
   /* 💰 Fee Upload */
   const uploadFeeProof = async () => {
@@ -221,6 +242,13 @@ export default function StudentDashboard() {
         <div className="max-w-4xl mx-auto">
           <TodayClassesCard studentId={student.id} timezone={student.timezone} />
         </div>
+<Button
+  className="bg-purple-600 text-white px-4 py-2 rounded-lg"
+  onClick={() => window.location.href = "/student/syllabus-all"}
+>
+  📚 View Syllabus
+</Button>
+
 
         {/* Cancel Request */}
         <Card className="border-red-200 bg-red-50">

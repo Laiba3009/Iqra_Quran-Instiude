@@ -1,95 +1,130 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 
 function getCookie(name: string) {
   return document.cookie.split("; ").reduce((r, v) => {
     const parts = v.split("=");
-    return parts[0].trim() === name ? decodeURIComponent(parts[1]) : r;
+    return parts[0].trim() === name
+      ? decodeURIComponent(parts[1])
+      : r;
   }, "");
 }
 
-export default function TeacherSyllabusPage() {
-  const [teacher, setTeacher] = useState<any>(null);
+export default function TeacherMySyllabus() {
+  const [syllabus, setSyllabus] = useState<any[]>([]);
+  const [openId, setOpenId] = useState<string | null>(null);
 
-  useEffect(() => {
+ useEffect(() => {
+  const load = async () => {
     const roll = getCookie("teacher_roll");
-    if (roll) loadTeacher(roll);
-  }, []);
+    if (!roll) return;
 
-  const loadTeacher = async (rollNo: string) => {
-    const { data } = await supabase
+    const { data: teacher } = await supabase
       .from("teachers")
-      .select("name, syllabus")
-      .eq("roll_no", rollNo)
+      .select("syllabus")
+      .eq("roll_no", roll)
       .maybeSingle();
 
-    setTeacher(data);
-  };
+    if (!teacher || !teacher.syllabus) return;
 
-  if (!teacher)
-    return (
-      <div className="p-8 text-center text-gray-100 font-medium bg-blue-950 min-h-screen flex items-center justify-center">
-        Loading syllabus...
-      </div>
+    const titles = Array.isArray(teacher.syllabus)
+      ? teacher.syllabus
+      : [teacher.syllabus];
+
+    const { data } = await supabase
+      .from("syllabus")
+      .select("*")
+      .in("title", titles);
+
+    if (!data) return;
+
+    const rowsWithSignedUrl = await Promise.all(
+      data.map(async (row) => {
+        if (row.image_url) {
+          const fileName = row.image_url.split("/").pop();
+
+          const { data: signedData } = await supabase.storage
+            .from("syllabus-files")
+            .createSignedUrl(fileName || "", 60 * 60);
+
+          if (signedData?.signedUrl) {
+            row.image_url = signedData.signedUrl;
+          }
+        }
+        return row;
+      })
     );
 
+    setSyllabus(rowsWithSignedUrl);
+  };
+
+  load();   
+
+}, []);
+
+
+  const isMultiple = syllabus.length > 1;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-950 to-blue-900 text-white px-6 md:px-20 py-10">
-      <div className="max-w-5xl mx-auto">
-        {/* 🔙 Back Button */}
-        <div className="mb-6">
-          <Link href="/teacher/dashboard">
-            <Button
-              className="bg-blue-800 hover:bg-blue-700 text-white flex items-center gap-2"
-            >
-              <ArrowLeft size={18} />
-              Back to Dashboard
-            </Button>
-          </Link>
-        </div>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-4xl mx-auto space-y-6">
 
-        {/* 📘 Syllabus Card */}
-        <Card className="shadow-2xl border-none bg-blue-800/40 backdrop-blur-md">
-          <CardHeader>
-            <CardTitle className="text-3xl text-center text-blue-100 font-bold">
-              {teacher.name} ka Assigned Syllabus
-            </CardTitle>
-          </CardHeader>
+        <Button
+          variant="outline"
+          onClick={() => window.history.back()}
+        >
+          ← Back
+        </Button>
 
-          <CardContent>
-            {teacher.syllabus?.length ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {teacher.syllabus.map((subject: string, i: number) => (
-                  <Link
-                    key={i}
-                    href={`/teacher/syllabus/${subject
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")}`}
-                  >
-                    <div className="p-5 border border-blue-400 rounded-2xl bg-blue-200 text-blue-900 hover:bg-blue-300 cursor-pointer transition shadow-lg hover:shadow-xl">
-                      <h3 className="font-semibold text-xl">
-                        📘 {subject}
-                      </h3>
-                      <p className="text-sm mt-1 opacity-80">
-                        Click karo taake {subject} ka syllabus dekho.
-                      </p>
-                    </div>
-                  </Link>
-                ))}
+        <h1 className="text-3xl font-bold text-purple-700">
+          📚 My Syllabus
+        </h1>
+
+        {syllabus.length === 0 && (
+          <div className="bg-white p-6 rounded-xl shadow text-center">
+            No syllabus assigned
+          </div>
+        )}
+
+        {syllabus.map((s) => (
+          <div
+            key={s.id}
+            className="bg-white p-6 rounded-2xl shadow-md space-y-4"
+          >
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-purple-600">
+                {s.title}
+              </h2>
+
+              {isMultiple && (
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    setOpenId(openId === s.id ? null : s.id)
+                  }
+                >
+                  {openId === s.id ? "Hide" : "View"}
+                </Button>
+              )}
+            </div>
+
+            {(isMultiple ? openId === s.id : true) && (
+              <div className="pt-3 border-t space-y-3">
+                {s.content && <p>{s.content}</p>}
+                {s.image_url && (
+                  <img
+                    src={s.image_url}
+                    alt={s.title}
+                    className="rounded-xl max-w-full shadow"
+                  />
+                )}
               </div>
-            ) : (
-              <p className="text-blue-200 text-center py-10 text-lg">
-                Abhi tak koi syllabus assign nahi hua.
-              </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        ))}
       </div>
     </div>
   );

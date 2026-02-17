@@ -65,7 +65,7 @@ function NoticeBoard() {
   };
 
   return (
-    <Card className="bg-yellow-50 border border-yellow-200 shadow">
+<Card className="shadow-md rounded-2xl border-l-4 border-yellow-500">
       <CardHeader>
         <CardTitle className="text-lg font-bold text-yellow-800">
           📢 Notice Board
@@ -291,23 +291,39 @@ if (jobMins === null || nowMins === null) {
 
   return (
     <RoleBasedLayout role="teacher">
-      <div className="-mx-6 -mt-6">
+<div className="space-y-8 pb-10">
   <BannerSlider />
 
-        <h1 className="text-3xl font-bold text-center text-green-800">
-          Welcome, {teacher.name}
-        </h1>
-<div className="flex justify-center">
-  <Button
+        <div className="text-center space-y-2">
+  <h1 className="text-4xl font-bold text-green-800">
+    👋 Welcome, {teacher.name}
+  </h1>
+</div>
+
+<Card className="shadow-md rounded-2xl">
+  <CardContent className="flex flex-col md:flex-row justify-center items-center gap-4 p-6">
+    
+    <Button
     onClick={() => setShowSchedule((prev) => !prev)}
     className="bg-blue-600 text-white"
   >
     📅 {showSchedule ? "Hide" : "Show"} Today Schedule
   </Button>
-</div>
 {showSchedule && (
   <TeacherSchedule students={students} teacher={teacher} />
 )}
+
+      
+
+    <Link href="/teacher/syllabus">
+      <Button className="bg-purple-600 hover:bg-purple-700 text-white px-6">
+        📚 View Syllabus
+      </Button>
+    </Link>
+
+  </CardContent>
+</Card>
+
 
 
         <NoticeBoard />
@@ -335,26 +351,24 @@ if (jobMins === null || nowMins === null) {
                 </span>
               </p>
             )}
+ 
+      <Card className="shadow-md rounded-2xl">
+  <CardHeader>
+    <CardTitle className="text-xl text-center text-gray-700">
+      🧑‍🎓 Assigned Students & Weekly Report
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    {teacher.id ? (
+      <TeacherStudents teacherId={teacher.id} />
+    ) : (
+      <p className="text-center text-gray-500">
+        No assigned students found.
+      </p>
+    )}
+  </CardContent>
+</Card>
 
-
-        {/* STUDENTS */}
-         <div>
-      <CardHeader>
-            <CardTitle className="text-xl text-center text-gray-700">
-              🧑‍🎓 Assigned Students & Weekly Report
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {teacher.id ? (
-              <TeacherStudents teacherId={teacher.id} />
-            ) : (
-              <p className="text-center text-gray-500">
-                No assigned students found.
-              </p>
-            )}
-          </CardContent>
-</div>
-        
       </div>
     </RoleBasedLayout>
   );
