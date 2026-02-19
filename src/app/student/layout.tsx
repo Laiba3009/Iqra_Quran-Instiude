@@ -18,6 +18,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         toggleSidebar={() => setSidebarOpen(false)}
       />
 
+      {/* Main Content */}
       <div className="flex-1 flex flex-col">
 
         {/* Header */}
@@ -27,10 +28,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         />
 
         {/* Page content */}
-        <main className="pt-20 ">
+        <main className="flex-1 pt-20 p-4">
           {children}
         </main>
-           <Footer/>
+
+        {/* Footer */}
+        <Footer />
 
       </div>
     </div>
