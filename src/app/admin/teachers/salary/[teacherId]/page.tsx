@@ -127,16 +127,45 @@ const baseSalary = activeStudents.reduce((t, s) => {
   };
 
   // ---------------- DELETE SALARY ----------------
-  const deleteSalary = async (id: number) => {
-    if (!confirm("Delete salary record?")) return;
-    await supabase.from("monthly_salary").delete().eq("id", id);
+const deleteSalary = async (id: number, month: number, year: number) => {
+  if (!confirm("Delete salary record?")) return;
+
+  try {
+    // 1️⃣ Delete from monthly_salary
+    const { data: deletedSalary, error: salaryError } = await supabase
+      .from("monthly_salary")
+      .delete()
+      .eq("id", id)
+      .select();
+
+    if (salaryError) throw salaryError;
+
+    // 2️⃣ Delete corresponding snapshot
+    const { data: deletedSnapshot, error: snapshotError } = await supabase
+      .from("teacher_monthly_snapshot")
+      .delete()
+      .eq("teacher_id", teacherId)
+      .eq("month", month)
+      .eq("year", year)
+      .select();
+
+    if (snapshotError) throw snapshotError;
+
+    console.log("Deleted salary:", deletedSalary);
+    console.log("Deleted snapshot:", deletedSnapshot);
+
+    alert("✅ Salary record deleted successfully!");
     fetchAll();
-  };
+  } catch (err: any) {
+    console.error("Delete error:", err.message);
+    alert("❌ Delete failed: " + err.message);
+  }
+};
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 max-w- mt-9 mx-auto space-y-6">
 
-      <h1 className="text-2xl font-bold">
+      <h1 className="text-2xl mt-9 font-bold">
         {teacher.name} — Salary Dashboard
       </h1>
 
@@ -223,12 +252,12 @@ const baseSalary = activeStudents.reduce((t, s) => {
                   >
                     Record
                   </button>
-                  <button
-                    className="bg-red-600 text-white px-3 py-1 rounded"
-                    onClick={() => deleteSalary(r.id)}
-                  >
-                    ❌
-                  </button>
+              <button
+  className="bg-red-600 text-white px-3 py-1 rounded"
+  onClick={() => deleteSalary(r.id, r.month, r.year)}
+>
+  ❌
+</button>
                 </td>
               </tr>
             ))}

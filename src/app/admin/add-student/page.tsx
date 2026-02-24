@@ -383,11 +383,13 @@ if (editing) {
 
   // ================= Toggle Fee =================
 const toggleFee = async (student: any) => {
+  // Agar month expire ho chuka hai
   if (isFeeExpired(student.join_date)) {
     alert("New billing cycle start ho chuki hai. Fee unpaid hai.");
     return;
   }
 
+  // Normal toggle
   await supabase
     .from("students")
     .update({
@@ -836,14 +838,18 @@ const tableData = filteredRows.map((r) => [
 {/* Status */}
 <td
   className={`p-3 font-medium ${
-    isJoiningMonth(r.join_date)
+    isFeeExpired(r.join_date)
       ? "text-red-600"
       : r.fee_status === "paid"
       ? "text-green-600"
       : "text-red-600"
   }`}
 >
-  {isJoiningMonth(r.join_date) ? "unpaid" : r.fee_status}
+{
+  isFeeExpired(r.join_date)
+    ? "unpaid"
+    : r.fee_status
+}
 </td>
 
 <td className="p-3 text-gray-600 max-w-[220px]">

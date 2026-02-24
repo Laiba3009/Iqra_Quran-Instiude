@@ -217,7 +217,7 @@ const markStatus = async (teacherId, date, status) => {
                     <td key={d} className="border text-center font-bold p-1">
                       <div className={`${
                         status === "P" ? "text-green-700" :
-                        status === "L" ? "text-orange-600" :
+                        status === "L" ? "text-purple-300" :
                         status === "A" ? "text-red-600" :
                         status === "LV" ? "text-blue-600" : ""
                       }`}>{status}</div>

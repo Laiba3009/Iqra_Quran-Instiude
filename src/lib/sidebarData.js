@@ -29,6 +29,7 @@ export const sidebars = {
     { name: "Student Monthly Reports", link: "/admin/montly-reports", icon: ClipboardList },
     { name: "Teachers Salary Management", link: "/admin/teachers", icon: Wallet },
     { name: "Teacher Bank List", link: "/admin/teacher-bank-list", icon: Landmark },
+        { name: "Teacher Leave Request", link: "/admin/teacher-leave-request", icon: Landmark },
     { name: "Logout", link: "#", icon: LogOut, logout: true },
     { name: "Login Student Portal", link: "/login?role=student", icon: GraduationCap },
     { name: "Login Teacher Portal", link: "/login?role=teacher", icon: Users },
