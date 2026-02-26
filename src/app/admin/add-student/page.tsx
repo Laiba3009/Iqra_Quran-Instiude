@@ -47,14 +47,22 @@ const [selectedTeacher, setSelectedTeacher] = useState<string | null>(null);
   const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     const allTimezones = moment.tz.names();
-const [syllabusList, setSyllabusList] = useState<{ title: string; image_url?: string }[]>([]);
+    const [syllabusList, setSyllabusList] = useState<
+  { id: string; title: string }[]
+>([]);
 
 const loadSyllabus = async () => {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("syllabus")
-    .select("title, image_url");
+    .select("id, title")
+    .order("created_at", { ascending: false });
 
-  if (data) setSyllabusList(data);
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  setSyllabusList(data || []);
 };
 
 const toggleSyllabus = (title: string) => {

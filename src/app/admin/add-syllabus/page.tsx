@@ -4,219 +4,340 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 
+interface TableRow {
+  col1: string;
+  col2: string;
+}
+
+interface Section {
+  heading: string;
+  description: string;
+  points: string[];
+  table: TableRow[];
+}
+
 export default function AddSyllabus() {
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [type, setType] = useState<"text" | "image">("text");
+  const [sections, setSections] = useState<Section[]>([]);
   const [rows, setRows] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [viewRowId, setViewRowId] = useState<string | null>(null); // ✅ view toggle
+  const [viewId, setViewId] = useState<string | null>(null);
+  const [successId, setSuccessId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadSyllabus();
+    loadData();
   }, []);
 
-const loadSyllabus = async () => {
-  const { data } = await supabase
-    .from("syllabus")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const loadData = async () => {
+    const { data, error } = await supabase
+      .from("syllabus")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  if (!data) return;
+    if (!error) setRows(data || []);
+  };
 
-  // Private bucket: generate signed URL for each image
-  const rowsWithSignedUrl = await Promise.all(
-    data.map(async (row) => {
-      if (row.image_url) {
-        const { data: signedUrlData, error } = await supabase.storage
-          .from("syllabus-files")
-          .createSignedUrl(row.image_url.split("/").pop() || "", 60 * 60); // 1 hour
+  const addSection = () => {
+    setSections([
+      ...sections,
+      { heading: "", description: "", points: [], table: [] },
+    ]);
+  };
 
-        if (!error) row.image_url = signedUrlData.signedUrl;
-      }
-      return row;
-    })
-  );
+  const updateSection = (index: number, field: string, value: any) => {
+    const newSections = [...sections];
+    (newSections[index] as any)[field] = value;
+    setSections(newSections);
+  };
 
-  setRows(rowsWithSignedUrl);
-};
+  const addPoint = (index: number) => {
+    const newSections = [...sections];
+    newSections[index].points.push("");
+    setSections(newSections);
+  };
 
+  const updatePoint = (sIndex: number, pIndex: number, value: string) => {
+    const newSections = [...sections];
+    newSections[sIndex].points[pIndex] = value;
+    setSections(newSections);
+  };
 
-const uploadFile = async () => {
-  if (!file) return null;
+  const addTableRow = (index: number) => {
+    const newSections = [...sections];
+    newSections[index].table.push({ col1: "", col2: "" });
+    setSections(newSections);
+  };
 
-  const fileName = `${Date.now()}-${file.name}`;
-
-  // Upload to storage
-  const { data, error } = await supabase.storage
-    .from("syllabus-files")
-    .upload(fileName, file, {
-      cacheControl: "3600",
-      upsert: false
-    });
-
-  if (error) {
-    alert("Upload error: " + error.message);
-    return null;
-  }
-
-  // Generate public URL
-  const { data: publicUrlData } = supabase.storage
-    .from("syllabus-files")
-    .getPublicUrl(fileName);
-
-  return publicUrlData.publicUrl;
-};
-
+  const updateTable = (
+    sIndex: number,
+    tIndex: number,
+    field: string,
+    value: string
+  ) => {
+    const newSections = [...sections];
+    (newSections[sIndex].table[tIndex] as any)[field] = value;
+    setSections(newSections);
+  };
 
   const save = async () => {
-    if (!title) return alert("Title required");
+    if (!title) return alert("Title is required");
 
-    let image_url = null;
+    const payload = { title, sections };
 
-    if (type === "image" && file) {
-      image_url = await uploadFile();
-      if (!image_url) return;
-    }
-
-    const payload = {
-      title,
-      content: type === "text" ? content : null,
-      image_url: type === "image" ? image_url : null,
-    };
+    let response;
 
     if (editingId) {
-      await supabase.from("syllabus").update(payload).eq("id", editingId);
-      alert("Updated");
+      response = await supabase
+        .from("syllabus")
+        .update(payload)
+        .eq("id", editingId)
+        .select();
     } else {
-      await supabase.from("syllabus").insert([payload]);
-      alert("Added");
+      response = await supabase
+        .from("syllabus")
+        .insert([payload])
+        .select();
+    }
+
+    if (response.error) return alert(response.error.message);
+
+    if (response.data) {
+      setSuccessId(response.data[0].id);
+      setTimeout(() => setSuccessId(null), 3000);
     }
 
     setTitle("");
-    setContent("");
-    setFile(null);
+    setSections([]);
     setEditingId(null);
-    loadSyllabus();
+    loadData();
   };
 
   const editRow = (row: any) => {
     setEditingId(row.id);
     setTitle(row.title);
-    setContent(row.content || "");
-    setType(row.image_url ? "image" : "text");
+    setSections(row.sections || []);
   };
 
   const deleteRow = async (id: string) => {
-    if (!confirm("Delete?")) return;
+    if (!confirm("Delete this syllabus?")) return;
     await supabase.from("syllabus").delete().eq("id", id);
-    loadSyllabus();
+    loadData();
   };
 
   return (
-    <div className="p-6 space-y-4 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-green-700">
-        {editingId ? "Edit Syllabus" : "Add Syllabus"}
-      </h1>
+    <div className="min-h-screen bg-gradient-to-br from-green-100 via-white to-blue-100 p-8">
+      <div className="max-w-5xl mx-auto bg-white shadow-2xl rounded-3xl p-10 space-y-8">
 
-      <input
-        className="border p-2 rounded w-full"
-        placeholder="Syllabus Title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
+        <h1 className="text-3xl font-extrabold text-green-700 text-center">
+          {editingId ? "✏ Edit Syllabus" : "📘 Add Syllabus"}
+        </h1>
 
-      <div className="flex gap-4">
-        <label>
+        <div className="space-y-4">
           <input
-            type="radio"
-            checked={type === "text"}
-            onChange={() => setType("text")}
+            className="border-2 border-green-200 focus:border-green-500 p-3 w-full rounded-xl outline-none"
+            placeholder="Enter Syllabus Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
           />
-          Text
-        </label>
 
-        <label>
-          <input
-            type="radio"
-            checked={type === "image"}
-            onChange={() => setType("image")}
-          />
-          Image / PDF
-        </label>
-      </div>
+          <Button
+            onClick={addSection}
+            className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl px-6"
+          >
+            + Add Section
+          </Button>
+        </div>
 
-      {type === "text" && (
-        <textarea
-          className="border p-2 rounded w-full"
-          rows={5}
-          placeholder="Write syllabus..."
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-        />
-      )}
+        {sections.map((section, sIndex) => (
+          <div
+            key={sIndex}
+            className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 shadow-md rounded-2xl p-6 space-y-4"
+          >
+            <input
+              className="border p-2 w-full rounded-lg"
+              placeholder="Section Heading"
+              value={section.heading}
+              onChange={(e) =>
+                updateSection(sIndex, "heading", e.target.value)
+              }
+            />
 
-      {type === "image" && (
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-        />
-      )}
+            <textarea
+              className="border p-2 w-full rounded-lg"
+              placeholder="Description"
+              value={section.description}
+              onChange={(e) =>
+                updateSection(sIndex, "description", e.target.value)
+              }
+            />
 
-      <Button onClick={save} className="bg-green-600 text-white">
-        Save
-      </Button>
-
-      <hr />
-
-      <h2 className="font-bold text-lg">All Syllabus</h2>
-
-      {rows.map((r) => (
-        <div key={r.id} className="border p-3 rounded space-y-2">
-          <div className="flex justify-between items-center">
-            <p className="font-semibold">{r.title}</p>
-
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => editRow(r)}>
-                Edit
-              </Button>
-
+            <div>
               <Button
                 size="sm"
-                variant="destructive"
-                onClick={() => deleteRow(r.id)}
+                onClick={() => addPoint(sIndex)}
+                className="bg-green-500 text-white"
               >
-                Delete
+                + Add Bullet
               </Button>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setViewRowId((prev) => (prev === r.id ? null : r.id))
-                }
-              >
-                View
-              </Button>
-            </div>
-          </div>
-
-          {/* ✅ Show content when view clicked */}
-          {viewRowId === r.id && (
-            <div className="mt-2">
-              {r.content && <p>{r.content}</p>}
-              {r.image_url && (
-                <img
-                  src={r.image_url}
-                  alt={r.title}
-                  className="max-w-full h-auto rounded"
+              {section.points.map((point, pIndex) => (
+                <input
+                  key={pIndex}
+                  className="border p-2 w-full mt-2 rounded-lg"
+                  placeholder="Bullet point"
+                  value={point}
+                  onChange={(e) =>
+                    updatePoint(sIndex, pIndex, e.target.value)
+                  }
                 />
+              ))}
+            </div>
+
+            <div>
+              <Button
+                size="sm"
+                onClick={() => addTableRow(sIndex)}
+                className="bg-purple-500 text-white"
+              >
+                + Add Table Row
+              </Button>
+
+              {section.table.length > 0 && (
+                <table className="w-full mt-3 border rounded-lg overflow-hidden">
+                  <tbody>
+                    {section.table.map((row, tIndex) => (
+                      <tr key={tIndex} className="bg-white">
+                        <td className="border p-2">
+                          <input
+                            className="w-full outline-none"
+                            placeholder="Column 1"
+                            value={row.col1}
+                            onChange={(e) =>
+                              updateTable(
+                                sIndex,
+                                tIndex,
+                                "col1",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                        <td className="border p-2">
+                          <input
+                            className="w-full outline-none"
+                            placeholder="Column 2"
+                            value={row.col2}
+                            onChange={(e) =>
+                              updateTable(
+                                sIndex,
+                                tIndex,
+                                "col2",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
-          )}
+          </div>
+        ))}
+
+        <Button
+          onClick={save}
+          className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-2xl text-lg shadow-lg"
+        >
+          💾 Save Syllabus
+        </Button>
+
+        <hr />
+
+        <h2 className="text-2xl font-bold text-gray-700">
+          📚 All Syllabus
+        </h2>
+
+        <div className="space-y-4">
+          {rows.map((r) => (
+            <div
+              key={r.id}
+              className={`p-6 rounded-2xl shadow-md border transition-all duration-500 ${
+                successId === r.id
+                  ? "bg-green-200 border-green-500 scale-105"
+                  : "bg-white border-gray-200"
+              }`}
+            >
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-lg text-gray-800">
+                  {r.title}
+                </h3>
+
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => editRow(r)}>
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => deleteRow(r.id)}
+                  >
+                    Delete
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setViewId(viewId === r.id ? null : r.id)
+                    }
+                  >
+                    View
+                  </Button>
+                </div>
+              </div>
+
+              {viewId === r.id &&
+                (Array.isArray(r.sections)
+                  ? r.sections
+                  : JSON.parse(r.sections || "[]")
+                ).map((sec: Section, i: number) => (
+                  <div key={i} className="mt-4 bg-gray-50 p-4 rounded-xl">
+                    <h4 className="font-bold text-green-700">
+                      {sec.heading}
+                    </h4>
+                    <p className="text-gray-600">{sec.description}</p>
+
+                    {sec.points.length > 0 && (
+                      <ul className="list-disc pl-6 mt-2 text-gray-700">
+                        {sec.points.map((p: string, idx: number) => (
+                          <li key={idx}>{p}</li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {sec.table.length > 0 && (
+                      <table className="w-full border mt-3 bg-white">
+                        <tbody>
+                          {sec.table.map((t: any, idx: number) => (
+                            <tr key={idx}>
+                              <td className="border p-2">
+                                {t.col1}
+                              </td>
+                              <td className="border p-2">
+                                {t.col2}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                ))}
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
