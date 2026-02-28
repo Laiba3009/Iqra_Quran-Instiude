@@ -23,19 +23,22 @@ export default function AddSyllabus() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("syllabus")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error) setRows(data || []);
+    setRows(data || []);
   };
+
+  // ================= SECTION FUNCTIONS =================
 
   const addSection = () => {
     setSections([
@@ -79,38 +82,76 @@ export default function AddSyllabus() {
     setSections(newSections);
   };
 
-  const save = async () => {
-    if (!title) return alert("Title is required");
+  // ================= FILE UPLOAD =================
 
-    const payload = { title, sections };
+  const uploadFile = async (): Promise<string | null> => {
+    if (!file) return null;
 
-    let response;
+    const cleanName = file.name
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9\.\-_]/g, "");
 
-    if (editingId) {
-      response = await supabase
-        .from("syllabus")
-        .update(payload)
-        .eq("id", editingId)
-        .select();
-    } else {
-      response = await supabase
-        .from("syllabus")
-        .insert([payload])
-        .select();
+    const fileName = `${Date.now()}-${cleanName}`;
+
+    const { error } = await supabase.storage
+      .from("syllabus-files")
+      .upload(fileName, file, {
+        upsert: true,
+        contentType: file.type,
+      });
+
+    if (error) {
+      alert(error.message);
+      return null;
     }
 
-    if (response.error) return alert(response.error.message);
+    const { data } = supabase.storage
+      .from("syllabus-files")
+      .getPublicUrl(fileName);
 
-    if (response.data) {
-      setSuccessId(response.data[0].id);
-      setTimeout(() => setSuccessId(null), 3000);
-    }
-
-    setTitle("");
-    setSections([]);
-    setEditingId(null);
-    loadData();
+    return data.publicUrl;
   };
+
+  // ================= SAVE =================
+
+ const save = async () => {
+  if (!title) return alert("Title is required");
+
+  let fileUrl = null;
+
+  if (file) {
+    fileUrl = await uploadFile();
+  }
+
+  const payload = {
+    title,
+    sections,
+    pdf_url: fileUrl, // ✅ correct
+  };
+
+  let response;
+
+  if (editingId) {
+    response = await supabase
+      .from("syllabus")
+      .update(payload)
+      .eq("id", editingId)
+      .select();
+  } else {
+    response = await supabase
+      .from("syllabus")
+      .insert([payload])
+      .select();
+  }
+
+  if (response.error) return alert(response.error.message);
+
+  setTitle("");
+  setSections([]);
+  setEditingId(null);
+  setFile(null);
+  loadData();
+};
 
   const editRow = (row: any) => {
     setEditingId(row.id);
@@ -118,11 +159,23 @@ export default function AddSyllabus() {
     setSections(row.sections || []);
   };
 
-  const deleteRow = async (id: string) => {
-    if (!confirm("Delete this syllabus?")) return;
-    await supabase.from("syllabus").delete().eq("id", id);
-    loadData();
-  };
+ const deleteRow = async (row: any) => {
+  if (!confirm("Delete this syllabus?")) return;
+
+  if (row.pdf_url) {
+    const path = row.pdf_url.split("/").pop();
+    if (path) {
+      await supabase.storage
+        .from("syllabus-files")
+        .remove([path]);
+    }
+  }
+
+  await supabase.from("syllabus").delete().eq("id", row.id);
+  loadData();
+};
+
+  // ================= UI =================
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-white to-blue-100 p-8">
@@ -134,10 +187,19 @@ export default function AddSyllabus() {
 
         <div className="space-y-4">
           <input
-            className="border-2 border-green-200 focus:border-green-500 p-3 w-full rounded-xl outline-none"
+            className="border-2 border-green-200 p-3 w-full rounded-xl"
             placeholder="Enter Syllabus Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+          />
+
+          <input
+            type="file"
+            accept="image/*,.pdf"
+            onChange={(e) =>
+              e.target.files && setFile(e.target.files[0])
+            }
+            className="border p-2 w-full rounded-lg"
           />
 
           <Button
@@ -263,16 +325,10 @@ export default function AddSyllabus() {
           {rows.map((r) => (
             <div
               key={r.id}
-              className={`p-6 rounded-2xl shadow-md border transition-all duration-500 ${
-                successId === r.id
-                  ? "bg-green-200 border-green-500 scale-105"
-                  : "bg-white border-gray-200"
-              }`}
+              className="p-6 rounded-2xl shadow-md border bg-white"
             >
               <div className="flex justify-between items-center">
-                <h3 className="font-bold text-lg text-gray-800">
-                  {r.title}
-                </h3>
+                <h3 className="font-bold text-lg">{r.title}</h3>
 
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => editRow(r)}>
@@ -281,7 +337,7 @@ export default function AddSyllabus() {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => deleteRow(r.id)}
+                    onClick={() => deleteRow(r)}
                   >
                     Delete
                   </Button>
@@ -297,46 +353,66 @@ export default function AddSyllabus() {
                 </div>
               </div>
 
-              {viewId === r.id &&
-                (Array.isArray(r.sections)
-                  ? r.sections
-                  : JSON.parse(r.sections || "[]")
-                ).map((sec: Section, i: number) => (
-                  <div key={i} className="mt-4 bg-gray-50 p-4 rounded-xl">
-                    <h4 className="font-bold text-green-700">
-                      {sec.heading}
-                    </h4>
-                    <p className="text-gray-600">{sec.description}</p>
+              {viewId === r.id && (
+                <div className="mt-4">
+                  {r.pdf_url && (
+                    <>
+                      {r.pdf_url.endsWith(".pdf") ? (
+                        <iframe
+                          src={r.pdf_url}
+                          className="w-full h-[600px] border rounded-lg"
+                        />
+                      ) : (
+                        <img
+                          src={r.pdf_url}
+                          className="w-full max-h-[500px] object-contain rounded-lg"
+                        />
+                      )}
+                    </>
+                  )}
 
-                    {sec.points.length > 0 && (
-                      <ul className="list-disc pl-6 mt-2 text-gray-700">
-                        {sec.points.map((p: string, idx: number) => (
-                          <li key={idx}>{p}</li>
-                        ))}
-                      </ul>
-                    )}
+                  {(Array.isArray(r.sections)
+                    ? r.sections
+                    : JSON.parse(r.sections || "[]")
+                  ).map((sec: Section, i: number) => (
+                    <div key={i} className="mt-4 bg-gray-50 p-4 rounded-xl">
+                      <h4 className="font-bold text-green-700">
+                        {sec.heading}
+                      </h4>
+                      <p>{sec.description}</p>
 
-                    {sec.table.length > 0 && (
-                      <table className="w-full border mt-3 bg-white">
-                        <tbody>
-                          {sec.table.map((t: any, idx: number) => (
-                            <tr key={idx}>
-                              <td className="border p-2">
-                                {t.col1}
-                              </td>
-                              <td className="border p-2">
-                                {t.col2}
-                              </td>
-                            </tr>
+                      {sec.points.length > 0 && (
+                        <ul className="list-disc pl-6 mt-2">
+                          {sec.points.map((p: string, idx: number) => (
+                            <li key={idx}>{p}</li>
                           ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                ))}
+                        </ul>
+                      )}
+
+                      {sec.table.length > 0 && (
+                        <table className="w-full border mt-3 bg-white">
+                          <tbody>
+                            {sec.table.map((t: any, idx: number) => (
+                              <tr key={idx}>
+                                <td className="border p-2">
+                                  {t.col1}
+                                </td>
+                                <td className="border p-2">
+                                  {t.col2}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
+
       </div>
     </div>
   );
