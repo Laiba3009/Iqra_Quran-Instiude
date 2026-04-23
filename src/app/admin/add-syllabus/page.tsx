@@ -82,7 +82,6 @@ export default function AddSyllabus() {
     setSections(newSections);
   };
 
-  // ================= FILE UPLOAD =================
 
   const uploadFile = async (): Promise<string | null> => {
     if (!file) return null;
@@ -126,7 +125,7 @@ export default function AddSyllabus() {
   const payload = {
     title,
     sections,
-    pdf_url: fileUrl, // ✅ correct
+    pdf_url: fileUrl, 
   };
 
   let response;
@@ -175,7 +174,6 @@ export default function AddSyllabus() {
   loadData();
 };
 
-  // ================= UI =================
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-white to-blue-100 p-8">

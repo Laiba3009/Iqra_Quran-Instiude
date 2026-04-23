@@ -3,260 +3,268 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
 import jsPDF from "jspdf";
 
 export default function AdminAttendancePage() {
-  const { toast } = useToast();
-
   const [students, setStudents] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<string>("All"); // ✅ month filter
+  const [selectedMonth, setSelectedMonth] = useState("All");
 
-  // Load all students
   useEffect(() => {
     loadAllStudents();
   }, []);
 
   const loadAllStudents = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("attendance_with_details_real")
       .select("student_id, student_name, roll_no, teacher_name");
 
-    if (error) {
-      console.error(error);
-      setStudents([]);
-      return;
-    }
-
-    const unique: Record<string, any> = {};
+    const unique: any = {};
     data?.forEach((s: any) => {
-      if (!unique[s.student_id]) unique[s.student_id] = s;
+      unique[s.student_id] = s;
     });
+
     setStudents(Object.values(unique));
   };
 
   const openViewModal = async (student: any) => {
     setSelectedStudent(student);
-    setHistory([]);
-    setSelectedMonth("All"); // reset filter
     setOpen(true);
-    setLoadingHistory(true);
+    setSelectedMonth("All");
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("attendance_with_details_real")
       .select("id, attendance_date, subject, status")
       .eq("student_id", student.student_id)
       .order("attendance_date", { ascending: false });
 
-    setLoadingHistory(false);
-
-    if (error) {
-      console.error(error);
-      setHistory([]);
-      return;
-    }
-
     setHistory(data || []);
   };
 
-  // Filter history by selected month
-  const filteredHistory = selectedMonth === "All"
-    ? history
-    : history.filter(h => {
-        const month = new Date(h.attendance_date).toLocaleString("default", { month: "long" });
-        return month === selectedMonth;
-      });
+  const filteredHistory =
+    selectedMonth === "All"
+      ? history
+      : history.filter((h) =>
+          new Date(h.attendance_date).toLocaleString("default", {
+            month: "long",
+          }) === selectedMonth
+        );
 
-  // Generate PDF
-  const generatePDF = () => {
-    if (!selectedStudent) return;
+  const totalPresent = filteredHistory.filter((h) => h.status === "present").length;
+  const totalAbsent = filteredHistory.filter((h) => h.status === "absent").length;
 
-    const doc = new jsPDF("p", "pt");
-    const today = new Date().toLocaleDateString();
-    const logoUrl = "/images/logo1.jpg"; // logo in public/images
-    const img = new Image();
-    img.src = logoUrl;
+ const generatePDF = () => {
+  if (!selectedStudent) return;
 
-    img.onload = () => {
-      try { doc.addImage(img, "JPEG", 40, 25, 60, 60); } catch (e) { console.warn(e); }
+  const doc = new jsPDF("p", "pt");
+  const today = new Date().toLocaleDateString();
+  const img = new Image();
+  img.src = "/images/logo1.jpg";
 
-      // Header
-      doc.setFont("Helvetica", "bold");
-      doc.setFontSize(24);
-      doc.text("Iqra Quran Online Institute", 120, 55);
-      doc.setFontSize(14);
-      doc.text("Monthly Attendance Report", 120, 75);
-      doc.line(40, 95, 555, 95);
+  img.onload = () => {
+    try {
+      doc.addImage(img, "JPEG", 40, 25, 60, 60);
+    } catch (e) {}
 
-      // Info
-      doc.setFont("Helvetica", "normal");
-      doc.setFontSize(12);
-      doc.text(`Student: ${selectedStudent.student_name}`, 40, 115);
-      doc.text(`Teacher: ${selectedStudent.teacher_name}`, 40, 135);
-      doc.text(`Month: ${selectedMonth}`, 350, 115);
-      doc.text(`Generated on: ${today}`, 350, 135);
+    // HEADER
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(20);
+    doc.text("Iqra Quran Online Institute", 120, 50);
 
-      // Table header
-      let y = 160;
-      doc.setFont("Helvetica", "bold");
-      doc.setFillColor(30, 144, 255);
-      doc.rect(40, y - 12, 500, 20, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.text("Date", 45, y);
-      doc.text("Subject", 160, y);
-      doc.text("Status", 350, y);
+    doc.setFontSize(13);
+    doc.text("Monthly Attendance Report", 120, 70);
+
+    doc.line(40, 90, 555, 90);
+
+    // INFO SECTION (FIXED SPACING)
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(11);
+
+    let infoY = 110;
+
+    doc.text(`Student: ${selectedStudent.student_name}`, 40, infoY);
+    doc.text(`Month: ${selectedMonth}`, 350, infoY);
+
+    infoY += 20;
+    doc.text(`Teacher: ${selectedStudent.teacher_name}`, 40, infoY);
+    doc.text(`Generated: ${today}`, 350, infoY);
+
+    // ✅ STATS PROPERLY BELOW (NO OVERLAP)
+    infoY += 25;
+    doc.setFont("Helvetica", "bold");
+    doc.text(`Present: ${totalPresent}`, 40, infoY);
+    doc.text(`Absent: ${totalAbsent}`, 180, infoY);
+
+    // TABLE START POSITION (SAFE GAP)
+    let y = infoY + 30;
+
+    // TABLE HEADER
+    doc.setFont("Helvetica", "bold");
+    doc.setFillColor(30, 144, 255);
+    doc.rect(40, y - 12, 500, 20, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.text("Date", 45, y);
+    doc.text("Subject", 170, y);
+    doc.text("Status", 350, y);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("Helvetica", "normal");
+
+    // ROWS
+    filteredHistory.forEach((h) => {
+      y += 20;
+
+      doc.text(h.attendance_date, 45, y);
+      doc.text(h.subject, 170, y);
+
+      if (h.status === "present") {
+        doc.setTextColor(0, 128, 0);
+      } else {
+        doc.setTextColor(200, 0, 0);
+      }
+
+      doc.text(h.status.toUpperCase(), 350, y);
       doc.setTextColor(0, 0, 0);
-      doc.setFont("Helvetica", "normal");
+    });
 
-      // Table rows
-      const subjectColors: Record<string, [number, number, number]> = {
-        Quran: [173, 216, 230],
-        "Islamic Studies": [230, 240, 255],
-        Arabic: [232, 250, 235],
-        Other: [255, 250, 230],
-      };
-
-      filteredHistory.forEach((h, idx) => {
-        y += 20;
-        const color = subjectColors[h.subject] || [245, 245, 245];
-        doc.setFillColor(color[0], color[1], color[2]);
-        doc.rect(40, y - 12, 500, 18, "F");
-        doc.text(h.attendance_date, 45, y);
-        doc.text(h.subject, 160, y);
-        doc.setTextColor(h.status === "present" ? 0 : 200, h.status === "present" ? 128 : 0, 0);
-        doc.text(h.status.toUpperCase(), 350, y);
-        doc.setTextColor(0, 0, 0);
-      });
-
-      doc.save(`${selectedStudent.student_name}_Attendance_${selectedMonth}.pdf`);
-    };
+    doc.save(`${selectedStudent.student_name}_Attendance_${selectedMonth}.pdf`);
   };
+};
 
-  // Get month options from history
-  const monthOptions = Array.from(new Set(history.map(h => 
-    new Date(h.attendance_date).toLocaleString("default", { month: "long" })
-  )));
-  monthOptions.unshift("All");
+  const monthOptions = [
+    "All",
+    ...Array.from(
+      new Set(
+        history.map((h) =>
+          new Date(h.attendance_date).toLocaleString("default", {
+            month: "long",
+          })
+        )
+      )
+    ),
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 p-6">
 
-        {/* Header */}
-        <div className="text-center mt-20 mb-6">
-          <h1 className="text-4xl font-extrabold text-blue-800  mb-2">📊 Attendance – All Students</h1>
-          
-          <p className="text-blue-600">View & download student attendance month wise</p>
-        </div>
+      {/* HEADER FIX */}
+      <h1 className="text-3xl font-bold text-blue-800 text-center mt-10 mb-6">
+        Attendance System
+      </h1>
 
-        {/* Students Table */}
-        <Card className="shadow-lg border border-blue-200">
-          <CardHeader className="bg-blue-100">
-            <CardTitle className="text-xl text-blue-900 font-semibold">All Students</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <table className="w-full border-collapse shadow-lg">
-              <thead className="bg-blue-200 text-blue-900">
-                <tr>
-                  <th className="border p-2">Student</th>
-                  <th className="border p-2">Roll</th>
-                  <th className="border p-2">Teacher</th>
-                  <th className="border p-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.length > 0 ? students.map((s) => (
-                  <tr key={s.student_id} className="hover:bg-blue-50 transition">
-                    <td className="border p-2 font-medium">{s.student_name}</td>
-                    <td className="border p-2">{s.roll_no}</td>
-                    <td className="border p-2">{s.teacher_name}</td>
-                    <td className="border p-2 text-center">
-                      <Button
-                        variant="outline"
-                        className="hover:bg-blue-600 hover:text-white"
-                        onClick={() => openViewModal(s)}
-                      >
-                        View Attendance
-                      </Button>
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={4} className="text-center p-4 text-gray-500">No students found</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+      {/* TABLE */}
+      <div className="bg-white shadow rounded-lg p-4">
+        <table className="w-full border">
+          <thead className="bg-blue-100">
+            <tr>
+              <th className="border p-2">Student</th>
+              <th className="border p-2">Roll</th>
+              <th className="border p-2">Teacher</th>
+              <th className="border p-2">Action</th>
+            </tr>
+          </thead>
 
-        {/* Attendance Modal */}
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="text-blue-800 font-bold text-xl">
-                Attendance History – {selectedStudent?.student_name}
-              </DialogTitle>
-            </DialogHeader>
-
-            {loadingHistory ? (
-              <p className="text-center py-4 text-blue-600">Loading attendance...</p>
-            ) : history.length === 0 ? (
-              <p className="text-center py-4 text-gray-500">No attendance found</p>
-            ) : (
-              <>
-                {/* Month Filter */}
-                <div className="mb-3 flex items-center gap-3">
-                  <label className="font-medium text-blue-800">Select Month:</label>
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="border border-blue-300 rounded px-2 py-1"
+          <tbody>
+            {students.map((s) => (
+              <tr key={s.student_id}>
+                <td className="border p-2">{s.student_name}</td>
+                <td className="border p-2">{s.roll_no}</td>
+                <td className="border p-2">{s.teacher_name}</td>
+                <td className="border p-2 text-center">
+                  <button
+                    onClick={() => openViewModal(s)}
+                    className="bg-blue-600 text-white px-3 py-1 rounded"
                   >
-                    {monthOptions.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Attendance Table */}
-                <table className="w-full border mt-3 border-blue-200">
-                  <thead className="bg-blue-100 text-blue-900">
-                    <tr>
-                      <th className="border p-2">Date</th>
-                      <th className="border p-2">Subject</th>
-                      <th className="border p-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredHistory.map((h) => (
-                      <tr key={h.id} className="bg-blue-50">
-                        <td className="border p-2">{h.attendance_date}</td>
-                        <td className="border p-2">{h.subject}</td>
-                        <td className={`border p-2 font-semibold ${h.status === "present" ? "text-green-600" : "text-red-600"}`}>
-                          {h.status.toUpperCase()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <div className="mt-4 text-right">
-                  <Button onClick={generatePDF} className="bg-blue-600 text-white hover:bg-blue-700">
-                    Download PDF
-                  </Button>
-                </div>
-              </>
-            )}
-          </DialogContent>
-        </Dialog>
+                    View
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      {/* MODAL (DIV BASED, PERFECT SCROLL) */}
+      {open && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+
+          <div className="w-full max-w-5xl h-[85vh] bg-white rounded-xl flex flex-col overflow-hidden">
+
+            {/* HEADER */}
+            <div className="p-4 border-b bg-blue-50 flex justify-between">
+              <div>
+                <h2 className="font-bold text-blue-800">
+                  {selectedStudent?.student_name}
+                </h2>
+                <p className="text-sm text-gray-500">Attendance Report</p>
+              </div>
+
+              <button onClick={() => setOpen(false)}>✕</button>
+            </div>
+
+            {/* BODY SCROLL */}
+            <div className="flex-1 overflow-y-auto p-4">
+
+              {/* FILTER */}
+              <div className="mb-3 flex gap-3 items-center">
+                <label>Month:</label>
+
+                <select
+                  className="border p-1"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                >
+                  {monthOptions.map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* STATS */}
+              <div className="flex gap-4 mb-3">
+                <div className="bg-green-100 px-3 py-1 rounded">
+                  Present: {totalPresent}
+                </div>
+                <div className="bg-red-100 px-3 py-1 rounded">
+                  Absent: {totalAbsent}
+                </div>
+              </div>
+
+              {/* TABLE */}
+              <table className="w-full border">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="border p-2">Date</th>
+                    <th className="border p-2">Subject</th>
+                    <th className="border p-2">Status</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredHistory.map((h) => (
+                    <tr key={h.id}>
+                      <td className="border p-2">{h.attendance_date}</td>
+                      <td className="border p-2">{h.subject}</td>
+                      <td className="border p-2">{h.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* FOOTER */}
+            <div className="p-4 border-t text-right">
+              <Button onClick={generatePDF}>
+                Download PDF
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

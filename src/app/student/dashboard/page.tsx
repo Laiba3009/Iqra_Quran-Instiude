@@ -10,7 +10,6 @@ import BannerSlider from "@/components/BannerSlider";
 import RoleBasedLayout from "@/components/RoleBasedLayout";
 import TodayClassesCard from "@/components/TodayClassesCard";
 
-/* 🔹 Notice Board */
 function NoticeComponent({ userRole }: { userRole: "student" | "teacher" }) {
   const [notices, setNotices] = useState<any[]>([]);
 
@@ -45,7 +44,6 @@ function NoticeComponent({ userRole }: { userRole: "student" | "teacher" }) {
   );
 }
 
-/* 🔹 Cookie */
 const getCookie = (name: string) => {
   const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
   return match ? match[2] : null;
@@ -190,7 +188,7 @@ const [syllabusOpen, setSyllabusOpen] = useState(false);
 
   return (
     <RoleBasedLayout role="student">
-      <div className="container mx-auto px-4 py-8 space-y-8">
+      <div className="container mx-auto px-4  space-y-8">
         <BannerSlider />
 
         <h1 className="text-3xl font-bold text-center">

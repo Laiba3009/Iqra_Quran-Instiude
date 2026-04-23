@@ -116,82 +116,140 @@ export default function AdminMonthlyReports() {
     });
   };
 
-  const downloadPDF = async () => {
-  if (!studentAllReports || studentAllReports.length === 0) { 
-    alert('No report selected.'); 
-    return; 
+const downloadPDF = async () => {
+  if (!studentAllReports || studentAllReports.length === 0) {
+    alert('No report selected.');
+    return;
   }
-  
+
   const LOGO_PATH = '/images/logo1.jpg';
   const doc = new jsPDF('p', 'pt', 'a4');
 
+  // ✅ Attendance fetch FIX
+  const { data: attendanceData } = await supabase
+    .from("attendance_with_details_real")
+    .select("status, attendance_date")
+    .eq("roll_no", studentAllReports[0]?.roll_no);
+
+  const safeAttendance = attendanceData || [];
+
+  const filteredAttendance =
+    selectedMonth === "All"
+      ? safeAttendance
+      : safeAttendance.filter((a: any) =>
+          new Date(a.attendance_date).toLocaleString("default", {
+            month: "long",
+          }) === selectedMonth
+        );
+
+  const totalPresent = filteredAttendance.filter(
+    (a: any) => a.status?.toLowerCase() === "present"
+  ).length;
+
+  const totalAbsent = filteredAttendance.filter(
+    (a: any) => a.status?.toLowerCase() === "absent"
+  ).length;
+
   try {
-    // --- Logo ---
+    // ✅ LOGO
     try {
       const { dataUrl, mime } = await loadImageAsDataURL(LOGO_PATH);
       const format = mime.includes('png') ? 'PNG' : 'JPEG';
       doc.addImage(dataUrl, format, 40, 20, 60, 60);
-    } catch (e) { console.warn('Logo failed', e); }
+    } catch (e) {}
 
-    // --- Institute Name ---
+    // ✅ TITLE
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
-    doc.setTextColor('#2f855a');
-    doc.text('Iqra Online Institute', doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
+    doc.text('Iqra Online Institute', 300, 50, { align: 'center' });
 
-    // --- Student Info ---
-    doc.setFillColor('#f9fafb'); // light gray
-    doc.roundedRect(35, 90, doc.internal.pageSize.getWidth() - 70, 70, 5, 5, 'F');
+    // ✅ STUDENT INFO BOX
+    doc.setFillColor(245, 247, 250);
+    doc.roundedRect(35, 90, 520, 70, 6, 6, 'F');
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+
+    doc.text(`Name: ${studentAllReports[0]?.student_name}`, 50, 115);
+    doc.text(`Roll No: ${studentAllReports[0]?.roll_no}`, 50, 135);
+    doc.text(`Teacher: ${studentAllReports[0]?.teacher_name}`, 300, 115);
+    doc.text(`Month: ${selectedMonth}`, 300, 135);
+
+    // ✅ ATTENDANCE BOX (FIXED POSITION)
+    let y = 180;
+
+    doc.setFillColor(220, 252, 231);
+    doc.roundedRect(35, y, 520, 60, 6, 6, 'F');
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.setTextColor('#1e293b');
-    doc.text('Student Information', 50, 110);
+    doc.text('Attendance Summary', 50, y + 20);
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(12);
-    doc.text(`Name: ${studentAllReports[0]?.student_name}`, 50, 130);
-    doc.text(`Roll No: ${studentAllReports[0]?.roll_no}`, 50, 150);
-    doc.text(`Teacher: ${studentAllReports[0]?.teacher_name}`, 300, 130);
-    doc.text(`Month: ${selectedMonth}`, 300, 150);
 
-    // --- Monthly Report Box ---
-    let startY = 180;
-    doc.setFillColor('#f0fdf4'); // light green
-    doc.roundedRect(35, startY, doc.internal.pageSize.getWidth() - 70, 400, 5, 5, 'F');
+    doc.text(`Total Present: ${totalPresent}`, 50, y + 40);
+    doc.text(`Total Absent: ${totalAbsent}`, 250, y + 40);
+
+    // ✅ MONTHLY REPORT BOX (NO OVERLAP)
+    let startY = y + 80;
+
+    doc.setFillColor(240, 253, 244);
+    doc.roundedRect(35, startY, 520, 400, 6, 6, 'F');
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20); // H4 size
-    doc.setTextColor('#065f46');
-    doc.text('Monthly Report', doc.internal.pageSize.getWidth() / 2, startY + 25, { align: 'center' });
+    doc.setFontSize(18);
+    doc.text('Monthly Report', 300, startY + 25, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(18); // H4-ish text size for report content
-    doc.setTextColor('#1e293b');
+    doc.setFontSize(12);
 
-    const combinedText = filteredPopupReports.map(r => r.report_text).join('\n\n');
-    const wrappedText = doc.splitTextToSize(combinedText, doc.internal.pageSize.getWidth() - 90);
+    const combinedText = filteredPopupReports
+      .map(r => r.report_text)
+      .join('\n\n');
+
+    const wrappedText = doc.splitTextToSize(combinedText, 480);
+
     doc.text(wrappedText, 50, startY + 50);
 
-    const safeName = (studentAllReports[0]?.student_name || 'student').replace(/\s+/g, '_');
+    // ✅ SAVE
+    const safeName = (studentAllReports[0]?.student_name || 'student')
+      .replace(/\s+/g, '_');
+
     doc.save(`Monthly_Report_${safeName}.pdf`);
 
-  } catch (err) { 
-    console.error(err); 
-    alert('Error generating PDF. Check console.'); 
+  } catch (err) {
+    console.error(err);
+    alert('PDF error');
   }
 };
 
 
   return (
-    <div className="p-6">
-      {/* Main Table */}
-      <Card className="shadow-md border rounded-xl">
-        <CardHeader className="flex justify-between items-center flex-wrap gap-4">
-          <CardTitle className="text-xl font-semibold text-green-700">📅 Monthly Reports</CardTitle>
-          <div className="flex items-center gap-2">
-            <Input placeholder="Search by student name or roll no..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-64" />
-            <Button onClick={loadReports} className="bg-green-600 text-white">Refresh</Button>
-          </div>
-        </CardHeader>
+<div className="p-6 pt-12 bg-gray-50 min-h-screen">      {/* Main Table */}
+      <Card className="shadow-md border mt-6 rounded-xl">
+     <CardHeader className="space-y-4">
+
+  <CardTitle className="text-2xl font-bold text-green-700">
+    📅 Monthly Reports
+  </CardTitle>
+
+  <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+    
+    <Input
+      placeholder="Search by student name or roll no..."
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      className="w-full sm:w-64"
+    />
+
+    <Button onClick={loadReports} className="bg-green-600 text-white">
+      Refresh
+    </Button>
+
+  </div>
+
+</CardHeader>
 
         <CardContent>
           {loading ? (

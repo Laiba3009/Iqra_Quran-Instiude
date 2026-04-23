@@ -73,7 +73,7 @@ const markStatus = async (teacherId, date, status) => {
           teacher_id: teacher.id,
           teacher_name: teacher.name,
           attendance_date: date,
-          status, // ← yahan Absent / Leave overwrite ho jaye ga
+          status, 
           job_time: null,
           attendance_time: null,
           minutes_late: null,
@@ -111,14 +111,12 @@ const markStatus = async (teacherId, date, status) => {
   return (
     <div className="p-6">
 
-      {/* TITLE + MONTH + TEACHER SELECT + BUTTONS */}
       <div className="flex flex-col sm:flex-row items-center justify-between mb-6 mt-20 gap-4">
         <h1 className="text-3xl font-bold text-green-800">
           📅 Teacher Attendance Register
         </h1>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Month select */}
           <select
             className="border rounded px-3 py-2 text-lg font-semibold"
             value={month}
@@ -129,7 +127,6 @@ const markStatus = async (teacherId, date, status) => {
             ))}
           </select>
 
-          {/* Teacher select */}
           <select
             className="border rounded px-3 py-2 text-lg font-semibold"
             value={selectedTeacher}
@@ -201,9 +198,28 @@ const markStatus = async (teacherId, date, status) => {
           <thead>
             <tr className="bg-green-600 text-white">
               <th className="border p-3 w-40">Teacher</th>
-              {days.map((d) => (
-                <th key={d} className="border p-2 text-center w-10">{d}</th>
-              ))}
+              {days.map((d) => {
+  const dateObj = new Date(year, month - 1, d);
+  const dayName = dateObj.getDay(); // 0=Sunday, 6=Saturday
+
+  const isSunday = dayName === 0;
+  const isSaturday = dayName === 6;
+
+  return (
+    <th
+      key={d}
+      className={`border p-2 text-center w-10 
+        ${isSunday ? "bg-red-200 text-red-700" : ""}
+        ${isSaturday ? "bg-yellow-200 text-yellow-800" : ""}
+      `}
+    >
+      {d}
+      <div className="text-[10px]">
+        {isSunday ? "Sun" : isSaturday ? "Sat" : ""}
+      </div>
+    </th>
+  );
+})}
             </tr>
           </thead>
 
@@ -211,15 +227,28 @@ const markStatus = async (teacherId, date, status) => {
             {teachers.map((t) => (
               <tr key={t.id} className="border hover:bg-gray-50">
                 <td className="border p-3 font-semibold bg-gray-100">{t.name}</td>
-                {days.map((d) => {
-                  const status = getStatus(t.id, d);
-                  return (
-                    <td key={d} className="border text-center font-bold p-1">
+            {days.map((d) => {
+  const status = getStatus(t.id, d);
+
+  const dateObj = new Date(year, month - 1, d);
+  const dayName = dateObj.getDay();
+
+  const isSunday = dayName === 0;
+  const isSaturday = dayName === 6;
+
+  return (
+    <td
+      key={d}
+      className={`border text-center font-bold p-1
+        ${isSunday ? "bg-red-50" : ""}
+        ${isSaturday ? "bg-yellow-50" : ""}
+      `}
+    >
                       <div className={`${
                         status === "P" ? "text-green-700" :
                         status === "L" ? "text-purple-300" :
                         status === "A" ? "text-red-600" :
-                        status === "LV" ? "text-blue-600" : ""
+                        status === "LV" ? "text-pink-400" : ""
                       }`}>{status}</div>
                     </td>
                   );
