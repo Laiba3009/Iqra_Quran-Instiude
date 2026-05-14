@@ -43,20 +43,37 @@ const [loading, setLoading] = useState(true);
   const [modalTitle, setModalTitle] = useState("");
   const [modalStudents, setModalStudents] = useState<Student[]>([]);
 const router = useRouter();
+const [leaveCount, setLeaveCount] = useState(0);
 
 useEffect(() => {
-  const checkAuth = async () => {
+  const init = async () => {
     const { data } = await supabase.auth.getUser();
 
     if (!data.user) {
       router.replace("/admin/login");
     } else {
-      await fetchDashboardData();  
+      await fetchDashboardData();
       setLoading(false);
     }
   };
 
-  checkAuth();
+  init();
+
+  // 🔴 realtime update
+  const channel = supabase
+    .channel("leave-requests")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "teacher_leave" },
+      () => {
+        fetchDashboardData();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }, []);
 
   const fetchDashboardData = async () => {
@@ -101,7 +118,17 @@ useEffect(() => {
         .reduce((sum, t) => sum + Number(t.teacher_fee || 0), 0);
       setTeacherFeeTotal(totalTeacherFee);
     }
-  };
+  const { data, error } = await supabase
+  .from("teacher_leave")
+  .select("id")
+  .eq("status", "pending"); 
+
+if (error) {
+  console.error(error);
+}
+
+setLeaveCount(data?.length || 0);
+   };   
 
   const handleCardClick = (type: "new" | "disabled") => {
     const today = new Date();
@@ -116,13 +143,15 @@ useEffect(() => {
     }
     setShowModal(true);
   };
-if (loading) {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p>Loading...</p>
-    </div>
-  );
-}
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
 
   return (
     <AdminDashboardWrapper>
@@ -269,6 +298,23 @@ if (loading) {
               Add Syllabus
             </Button>
           </Link>
+    <Link href="/admin/teacher-leave-request">
+  <Button
+    className={`relative px-6 py-3 rounded-lg text-white font-semibold transition-all duration-300 shadow-md
+    ${leaveCount > 0 
+      ? "bg-red-600 hover:bg-red-700 animate-pulse" 
+      : "bg-purple-600 hover:bg-purple-700"}
+    `}
+  >
+    Teacher Leave Request
+
+    {leaveCount > 0 && (
+      <span className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-0.5 rounded-full shadow">
+        NEW
+      </span>
+    )}
+  </Button>
+</Link>
         </div>
 
         {/* Notice Board */}

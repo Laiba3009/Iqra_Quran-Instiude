@@ -76,7 +76,7 @@ const [syllabusOpen, setSyllabusOpen] = useState(false);
         .eq("roll_no", roll)
         .maybeSingle();
 
-      if (!s) return;
+      if (!s) return;  
       setStudent(s);
 
       const month = new Date().toISOString().slice(0, 7);
