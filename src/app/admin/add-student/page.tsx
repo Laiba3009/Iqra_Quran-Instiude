@@ -74,11 +74,15 @@ const toggleSyllabus = (title: string) => {
   }));
 };
 
+useEffect(() => {
+  const init = async () => {
+    await autoUpdateFees();
+    await loadRows();
+    await loadTeachers();
+    await loadSyllabus();
+  };
 
-  useEffect(() => {
-  loadRows();
-  loadTeachers();
-  loadSyllabus();
+  init();
 }, []);
 
   function isFeeExpired(joinDate: string) {
@@ -117,6 +121,51 @@ function isJoiningMonth(joinDate: string) {
   );
 }
 
+const autoUpdateFees = async () => {
+  const today = new Date();
+
+  const { data: students } = await supabase
+    .from("students")
+    .select("*");
+
+  if (!students) return;
+
+  for (const student of students) {
+    if (!student.join_date) continue;
+
+    const joinDate = new Date(student.join_date);
+
+    // Current month billing date
+    const billingDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      joinDate.getDate()
+    );
+
+    const lastPaid = student.last_fee_paid_date
+      ? new Date(student.last_fee_paid_date)
+      : null;
+
+    const alreadyPaidThisMonth =
+      lastPaid &&
+      lastPaid.getMonth() === today.getMonth() &&
+      lastPaid.getFullYear() === today.getFullYear();
+
+    // Agar billing date aa gayi aur payment nahi hui
+    if (
+      today >= billingDate &&
+      !alreadyPaidThisMonth &&
+      student.fee_status !== "unpaid"
+    ) {
+      await supabase
+        .from("students")
+        .update({
+          fee_status: "unpaid",
+        })
+        .eq("id", student.id);
+    }
+  }
+};
   // ================= Load Students =================
   const loadRows = async () => {
     const { data: students } = await supabase
@@ -391,21 +440,40 @@ if (editing) {
 
   // ================= Toggle Fee =================
 const toggleFee = async (student: any) => {
-  // Agar month expire ho chuka hai
-  if (isFeeExpired(student.join_date)) {
-    alert("New billing cycle start ho chuki hai. Fee unpaid hai.");
-    return;
+  try {
+    const newStatus =
+      student.fee_status === "paid" ? "unpaid" : "paid";
+
+    const updateData: any = {
+      fee_status: newStatus,
+    };
+
+    // Agar admin paid kare
+    if (newStatus === "paid") {
+      updateData.last_fee_paid_date = new Date()
+        .toISOString()
+        .split("T")[0];
+    }
+
+    const { error } = await supabase
+      .from("students")
+      .update(updateData)
+      .eq("id", student.id);
+
+    if (error) throw error;
+
+    toast({
+      title: "Success ✅",
+      description: `Fee marked as ${newStatus}`,
+    });
+
+    await loadRows();
+  } catch (err: any) {
+    toast({
+      title: "Error ❌",
+      description: err.message,
+    });
   }
-
-  // Normal toggle
-  await supabase
-    .from("students")
-    .update({
-      fee_status: student.fee_status === "paid" ? "unpaid" : "paid",
-    })
-    .eq("id", student.id);
-
-  await loadRows();
 };
 
 const saveRemark = async () => {
@@ -846,18 +914,12 @@ const tableData = filteredRows.map((r) => [
 {/* Status */}
 <td
   className={`p-3 font-medium ${
-    isFeeExpired(r.join_date)
-      ? "text-red-600"
-      : r.fee_status === "paid"
+    r.fee_status === "paid"
       ? "text-green-600"
       : "text-red-600"
   }`}
 >
-{
-  isFeeExpired(r.join_date)
-    ? "unpaid"
-    : r.fee_status
-}
+  {r.fee_status}
 </td>
 
 <td className="p-3 text-gray-600 max-w-[220px]">
@@ -976,7 +1038,7 @@ const tableData = filteredRows.map((r) => [
       </div>
     </div>
   </div>
-)}q 
+)}
   </div>
 );
 }
